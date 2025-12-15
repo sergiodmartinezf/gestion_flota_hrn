@@ -3,7 +3,7 @@ from django.contrib.auth.forms import UserCreationForm
 from .models import (
     Usuario, Vehiculo, Proveedor, OrdenCompra, OrdenTrabajo,
     Presupuesto, Arriendo, HojaRuta, Viaje, CargaCombustible,
-    Mantenimiento, FallaReportada
+    Mantenimiento, FallaReportada, CuentaPresupuestaria
 )
 
 
@@ -67,8 +67,9 @@ class VehiculoForm(forms.ModelForm):
     class Meta:
         model = Vehiculo
         fields = [
-            'patente', 'marca', 'modelo', 'vin', 'nro_motor', 'anio_adquisicion',
-            'vida_util', 'kilometraje_actual', 'umbral_mantencion', 'tipo_carroceria',
+            'patente', 'marca', 'modelo', 'vin', 'nro_motor', 
+            'anio_adquisicion', 'vida_util', 
+            'kilometraje_actual', 'umbral_mantencion', 'tipo_carroceria',
             'clase_ambulancia', 'es_samu', 'establecimiento', 'criticidad',
             'es_backup', 'estado', 'tipo_propiedad'
         ]
@@ -96,28 +97,37 @@ class VehiculoForm(forms.ModelForm):
 class ProveedorForm(forms.ModelForm):
     class Meta:
         model = Proveedor
-        fields = ['rut_empresa', 'nombre_fantasia', 'giro', 'telefono', 'email_contacto']
+        fields = [
+            'rut_empresa', 'nombre_fantasia', 'giro', 'telefono', 
+            'email_contacto', 'es_taller', 'es_arrendador'
+        ]
         widgets = {
             'rut_empresa': forms.TextInput(attrs={'class': 'form-control'}),
             'nombre_fantasia': forms.TextInput(attrs={'class': 'form-control'}),
             'giro': forms.TextInput(attrs={'class': 'form-control'}),
             'telefono': forms.TextInput(attrs={'class': 'form-control'}),
             'email_contacto': forms.EmailInput(attrs={'class': 'form-control'}),
+            'es_taller': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'es_arrendador': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
         }
 
 
 class HojaRutaForm(forms.ModelForm):
     class Meta:
         model = HojaRuta
-        fields = ['fecha', 'turno', 'vehiculo', 'km_inicio', 'km_fin', 'litros_inicio', 'litros_fin', 'observaciones']
+        fields = [
+            'fecha', 'turno', 'vehiculo', 'km_inicio', 'km_fin', 
+            'nivel_combustible_inicio', 'nivel_combustible_fin', 
+            'observaciones'
+        ]
         widgets = {
             'fecha': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
             'turno': forms.Select(attrs={'class': 'form-control'}),
             'vehiculo': forms.Select(attrs={'class': 'form-control'}),
             'km_inicio': forms.NumberInput(attrs={'class': 'form-control'}),
             'km_fin': forms.NumberInput(attrs={'class': 'form-control'}),
-            'litros_inicio': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
-            'litros_fin': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
+            'nivel_combustible_inicio': forms.TextInput(attrs={'class': 'form-control'}),
+            'nivel_combustible_fin': forms.TextInput(attrs={'class': 'form-control'}),
             'observaciones': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
         }
 
@@ -125,29 +135,40 @@ class HojaRutaForm(forms.ModelForm):
 class ViajeForm(forms.ModelForm):
     class Meta:
         model = Viaje
-        fields = ['hora_salida', 'hora_llegada', 'destino', 'rut_paciente', 'tipo_servicio', 'km_recorridos']
+        fields = [
+            'hora_salida', 'hora_llegada', 'destino', 'rut_paciente', 
+            'nombre_paciente', 'tipo_servicio', 'km_recorridos_viaje'
+        ]
         widgets = {
             'hora_salida': forms.TimeInput(attrs={'class': 'form-control', 'type': 'time'}),
             'hora_llegada': forms.TimeInput(attrs={'class': 'form-control', 'type': 'time'}),
             'destino': forms.TextInput(attrs={'class': 'form-control'}),
             'rut_paciente': forms.TextInput(attrs={'class': 'form-control'}),
+            'nombre_paciente': forms.TextInput(attrs={'class': 'form-control'}),
             'tipo_servicio': forms.Select(attrs={'class': 'form-control'}),
-            'km_recorridos': forms.NumberInput(attrs={'class': 'form-control'}),
+            'km_recorridos_viaje': forms.NumberInput(attrs={'class': 'form-control'}),
         }
 
 
 class CargaCombustibleForm(forms.ModelForm):
     class Meta:
         model = CargaCombustible
-        fields = ['fecha', 'patente_vehiculo', 'kilometraje_al_cargar', 'litros', 'costo_total', 'nro_boleta', 'proveedor']
+        fields = [
+            'fecha', 'patente_vehiculo', 'kilometraje_al_cargar', 
+            'litros', 'precio_unitario', 'costo_total', 'nro_boleta', 
+            'proveedor', 'conductor', 'cuenta_presupuestaria'
+        ]
         widgets = {
             'fecha': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
             'patente_vehiculo': forms.Select(attrs={'class': 'form-control'}),
             'kilometraje_al_cargar': forms.NumberInput(attrs={'class': 'form-control'}),
             'litros': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
+            'precio_unitario': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
             'costo_total': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
             'nro_boleta': forms.TextInput(attrs={'class': 'form-control'}),
             'proveedor': forms.Select(attrs={'class': 'form-control'}),
+            'conductor': forms.Select(attrs={'class': 'form-control'}),
+            'cuenta_presupuestaria': forms.Select(attrs={'class': 'form-control'}),
         }
 
 
@@ -156,8 +177,9 @@ class MantenimientoForm(forms.ModelForm):
         model = Mantenimiento
         fields = [
             'vehiculo', 'tipo_mantencion', 'fecha_ingreso', 'fecha_salida',
-            'km_al_ingreso', 'proveedor', 'orden_trabajo', 'orden_compra',
-            'costo_total', 'descripcion', 'estado'
+            'km_al_ingreso', 'descripcion_trabajo', 'estado',
+            'costo_estimado', 'costo_mano_obra', 'costo_repuestos',
+            'proveedor', 'orden_trabajo', 'cuenta_presupuestaria'
         ]
         widgets = {
             'vehiculo': forms.Select(attrs={'class': 'form-control'}),
@@ -165,35 +187,37 @@ class MantenimientoForm(forms.ModelForm):
             'fecha_ingreso': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
             'fecha_salida': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
             'km_al_ingreso': forms.NumberInput(attrs={'class': 'form-control'}),
+            'descripcion_trabajo': forms.Textarea(attrs={'class': 'form-control', 'rows': 4}),
+            'estado': forms.Select(attrs={'class': 'form-control'}),
+            'costo_estimado': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
+            'costo_mano_obra': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
+            'costo_repuestos': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
             'proveedor': forms.Select(attrs={'class': 'form-control'}),
             'orden_trabajo': forms.Select(attrs={'class': 'form-control'}),
-            'orden_compra': forms.Select(attrs={'class': 'form-control'}),
-            'costo_total': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
-            'descripcion': forms.Textarea(attrs={'class': 'form-control', 'rows': 4}),
-            'estado': forms.Select(attrs={'class': 'form-control'}),
+            'cuenta_presupuestaria': forms.Select(attrs={'class': 'form-control'}),
         }
 
 
 class FallaReportadaForm(forms.ModelForm):
     class Meta:
         model = FallaReportada
-        fields = ['vehiculo', 'fecha_reporte', 'descripcion']
+        fields = ['vehiculo', 'fecha_reporte', 'descripcion', 'nivel_urgencia']
         widgets = {
             'vehiculo': forms.Select(attrs={'class': 'form-control'}),
             'fecha_reporte': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
             'descripcion': forms.Textarea(attrs={'class': 'form-control', 'rows': 4}),
+            'nivel_urgencia': forms.Select(attrs={'class': 'form-control'}),
         }
 
 
 class PresupuestoForm(forms.ModelForm):
     class Meta:
         model = Presupuesto
-        fields = ['vehiculo', 'anio', 'categoria', 'subasignacion_sigfe', 'monto_asignado']
+        fields = ['vehiculo', 'anio', 'cuenta', 'monto_asignado']  # QUITA 'convenio'
         widgets = {
             'vehiculo': forms.Select(attrs={'class': 'form-control'}),
             'anio': forms.NumberInput(attrs={'class': 'form-control'}),
-            'categoria': forms.TextInput(attrs={'class': 'form-control'}),
-            'subasignacion_sigfe': forms.TextInput(attrs={'class': 'form-control'}),
+            'cuenta': forms.Select(attrs={'class': 'form-control'}),
             'monto_asignado': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
         }
 
@@ -201,15 +225,41 @@ class PresupuestoForm(forms.ModelForm):
 class ArriendoForm(forms.ModelForm):
     class Meta:
         model = Arriendo
-        fields = ['vehiculo', 'proveedor', 'fecha_inicio', 'fecha_fin', 'costo_diario', 'costo_total', 'nro_orden_compra', 'estado']
+        fields = [
+            'vehiculo_reemplazado', 'proveedor', 'fecha_inicio', 'fecha_fin',
+            'costo_diario', 'motivo', 'orden_compra', 'estado'
+        ]
         widgets = {
-            'vehiculo': forms.Select(attrs={'class': 'form-control'}),
+            'vehiculo_reemplazado': forms.Select(attrs={'class': 'form-control'}),
             'proveedor': forms.Select(attrs={'class': 'form-control'}),
             'fecha_inicio': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
             'fecha_fin': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
             'costo_diario': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
-            'costo_total': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
-            'nro_orden_compra': forms.TextInput(attrs={'class': 'form-control'}),
+            'motivo': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
+            'orden_compra': forms.Select(attrs={'class': 'form-control'}),
             'estado': forms.Select(attrs={'class': 'form-control'}),
         }
 
+
+class OrdenCompraForm(forms.ModelForm):
+    class Meta:
+        model = OrdenCompra
+        fields = [
+            'nro_oc', 'fecha_emision', 'proveedor', 
+            'monto_neto', 'impuesto', 'monto_total',
+            'id_licitacion', 'folio_sigfe', 'estado',
+            'archivo_adjunto', 'cuenta_presupuestaria'
+        ]
+        widgets = {
+            'nro_oc': forms.TextInput(attrs={'class': 'form-control'}),
+            'fecha_emision': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
+            'proveedor': forms.Select(attrs={'class': 'form-control'}),
+            'monto_neto': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
+            'impuesto': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
+            'monto_total': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
+            'id_licitacion': forms.TextInput(attrs={'class': 'form-control'}),
+            'folio_sigfe': forms.TextInput(attrs={'class': 'form-control'}),
+            'estado': forms.Select(attrs={'class': 'form-control'}),
+            'archivo_adjunto': forms.FileInput(attrs={'class': 'form-control'}),
+            'cuenta_presupuestaria': forms.Select(attrs={'class': 'form-control'}),
+        }
