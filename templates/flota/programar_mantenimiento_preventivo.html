@@ -1,0 +1,48 @@
+{% extends 'base.html' %}
+
+{% block title %}Programar Mantenimiento Preventivo - Gestión de Flota{% endblock %}
+
+{% block content %}
+<h2 class="mb-4"><i class="bi bi-tools"></i> Programar Mantenimiento Preventivo</h2>
+
+<form method="post">
+    {% csrf_token %}
+    <div class="row">
+        <div class="col-md-6">
+            <div class="mb-3">
+                <label for="{{ form.vehiculo.id_for_label }}" class="form-label">Vehículo *</label>
+                {{ form.vehiculo }}
+            </div>
+            <div class="mb-3">
+                <label for="{{ form.fecha_ingreso.id_for_label }}" class="form-label">Fecha Programada *</label>
+                {{ form.fecha_ingreso }}
+            </div>
+            <div class="mb-3">
+                <label for="{{ form.km_al_ingreso.id_for_label }}" class="form-label">Kilometraje al Ingreso *</label>
+                {{ form.km_al_ingreso }}
+            </div>
+            <div class="mb-3">
+                <label for="{{ form.proveedor.id_for_label }}" class="form-label">Proveedor/Taller *</label>
+                {{ form.proveedor }}
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="mb-3">
+                <label for="{{ form.orden_trabajo.id_for_label }}" class="form-label">Orden de Trabajo</label>
+                {{ form.orden_trabajo }}
+            </div>
+            <div class="mb-3">
+                <label for="{{ form.orden_compra.id_for_label }}" class="form-label">Orden de Compra</label>
+                {{ form.orden_compra }}
+            </div>
+            <div class="mb-3">
+                <label for="{{ form.descripcion.id_for_label }}" class="form-label">Descripción *</label>
+                {{ form.descripcion }}
+            </div>
+        </div>
+    </div>
+    <button type="submit" class="btn btn-primary">Programar</button>
+    <a href="{% url 'listar_mantenimientos' %}" class="btn btn-secondary">Cancelar</a>
+</form>
+{% endblock %}
+

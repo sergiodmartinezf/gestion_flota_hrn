@@ -1,0 +1,33 @@
+{% extends 'base.html' %}
+
+{% block title %}Costo por Kilómetro - Gestión de Flota{% endblock %}
+
+{% block content %}
+<h2 class="mb-4"><i class="bi bi-graph-up"></i> Costo por Kilómetro</h2>
+
+<div class="alert alert-info">
+    <strong>Costo Promedio por Kilómetro:</strong> ${{ costo_promedio|floatformat:2 }}
+</div>
+
+<table class="table table-striped">
+    <thead>
+        <tr>
+            <th>Vehículo</th>
+            <th>Costo Total</th>
+            <th>Kilometraje</th>
+            <th>Costo por Km</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for item in costos %}
+        <tr>
+            <td><strong>{{ item.vehiculo.patente }}</strong></td>
+            <td>${{ item.costo_total|floatformat:0 }}</td>
+            <td>{{ item.vehiculo.kilometraje_actual|floatformat:0 }} km</td>
+            <td><strong>${{ item.costo_por_km|floatformat:2 }}</strong></td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}
+

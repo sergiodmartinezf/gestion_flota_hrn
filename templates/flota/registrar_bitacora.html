@@ -1,0 +1,52 @@
+{% extends 'base.html' %}
+
+{% block title %}Registrar Bitácora - Gestión de Flota{% endblock %}
+
+{% block content %}
+<h2 class="mb-4"><i class="bi bi-journal-text"></i> Registrar Bitácora</h2>
+
+<form method="post">
+    {% csrf_token %}
+    <div class="row">
+        <div class="col-md-6">
+            <div class="mb-3">
+                <label for="{{ form.fecha.id_for_label }}" class="form-label">Fecha *</label>
+                {{ form.fecha }}
+            </div>
+            <div class="mb-3">
+                <label for="{{ form.turno.id_for_label }}" class="form-label">Turno *</label>
+                {{ form.turno }}
+            </div>
+            <div class="mb-3">
+                <label for="{{ form.vehiculo.id_for_label }}" class="form-label">Vehículo *</label>
+                {{ form.vehiculo }}
+            </div>
+            <div class="mb-3">
+                <label for="{{ form.km_inicio.id_for_label }}" class="form-label">Kilometraje Inicio *</label>
+                {{ form.km_inicio }}
+            </div>
+            <div class="mb-3">
+                <label for="{{ form.km_fin.id_for_label }}" class="form-label">Kilometraje Fin *</label>
+                {{ form.km_fin }}
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="mb-3">
+                <label for="{{ form.litros_inicio.id_for_label }}" class="form-label">Litros Inicio</label>
+                {{ form.litros_inicio }}
+            </div>
+            <div class="mb-3">
+                <label for="{{ form.litros_fin.id_for_label }}" class="form-label">Litros Fin</label>
+                {{ form.litros_fin }}
+            </div>
+            <div class="mb-3">
+                <label for="{{ form.observaciones.id_for_label }}" class="form-label">Observaciones</label>
+                {{ form.observaciones }}
+            </div>
+        </div>
+    </div>
+    <button type="submit" class="btn btn-primary">Registrar</button>
+    <a href="{% url 'listar_bitacoras' %}" class="btn btn-secondary">Cancelar</a>
+</form>
+{% endblock %}
+

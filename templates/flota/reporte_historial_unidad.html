@@ -1,0 +1,115 @@
+{% extends 'base.html' %}
+
+{% block title %}Historial {{ vehiculo.patente }} - Gestión de Flota{% endblock %}
+
+{% block content %}
+<h2 class="mb-4"><i class="bi bi-file-text"></i> Historial: {{ vehiculo.patente }}</h2>
+
+<form method="get" class="mb-3">
+    <div class="row">
+        <div class="col-md-4">
+            <label>Fecha Inicio</label>
+            <input type="date" name="fecha_inicio" value="{{ fecha_inicio }}" class="form-control">
+        </div>
+        <div class="col-md-4">
+            <label>Fecha Fin</label>
+            <input type="date" name="fecha_fin" value="{{ fecha_fin }}" class="form-control">
+        </div>
+        <div class="col-md-4">
+            <label>&nbsp;</label><br>
+            <button type="submit" class="btn btn-primary">Filtrar</button>
+        </div>
+    </div>
+</form>
+
+<h4>Mantenimientos</h4>
+<table class="table table-striped mb-4">
+    <thead>
+        <tr>
+            <th>Fecha</th>
+            <th>Tipo</th>
+            <th>Estado</th>
+            <th>Costo</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for mantenimiento in mantenimientos %}
+        <tr>
+            <td>{{ mantenimiento.fecha_ingreso|date:"d/m/Y" }}</td>
+            <td>{{ mantenimiento.get_tipo_mantencion_display }}</td>
+            <td>{{ mantenimiento.get_estado_display }}</td>
+            <td>${{ mantenimiento.costo_total|floatformat:0 }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<h4>Cargas de Combustible</h4>
+<table class="table table-striped mb-4">
+    <thead>
+        <tr>
+            <th>Fecha</th>
+            <th>Litros</th>
+            <th>Kilometraje</th>
+            <th>Costo</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for carga in cargas_combustible %}
+        <tr>
+            <td>{{ carga.fecha|date:"d/m/Y" }}</td>
+            <td>{{ carga.litros }}</td>
+            <td>{{ carga.kilometraje_al_cargar }}</td>
+            <td>${{ carga.costo_total|floatformat:0 }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<h4>Hojas de Ruta</h4>
+<table class="table table-striped mb-4">
+    <thead>
+        <tr>
+            <th>Fecha</th>
+            <th>Conductor</th>
+            <th>Km Inicio</th>
+            <th>Km Fin</th>
+            <th>Km Recorridos</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for hoja in hojas_ruta %}
+        <tr>
+            <td>{{ hoja.fecha|date:"d/m/Y" }}</td>
+            <td>{{ hoja.conductor.nombre_completo }}</td>
+            <td>{{ hoja.km_inicio }}</td>
+            <td>{{ hoja.km_fin }}</td>
+            <td>{{ hoja.km_recorridos }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<h4>Incidentes</h4>
+<table class="table table-striped">
+    <thead>
+        <tr>
+            <th>Fecha</th>
+            <th>Conductor</th>
+            <th>Descripción</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for incidente in incidentes %}
+        <tr>
+            <td>{{ incidente.fecha_reporte|date:"d/m/Y" }}</td>
+            <td>{{ incidente.conductor.nombre_completo }}</td>
+            <td>{{ incidente.descripcion }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<a href="{% url 'ficha_vehiculo' vehiculo.patente %}" class="btn btn-secondary">Volver</a>
+{% endblock %}
+

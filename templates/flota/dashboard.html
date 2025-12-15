@@ -1,0 +1,110 @@
+{% extends 'base.html' %}
+
+{% block title %}Dashboard - Gestión de Flota{% endblock %}
+
+{% block content %}
+<h2 class="mb-4"><i class="bi bi-speedometer2"></i> Dashboard</h2>
+
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card card-stat">
+            <div class="card-body">
+                <h5 class="card-title">Total Vehículos</h5>
+                <h2>{{ total_vehiculos }}</h2>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card card-stat" style="border-left-color: #198754;">
+            <div class="card-body">
+                <h5 class="card-title">Disponibles</h5>
+                <h2>{{ vehiculos_disponibles }}</h2>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card card-stat" style="border-left-color: #ffc107;">
+            <div class="card-body">
+                <h5 class="card-title">En Mantenimiento</h5>
+                <h2>{{ vehiculos_mantenimiento }}</h2>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card card-stat" style="border-left-color: #dc3545;">
+            <div class="card-body">
+                <h5 class="card-title">Costo Mensual</h5>
+                <h2>${{ costo_mensual_total|floatformat:0 }}</h2>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="bi bi-bell"></i> Alertas Activas</h5>
+            </div>
+            <div class="card-body">
+                <p><strong>Alertas de Mantenimiento:</strong> {{ alertas_vigentes }}</p>
+                <p><strong>Presupuestos por Vencer:</strong> {{ presupuestos_alerta }}</p>
+                <a href="{% url 'alertas_mantenimiento' %}" class="btn btn-sm btn-warning">Ver Alertas</a>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="bi bi-calendar-check"></i> Próximos Mantenimientos</h5>
+            </div>
+            <div class="card-body">
+                {% if proximos_mantenimientos %}
+                    <ul class="list-group">
+                        {% for mantenimiento in proximos_mantenimientos %}
+                        <li class="list-group-item">
+                            <strong>{{ mantenimiento.vehiculo.patente }}</strong> - 
+                            {{ mantenimiento.fecha_ingreso|date:"d/m/Y" }}
+                        </li>
+                        {% endfor %}
+                    </ul>
+                {% else %}
+                    <p>No hay mantenimientos programados</p>
+                {% endif %}
+                <a href="{% url 'calendario_mantenciones' %}" class="btn btn-sm btn-primary mt-2">Ver Calendario</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="bi bi-graph-down"></i> Disponibilidad Histórica</h5>
+            </div>
+            <div class="card-body">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Vehículo</th>
+                            <th>Días Fuera de Servicio</th>
+                            <th>Estado</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in vehiculos_con_disponibilidad %}
+                        <tr>
+                            <td>{{ item.vehiculo.patente }}</td>
+                            <td>{{ item.dias_fuera }}</td>
+                            <td><span class="badge bg-secondary">{{ item.vehiculo.estado }}</span></td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

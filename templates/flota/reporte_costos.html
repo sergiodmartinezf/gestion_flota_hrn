@@ -1,0 +1,35 @@
+{% extends 'base.html' %}
+
+{% block title %}Reporte de Costos - Gestión de Flota{% endblock %}
+
+{% block content %}
+<h2 class="mb-4"><i class="bi bi-graph-up"></i> Reporte de Costos</h2>
+
+<table class="table table-striped">
+    <thead>
+        <tr>
+            <th>Vehículo</th>
+            <th>Costo Mantenimientos</th>
+            <th>Costo Combustible</th>
+            <th>Costo Arriendos</th>
+            <th>Costo Total</th>
+            <th>Costo por Km</th>
+            <th>Presupuesto</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for item in reporte %}
+        <tr>
+            <td><strong>{{ item.vehiculo.patente }}</strong></td>
+            <td>${{ item.costo_mantenimientos|floatformat:0 }}</td>
+            <td>${{ item.costo_combustible|floatformat:0 }}</td>
+            <td>${{ item.costo_arriendos|floatformat:0 }}</td>
+            <td><strong>${{ item.costo_total|floatformat:0 }}</strong></td>
+            <td>${{ item.costo_por_km|floatformat:2 }}</td>
+            <td>${{ item.presupuesto|floatformat:0 }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}
+

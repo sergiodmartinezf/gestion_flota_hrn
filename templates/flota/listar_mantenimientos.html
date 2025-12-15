@@ -1,0 +1,44 @@
+{% extends 'base.html' %}
+
+{% block title %}Mantenimientos - Gestión de Flota{% endblock %}
+
+{% block content %}
+<h2 class="mb-4"><i class="bi bi-tools"></i> Mantenimientos</h2>
+
+<div class="mb-3">
+    {% if user.rol == 'Administrador' %}
+    <a href="{% url 'programar_mantenimiento_preventivo' %}" class="btn btn-primary"><i class="bi bi-plus-circle"></i> Programar Preventivo</a>
+    <a href="{% url 'registrar_mantenimiento_ejecutado' %}" class="btn btn-success"><i class="bi bi-check-circle"></i> Registrar Ejecutado</a>
+    {% endif %}
+    <form method="get" class="d-inline float-end">
+        <input type="text" name="patente" placeholder="Filtrar por patente" value="{{ patente_filter }}" class="form-control d-inline-block" style="width: auto;">
+        <button type="submit" class="btn btn-secondary">Filtrar</button>
+    </form>
+</div>
+
+<table class="table table-striped">
+    <thead>
+        <tr>
+            <th>Vehículo</th>
+            <th>Tipo</th>
+            <th>Fecha Ingreso</th>
+            <th>Fecha Salida</th>
+            <th>Estado</th>
+            <th>Costo</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for mantenimiento in mantenimientos %}
+        <tr>
+            <td>{{ mantenimiento.vehiculo.patente }}</td>
+            <td>{{ mantenimiento.get_tipo_mantencion_display }}</td>
+            <td>{{ mantenimiento.fecha_ingreso|date:"d/m/Y" }}</td>
+            <td>{{ mantenimiento.fecha_salida|date:"d/m/Y"|default:"-" }}</td>
+            <td>{{ mantenimiento.get_estado_display }}</td>
+            <td>${{ mantenimiento.costo_total|floatformat:0 }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}
+

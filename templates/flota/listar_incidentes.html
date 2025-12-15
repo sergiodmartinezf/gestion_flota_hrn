@@ -1,0 +1,33 @@
+{% extends 'base.html' %}
+
+{% block title %}Incidentes - Gestión de Flota{% endblock %}
+
+{% block content %}
+<h2 class="mb-4"><i class="bi bi-exclamation-triangle"></i> Incidentes Reportados</h2>
+
+<div class="mb-3">
+    <a href="{% url 'registrar_incidente' %}" class="btn btn-primary"><i class="bi bi-plus-circle"></i> Registrar Incidente</a>
+</div>
+
+<table class="table table-striped">
+    <thead>
+        <tr>
+            <th>Fecha</th>
+            <th>Vehículo</th>
+            <th>Conductor</th>
+            <th>Descripción</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for incidente in incidentes %}
+        <tr>
+            <td>{{ incidente.fecha_reporte|date:"d/m/Y" }}</td>
+            <td>{{ incidente.vehiculo.patente }}</td>
+            <td>{{ incidente.conductor.nombre_completo }}</td>
+            <td>{{ incidente.descripcion }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}
+

@@ -1,0 +1,37 @@
+{% extends 'base.html' %}
+
+{% block title %}Cargas de Combustible - Gestión de Flota{% endblock %}
+
+{% block content %}
+<h2 class="mb-4"><i class="bi bi-fuel-pump"></i> Cargas de Combustible</h2>
+
+<div class="mb-3">
+    <a href="{% url 'registrar_carga_combustible' %}" class="btn btn-primary"><i class="bi bi-plus-circle"></i> Registrar Carga</a>
+</div>
+
+<table class="table table-striped">
+    <thead>
+        <tr>
+            <th>Fecha</th>
+            <th>Vehículo</th>
+            <th>Kilometraje</th>
+            <th>Litros</th>
+            <th>Costo</th>
+            <th>N° Boleta</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for carga in cargas %}
+        <tr>
+            <td>{{ carga.fecha|date:"d/m/Y" }}</td>
+            <td>{{ carga.patente_vehiculo.patente }}</td>
+            <td>{{ carga.kilometraje_al_cargar }}</td>
+            <td>{{ carga.litros }}</td>
+            <td>${{ carga.costo_total|floatformat:0 }}</td>
+            <td>{{ carga.nro_boleta|default:"-" }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}
+

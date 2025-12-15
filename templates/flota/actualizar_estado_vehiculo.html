@@ -1,0 +1,24 @@
+{% extends 'base.html' %}
+
+{% block title %}Actualizar Estado Vehículo - Gestión de Flota{% endblock %}
+
+{% block content %}
+<h2 class="mb-4"><i class="bi bi-arrow-repeat"></i> Actualizar Estado: {{ vehiculo.patente }}</h2>
+
+<form method="post">
+    {% csrf_token %}
+    <div class="mb-3">
+        <label for="estado" class="form-label">Nuevo Estado</label>
+        <select name="estado" id="estado" class="form-control">
+            <option value="Disponible" {% if vehiculo.estado == 'Disponible' %}selected{% endif %}>Disponible</option>
+            <option value="En uso" {% if vehiculo.estado == 'En uso' %}selected{% endif %}>En uso</option>
+            <option value="En mantenimiento" {% if vehiculo.estado == 'En mantenimiento' %}selected{% endif %}>En mantenimiento</option>
+            <option value="Fuera de servicio" {% if vehiculo.estado == 'Fuera de servicio' %}selected{% endif %}>Fuera de servicio</option>
+            <option value="Arrendado" {% if vehiculo.estado == 'Arrendado' %}selected{% endif %}>Arrendado</option>
+        </select>
+    </div>
+    <button type="submit" class="btn btn-primary">Actualizar</button>
+    <a href="{% url 'ficha_vehiculo' vehiculo.patente %}" class="btn btn-secondary">Cancelar</a>
+</form>
+{% endblock %}
+

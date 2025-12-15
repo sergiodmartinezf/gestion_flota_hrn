@@ -1,0 +1,41 @@
+{% extends 'base.html' %}
+
+{% block title %}Alertas de Presupuesto - Gestión de Flota{% endblock %}
+
+{% block content %}
+<h2 class="mb-4"><i class="bi bi-bell"></i> Alertas de Presupuesto</h2>
+
+{% if alertas %}
+<div class="alert alert-warning">
+    <strong>{{ alertas|length }}</strong> presupuesto(s) con más del 80% ejecutado
+</div>
+
+<table class="table table-striped">
+    <thead>
+        <tr>
+            <th>Vehículo</th>
+            <th>Año</th>
+            <th>Categoría</th>
+            <th>% Ejecutado</th>
+            <th>Monto Restante</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for item in alertas %}
+        <tr>
+            <td><strong>{{ item.presupuesto.vehiculo.patente }}</strong></td>
+            <td>{{ item.presupuesto.anio }}</td>
+            <td>{{ item.presupuesto.categoria }}</td>
+            <td><span class="badge bg-danger">{{ item.porcentaje|floatformat:1 }}%</span></td>
+            <td>${{ item.monto_restante|floatformat:0 }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<div class="alert alert-success">
+    No hay alertas de presupuesto activas.
+</div>
+{% endif %}
+{% endblock %}
+

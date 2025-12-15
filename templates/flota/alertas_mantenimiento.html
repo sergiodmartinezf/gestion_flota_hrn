@@ -1,0 +1,39 @@
+{% extends 'base.html' %}
+
+{% block title %}Alertas de Mantenimiento - Gestión de Flota{% endblock %}
+
+{% block content %}
+<h2 class="mb-4"><i class="bi bi-bell"></i> Alertas de Mantenimiento</h2>
+
+{% if alertas %}
+<div class="alert alert-warning">
+    <strong>{{ alertas|length }}</strong> alerta(s) activa(s)
+</div>
+
+<table class="table table-striped">
+    <thead>
+        <tr>
+            <th>Vehículo</th>
+            <th>Descripción</th>
+            <th>Valor Umbral</th>
+            <th>Fecha Generación</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for alerta in alertas %}
+        <tr>
+            <td><strong>{{ alerta.vehiculo.patente }}</strong></td>
+            <td>{{ alerta.descripcion }}</td>
+            <td>{{ alerta.valor_umbral }} km</td>
+            <td>{{ alerta.generado_en|date:"d/m/Y H:i" }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<div class="alert alert-success">
+    No hay alertas de mantenimiento activas.
+</div>
+{% endif %}
+{% endblock %}
+

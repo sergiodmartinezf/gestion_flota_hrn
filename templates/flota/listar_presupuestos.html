@@ -1,0 +1,48 @@
+{% extends 'base.html' %}
+
+{% block title %}Presupuestos - Gestión de Flota{% endblock %}
+
+{% block content %}
+<h2 class="mb-4"><i class="bi bi-cash-stack"></i> Presupuestos</h2>
+
+<div class="mb-3">
+    {% if user.rol == 'Administrador' %}
+    <a href="{% url 'registrar_presupuesto' %}" class="btn btn-primary"><i class="bi bi-plus-circle"></i> Registrar Presupuesto</a>
+    {% endif %}
+    <a href="{% url 'alertas_presupuesto' %}" class="btn btn-warning"><i class="bi bi-bell"></i> Ver Alertas</a>
+</div>
+
+<table class="table table-striped">
+    <thead>
+        <tr>
+            <th>Vehículo</th>
+            <th>Año</th>
+            <th>Categoría</th>
+            <th>Monto Asignado</th>
+            <th>Monto Ejecutado</th>
+            <th>% Ejecutado</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for presupuesto in presupuestos %}
+        <tr>
+            <td>{{ presupuesto.vehiculo.patente }}</td>
+            <td>{{ presupuesto.anio }}</td>
+            <td>{{ presupuesto.categoria }}</td>
+            <td>${{ presupuesto.monto_asignado|floatformat:0 }}</td>
+            <td>${{ presupuesto.monto_ejecutado|floatformat:0 }}</td>
+            <td>
+                {% if presupuesto.porcentaje_ejecutado >= 80 %}
+                    <span class="badge bg-danger">{{ presupuesto.porcentaje_ejecutado|floatformat:1 }}%</span>
+                {% elif presupuesto.porcentaje_ejecutado >= 50 %}
+                    <span class="badge bg-warning">{{ presupuesto.porcentaje_ejecutado|floatformat:1 }}%</span>
+                {% else %}
+                    <span class="badge bg-success">{{ presupuesto.porcentaje_ejecutado|floatformat:1 }}%</span>
+                {% endif %}
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}
+

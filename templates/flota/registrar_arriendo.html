@@ -1,0 +1,52 @@
+{% extends 'base.html' %}
+
+{% block title %}Registrar Arriendo - Gestión de Flota{% endblock %}
+
+{% block content %}
+<h2 class="mb-4"><i class="bi bi-file-earmark-text"></i> Registrar Arriendo</h2>
+
+<form method="post">
+    {% csrf_token %}
+    <div class="row">
+        <div class="col-md-6">
+            <div class="mb-3">
+                <label for="{{ form.vehiculo.id_for_label }}" class="form-label">Vehículo *</label>
+                {{ form.vehiculo }}
+            </div>
+            <div class="mb-3">
+                <label for="{{ form.proveedor.id_for_label }}" class="form-label">Proveedor *</label>
+                {{ form.proveedor }}
+            </div>
+            <div class="mb-3">
+                <label for="{{ form.fecha_inicio.id_for_label }}" class="form-label">Fecha Inicio *</label>
+                {{ form.fecha_inicio }}
+            </div>
+            <div class="mb-3">
+                <label for="{{ form.fecha_fin.id_for_label }}" class="form-label">Fecha Fin</label>
+                {{ form.fecha_fin }}
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="mb-3">
+                <label for="{{ form.costo_diario.id_for_label }}" class="form-label">Costo Diario *</label>
+                {{ form.costo_diario }}
+            </div>
+            <div class="mb-3">
+                <label for="{{ form.costo_total.id_for_label }}" class="form-label">Costo Total *</label>
+                {{ form.costo_total }}
+            </div>
+            <div class="mb-3">
+                <label for="{{ form.nro_orden_compra.id_for_label }}" class="form-label">N° Orden de Compra</label>
+                {{ form.nro_orden_compra }}
+            </div>
+            <div class="mb-3">
+                <label for="{{ form.estado.id_for_label }}" class="form-label">Estado *</label>
+                {{ form.estado }}
+            </div>
+        </div>
+    </div>
+    <button type="submit" class="btn btn-primary">Registrar</button>
+    <a href="{% url 'listar_arriendos' %}" class="btn btn-secondary">Cancelar</a>
+</form>
+{% endblock %}
+

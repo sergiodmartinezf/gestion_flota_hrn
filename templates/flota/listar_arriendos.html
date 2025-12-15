@@ -1,0 +1,39 @@
+{% extends 'base.html' %}
+
+{% block title %}Arriendos - Gestión de Flota{% endblock %}
+
+{% block content %}
+<h2 class="mb-4"><i class="bi bi-file-earmark-text"></i> Arriendos</h2>
+
+<div class="mb-3">
+    {% if user.rol == 'Administrador' %}
+    <a href="{% url 'registrar_arriendo' %}" class="btn btn-primary"><i class="bi bi-plus-circle"></i> Registrar Arriendo</a>
+    {% endif %}
+</div>
+
+<table class="table table-striped">
+    <thead>
+        <tr>
+            <th>Vehículo</th>
+            <th>Proveedor</th>
+            <th>Fecha Inicio</th>
+            <th>Fecha Fin</th>
+            <th>Costo Total</th>
+            <th>Estado</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for arriendo in arriendos %}
+        <tr>
+            <td>{{ arriendo.vehiculo.patente }}</td>
+            <td>{{ arriendo.proveedor.nombre_fantasia }}</td>
+            <td>{{ arriendo.fecha_inicio|date:"d/m/Y" }}</td>
+            <td>{{ arriendo.fecha_fin|date:"d/m/Y"|default:"-" }}</td>
+            <td>${{ arriendo.costo_total|floatformat:0 }}</td>
+            <td>{{ arriendo.get_estado_display }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}
+

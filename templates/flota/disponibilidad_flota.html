@@ -1,0 +1,50 @@
+{% extends 'base.html' %}
+
+{% block title %}Disponibilidad de Flota - Gestión de Flota{% endblock %}
+
+{% block content %}
+<h2 class="mb-4"><i class="bi bi-check-circle"></i> Disponibilidad de Flota</h2>
+
+<div class="row mb-4">
+    {% for estado, count in estados_count.items %}
+    <div class="col-md-2">
+        <div class="card text-center">
+            <div class="card-body">
+                <h5>{{ estado }}</h5>
+                <h3>{{ count }}</h3>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<table class="table table-striped">
+    <thead>
+        <tr>
+            <th>Patente</th>
+            <th>Marca/Modelo</th>
+            <th>Estado</th>
+            <th>Kilometraje</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for vehiculo in vehiculos %}
+        <tr>
+            <td>{{ vehiculo.patente }}</td>
+            <td>{{ vehiculo.marca }} {{ vehiculo.modelo }}</td>
+            <td>
+                {% if vehiculo.estado == 'Disponible' %}
+                    <span class="badge bg-success">{{ vehiculo.estado }}</span>
+                {% elif vehiculo.estado == 'En mantenimiento' %}
+                    <span class="badge bg-warning">{{ vehiculo.estado }}</span>
+                {% else %}
+                    <span class="badge bg-secondary">{{ vehiculo.estado }}</span>
+                {% endif %}
+            </td>
+            <td>{{ vehiculo.kilometraje_actual|floatformat:0 }} km</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}
+

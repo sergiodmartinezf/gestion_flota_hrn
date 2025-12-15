@@ -1,0 +1,35 @@
+{% extends 'base.html' %}
+
+{% block title %}Gastos de Mantenimientos - Gestión de Flota{% endblock %}
+
+{% block content %}
+<h2 class="mb-4"><i class="bi bi-cash-stack"></i> Gastos de Mantenimientos</h2>
+
+<table class="table table-striped">
+    <thead>
+        <tr>
+            <th>Vehículo</th>
+            <th>Gasto Acumulado</th>
+            <th>Presupuesto Asignado</th>
+            <th>Diferencia</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for item in gastos %}
+        <tr>
+            <td><strong>{{ item.vehiculo.patente }}</strong></td>
+            <td>${{ item.gasto_acumulado|floatformat:0 }}</td>
+            <td>${{ item.presupuesto_total|floatformat:0 }}</td>
+            <td>
+                {% if item.diferencia > 0 %}
+                    <span class="badge bg-danger">+${{ item.diferencia|floatformat:0 }}</span>
+                {% else %}
+                    <span class="badge bg-success">${{ item.diferencia|floatformat:0 }}</span>
+                {% endif %}
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}
+
