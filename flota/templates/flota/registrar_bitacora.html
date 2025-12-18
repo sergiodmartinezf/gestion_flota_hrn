@@ -1,5 +1,7 @@
 {% extends 'base.html' %}
 
+{% load static %}
+
 {% block title %}Registrar Bitácora - Gestión de Flota{% endblock %}
 
 {% block content %}
@@ -50,3 +52,7 @@
 </form>
 {% endblock %}
 
+
+{% block extra_js %}
+<script src="{% static 'js/registrar_bitacora.js' %}"></script>
+{% endblock %}

@@ -30,6 +30,7 @@ urlpatterns = [
     
     # Bitácoras (RF_15)
     path('bitacoras/registrar/', views.registrar_bitacora, name='registrar_bitacora'),
+    path('api/vehiculos-kilometraje/', views.api_vehiculos_kilometraje, name='api_vehiculos_kilometraje'),
     path('bitacoras/', views.listar_bitacoras, name='listar_bitacoras'),
     
     # Combustible (RF_16)

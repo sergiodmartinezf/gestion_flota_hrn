@@ -131,14 +131,25 @@ class OrdenCompra(models.Model):
     
     proveedor = models.ForeignKey(Proveedor, on_delete=models.PROTECT, related_name='ordenes_compra')
     cuenta_presupuestaria = models.ForeignKey(CuentaPresupuestaria, on_delete=models.PROTECT, related_name='ordenes_compra', null=True, blank=True)
+    presupuesto = models.ForeignKey('Presupuesto', on_delete=models.PROTECT, related_name='ordenes_compra', null=True, blank=True, verbose_name="Presupuesto asociado")
     
     class Meta:
         db_table = 'orden_compra'
         verbose_name = 'Orden de Compra'
         verbose_name_plural = 'Ordenes de Compra'
+        indexes = [
+            models.Index(fields=['folio_sigfe']),
+            models.Index(fields=['estado', 'fecha_emision']),
+            models.Index(fields=['proveedor', 'fecha_emision']),
+        ]
     
     def __str__(self):
         return f"OC {self.nro_oc} - {self.proveedor.nombre_fantasia}"
+
+    def clean(self):
+        if self.cuenta_presupuestaria and self.presupuesto:
+            if self.presupuesto.cuenta != self.cuenta_presupuestaria:
+                raise ValidationError('La cuenta presupuestaria de la OC debe coincidir con la cuenta del presupuesto')
 
 
 # --- GESTIÓN DE FLOTA ---
@@ -327,10 +338,37 @@ class Mantenimiento(models.Model):
         # Auto-calcular total real si no se provee
         if self.costo_mano_obra or self.costo_repuestos:
             self.costo_total_real = self.costo_mano_obra + self.costo_repuestos
+        # Validar presupuesto disponible si hay cuenta
+        if self.cuenta_presupuestaria and self.vehiculo:
+            try:
+                presupuesto = Presupuesto.objects.get(
+                    cuenta=self.cuenta_presupuestaria,
+                    vehiculo=self.vehiculo,
+                    anio=self.fecha_ingreso.year
+                )
+                if presupuesto.disponible < self.costo_total_real:
+                    # Puedes lanzar una advertencia o guardar igual
+                    pass
+            except Presupuesto.DoesNotExist:
+                pass
+        
         super().save(*args, **kwargs)
 
     def __str__(self):
         return f"{self.tipo_mantencion} {self.vehiculo.patente} - {self.fecha_ingreso}"
+
+    @property
+    def trazabilidad_presupuesto(self):
+        if self.orden_trabajo and self.orden_trabajo.orden_compra:
+            oc = self.orden_trabajo.orden_compra
+            return {
+                'presupuesto': oc.presupuesto,
+                'cuenta_sigfe': oc.cuenta_presupuestaria,
+                'folio_sigfe': oc.folio_sigfe,
+                'nro_oc': oc.nro_oc,
+                'nro_ot': self.orden_trabajo.nro_ot
+            }
+        return None
 
 
 class Arriendo(models.Model):
@@ -392,8 +430,8 @@ class HojaRuta(models.Model):
     km_fin = models.IntegerField(validators=[MinValueValidator(0)])
     
     # Control de combustible en bitácora (informativo, el financiero va en CargaCombustible)
-    nivel_combustible_inicio = models.CharField(max_length=20, help_text="Ej: 1/2, 3/4, Lleno", blank=True)
-    nivel_combustible_fin = models.CharField(max_length=20, help_text="Ej: 1/2, 3/4, Lleno", blank=True)
+    litros_inicio = models.DecimalField(max_digits=8, decimal_places=2, validators=[MinValueValidator(Decimal('0'))])
+    litros_fin = models.DecimalField(max_digits=8, decimal_places=2, validators=[MinValueValidator(Decimal('0'))])
     
     observaciones = models.TextField(blank=True)
     creado_en = models.DateTimeField(auto_now_add=True)

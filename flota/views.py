@@ -313,8 +313,20 @@ def registrar_bitacora(request):
             return redirect('listar_bitacoras')
     else:
         form = HojaRutaForm()
+        form.fields['vehiculo'].queryset = Vehiculo.objects.filter(
+            estado__in=['Disponible', 'En uso']
+        ).order_by('patente')
     
     return render(request, 'flota/registrar_bitacora.html', {'form': form})
+
+# API para obtener el kilometraje de los vehículos
+@login_required
+def api_vehiculos_kilometraje(request):
+    vehiculos = Vehiculo.objects.all()
+    data = {}
+    for vehiculo in vehiculos:
+        data[str(vehiculo.patente)] = vehiculo.kilometraje_actual
+    return JsonResponse(data)
 
 
 @login_required

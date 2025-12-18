@@ -1,6 +1,6 @@
 from django.db.models.signals import post_save
 from django.dispatch import receiver
-from .models import Vehiculo, HojaRuta, AlertaMantencion
+from .models import Vehiculo, HojaRuta, AlertaMantencion, Mantenimiento, Presupuesto
 
 
 @receiver(post_save, sender=HojaRuta)
@@ -44,4 +44,26 @@ def verificar_umbral_mantencion(sender, instance, **kwargs):
                 descripcion=f'El vehículo {vehiculo.patente} ha superado el umbral de mantenimiento ({vehiculo.umbral_mantencion} km). Se requiere mantenimiento urgente.',
                 valor_umbral=vehiculo.kilometraje_actual,
             )
+
+
+@receiver(post_save, sender=Mantenimiento)
+def actualizar_ejecucion_presupuesto(sender, instance, created, **kwargs):
+    if instance.cuenta_presupuestaria:
+        # Buscar y actualizar presupuesto
+        presupuesto = Presupuesto.objects.filter(
+            cuenta=instance.cuenta_presupuestaria,
+            vehiculo=instance.vehiculo,
+            anio=instance.fecha_ingreso.year
+        ).first()
+        
+        if presupuesto:
+            # Recalcular monto ejecutado sumando todos los mantenimientos
+            total_ejecutado = Mantenimiento.objects.filter(
+                cuenta_presupuestaria=instance.cuenta_presupuestaria,
+                vehiculo=instance.vehiculo,
+                fecha_ingreso__year=instance.fecha_ingreso.year
+            ).aggregate(total=models.Sum('costo_total_real'))['total'] or 0
+            
+            presupuesto.monto_ejecutado = total_ejecutado
+            presupuesto.save()
 

@@ -115,22 +115,19 @@ class ProveedorForm(forms.ModelForm):
 class HojaRutaForm(forms.ModelForm):
     class Meta:
         model = HojaRuta
-        fields = [
-            'fecha', 'turno', 'vehiculo', 'km_inicio', 'km_fin', 
-            'nivel_combustible_inicio', 'nivel_combustible_fin', 
-            'observaciones'
-        ]
+        fields = ['fecha', 'turno', 'vehiculo', 'km_inicio', 'km_fin', 
+                  'litros_inicio', 'litros_fin', 'observaciones']
+        
         widgets = {
-            'fecha': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
+            'fecha': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}),
             'turno': forms.Select(attrs={'class': 'form-control'}),
             'vehiculo': forms.Select(attrs={'class': 'form-control'}),
             'km_inicio': forms.NumberInput(attrs={'class': 'form-control'}),
             'km_fin': forms.NumberInput(attrs={'class': 'form-control'}),
-            'nivel_combustible_inicio': forms.TextInput(attrs={'class': 'form-control'}),
-            'nivel_combustible_fin': forms.TextInput(attrs={'class': 'form-control'}),
+            'litros_inicio': forms.NumberInput(attrs={'class': 'form-control'}),
+            'litros_fin': forms.NumberInput(attrs={'class': 'form-control'}),
             'observaciones': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
         }
-
 
 class ViajeForm(forms.ModelForm):
     class Meta:
