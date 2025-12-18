@@ -542,8 +542,8 @@ def reporte_costos(request):
         cargas = CargaCombustible.objects.filter(patente_vehiculo=vehiculo)
         costo_combustible = cargas.aggregate(total=Sum('costo_total'))['total'] or Decimal('0')
         
-        arriendos = Arriendo.objects.filter(vehiculo=vehiculo)
-        costo_arriendos = arriendos.aggregate(total=Sum('costo_total_real'))['total'] or Decimal('0')
+        arriendos = Arriendo.objects.filter(vehiculo_reemplazado=vehiculo)
+        costo_arriendos = arriendos.aggregate(total=Sum('costo_final_real'))['total'] or Decimal('0')
         
         costo_total = costo_mantenimientos + costo_combustible + costo_arriendos
         costo_por_km = costo_total / vehiculo.kilometraje_actual if vehiculo.kilometraje_actual > 0 else Decimal('0')
