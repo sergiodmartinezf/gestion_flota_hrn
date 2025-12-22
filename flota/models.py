@@ -417,10 +417,9 @@ class Arriendo(models.Model):
 
 class HojaRuta(models.Model):
     TURNOS = [
-        ('Mañana', 'Mañana'),
-        ('Tarde', 'Tarde'),
-        ('Noche', 'Noche'),
-        ('Larga', 'Jornada Larga'),
+        ('08-20', 'Turno 08:00 a 20:00'),
+        ('20-08', 'Turno 20:00 a 08:00'),
+        ('09-20', 'Turno 09:00 a 20:00 (fin de semana/feriado)'),
     ]
     
     id = models.AutoField(primary_key=True)

@@ -210,7 +210,7 @@ class FallaReportadaForm(forms.ModelForm):
 class PresupuestoForm(forms.ModelForm):
     class Meta:
         model = Presupuesto
-        fields = ['vehiculo', 'anio', 'cuenta', 'monto_asignado']  # QUITA 'convenio'
+        fields = ['vehiculo', 'anio', 'cuenta', 'monto_asignado']  # reemplaza convenio por cuenta presupuestaria
         widgets = {
             'vehiculo': forms.Select(attrs={'class': 'form-control'}),
             'anio': forms.NumberInput(attrs={'class': 'form-control'}),
