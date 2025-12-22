@@ -1,0 +1,65 @@
+{% extends 'base.html' %}
+{% block content %}
+<h2>Detalle Orden de Compra: {{ orden.nro_oc }}</h2>
+
+<div class="card">
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-6">
+                <h5>Información General</h5>
+                <p><strong>N° OC:</strong> {{ orden.nro_oc }}</p>
+                <p><strong>Fecha Emisión:</strong> {{ orden.fecha_emision }}</p>
+                <p><strong>Proveedor:</strong> {{ orden.proveedor.nombre_fantasia }}</p>
+                <p><strong>Estado:</strong> 
+                    <span class="badge 
+                        {% if orden.estado == 'Emitida' %}bg-primary
+                        {% elif orden.estado == 'Aceptada' %}bg-info
+                        {% elif orden.estado == 'Recepcionada' %}bg-warning
+                        {% elif orden.estado == 'Pagada' %}bg-success
+                        {% elif orden.estado == 'Anulada' %}bg-danger
+                        {% endif %}">
+                        {{ orden.estado }}
+                    </span>
+                </p>
+            </div>
+            <div class="col-md-6">
+                <h5>Información Financiera</h5>
+                <p><strong>Monto Neto:</strong> ${{ orden.monto_neto|floatformat:2 }}</p>
+                <p><strong>Impuesto (IVA):</strong> ${{ orden.impuesto|floatformat:2 }}</p>
+                <p><strong>Monto Total:</strong> ${{ orden.monto_total|floatformat:2 }}</p>
+                <p><strong>Cuenta Presupuestaria:</strong> {{ orden.cuenta_presupuestaria|default:"No asignada" }}</p>
+            </div>
+        </div>
+        
+        {% if orden.id_licitacion or orden.folio_sigfe %}
+        <hr>
+        <div class="row">
+            <div class="col-md-6">
+                <p><strong>ID Licitación:</strong> {{ orden.id_licitacion|default:"No especificado" }}</p>
+            </div>
+            <div class="col-md-6">
+                <p><strong>Folio SIGFE:</strong> {{ orden.folio_sigfe|default:"No especificado" }}</p>
+            </div>
+        </div>
+        {% endif %}
+        
+        {% if orden.archivo_adjunto %}
+        <hr>
+        <div class="row">
+            <div class="col-md-12">
+                <p><strong>Archivo Adjunto:</strong> 
+                    <a href="{{ orden.archivo_adjunto.url }}" target="_blank" class="btn btn-sm btn-primary">
+                        <i class="fas fa-download"></i> Descargar PDF
+                    </a>
+                </p>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<div class="mt-3">
+    <a href="{% url 'listar_ordenes_compra' %}" class="btn btn-secondary">Volver</a>
+    <a href="{% url 'modificar_orden_compra' orden.id %}" class="btn btn-warning">Modificar</a>
+</div>
+{% endblock %}

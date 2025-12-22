@@ -11,14 +11,14 @@ import json
 
 from .models import (
     Usuario, Vehiculo, Proveedor, OrdenCompra, OrdenTrabajo,
-    Presupuesto, Arriendo, DisponibilidadVehiculo, HojaRuta,
+    Presupuesto, Arriendo, HojaRuta,
     Viaje, CargaCombustible, Mantenimiento, AlertaMantencion,
     FallaReportada
 )
 from .forms import (
     LoginForm, UsuarioForm, VehiculoForm, ProveedorForm,
     HojaRutaForm, ViajeForm, CargaCombustibleForm, MantenimientoForm,
-    FallaReportadaForm, PresupuestoForm, ArriendoForm
+    FallaReportadaForm, PresupuestoForm, ArriendoForm, OrdenCompraForm
 )
 
 
@@ -160,7 +160,7 @@ def ficha_vehiculo(request, patente):
     
     # Calcular costo por kilómetro
     total_mantenimientos = Mantenimiento.objects.filter(vehiculo=vehiculo).aggregate(
-        total=Sum('costo_total')
+        total=Sum('costo_total_real')
     )['total'] or Decimal('0')
     
     total_combustible = CargaCombustible.objects.filter(patente_vehiculo=vehiculo).aggregate(
@@ -235,7 +235,7 @@ def costo_por_kilometro(request):
     
     for vehiculo in vehiculos:
         total_mantenimientos = Mantenimiento.objects.filter(vehiculo=vehiculo).aggregate(
-            total=Sum('costo_total')
+            total=Sum('costo_total_real')
         )['total'] or Decimal('0')
         
         total_combustible = CargaCombustible.objects.filter(patente_vehiculo=vehiculo).aggregate(
@@ -268,7 +268,7 @@ def gastos_mantenimientos(request):
     for vehiculo in vehiculos:
         presupuestos = Presupuesto.objects.filter(vehiculo=vehiculo)
         gasto_acumulado = Mantenimiento.objects.filter(vehiculo=vehiculo).aggregate(
-            total=Sum('costo_total')
+            total=Sum('costo_total_real')
         )['total'] or Decimal('0')
         
         presupuesto_total = presupuestos.aggregate(
@@ -313,8 +313,20 @@ def registrar_bitacora(request):
             return redirect('listar_bitacoras')
     else:
         form = HojaRutaForm()
+        form.fields['vehiculo'].queryset = Vehiculo.objects.filter(
+            estado__in=['Disponible', 'En uso']
+        ).order_by('patente')
     
     return render(request, 'flota/registrar_bitacora.html', {'form': form})
+
+# API para obtener el kilometraje de los vehículos
+@login_required
+def api_vehiculos_kilometraje(request):
+    vehiculos = Vehiculo.objects.all()
+    data = {}
+    for vehiculo in vehiculos:
+        data[str(vehiculo.patente)] = vehiculo.kilometraje_actual
+    return JsonResponse(data)
 
 
 @login_required
@@ -429,13 +441,14 @@ def registrar_mantenimiento_ejecutado(request):
             mantenimiento = form.save()
             
             # Actualizar presupuesto si existe
-            if mantenimiento.orden_compra:
+            if mantenimiento.cuenta_presupuestaria:
                 presupuestos = Presupuesto.objects.filter(
                     vehiculo=mantenimiento.vehiculo,
-                    anio=mantenimiento.fecha_ingreso.year
+                    anio=mantenimiento.fecha_ingreso.year,
+                    cuenta=mantenimiento.cuenta_presupuestaria
                 )
                 for presupuesto in presupuestos:
-                    presupuesto.monto_ejecutado += mantenimiento.costo_total
+                    presupuesto.monto_ejecutado += mantenimiento.costo_total_real
                     presupuesto.save()
             
             # Actualizar estado del vehículo
@@ -524,13 +537,13 @@ def reporte_costos(request):
     
     for vehiculo in vehiculos:
         mantenimientos = Mantenimiento.objects.filter(vehiculo=vehiculo)
-        costo_mantenimientos = mantenimientos.aggregate(total=Sum('costo_total'))['total'] or Decimal('0')
+        costo_mantenimientos = mantenimientos.aggregate(total=Sum('costo_total_real'))['total'] or Decimal('0')
         
         cargas = CargaCombustible.objects.filter(patente_vehiculo=vehiculo)
         costo_combustible = cargas.aggregate(total=Sum('costo_total'))['total'] or Decimal('0')
         
-        arriendos = Arriendo.objects.filter(vehiculo=vehiculo)
-        costo_arriendos = arriendos.aggregate(total=Sum('costo_total'))['total'] or Decimal('0')
+        arriendos = Arriendo.objects.filter(vehiculo_reemplazado=vehiculo)
+        costo_arriendos = arriendos.aggregate(total=Sum('costo_final_real'))['total'] or Decimal('0')
         
         costo_total = costo_mantenimientos + costo_combustible + costo_arriendos
         costo_por_km = costo_total / vehiculo.kilometraje_actual if vehiculo.kilometraje_actual > 0 else Decimal('0')
@@ -553,25 +566,24 @@ def reporte_costos(request):
 
 
 # RF_25: Generar reporte de disponibilidad
+# En flota/views.py
+
 @login_required
 def reporte_disponibilidad(request):
     vehiculos = Vehiculo.objects.all()
     reporte = []
     
     for vehiculo in vehiculos:
-        disponibilidades = DisponibilidadVehiculo.objects.filter(vehiculo=vehiculo)
-        dias_fuera_servicio = disponibilidades.aggregate(
-            total=Sum('dias_no_operativo')
-        )['total'] or 0
+        # Calcular días fuera de servicio sumando duración de mantenimientos
+        mantenimientos = Mantenimiento.objects.filter(vehiculo=vehiculo)
+        total_dias_fuera = 0
+        
+        for mant in mantenimientos:
+            if mant.fecha_salida:
+                dias = (mant.fecha_salida - mant.fecha_ingreso).days
+                total_dias_fuera += max(0, dias)
         
         incidentes = FallaReportada.objects.filter(vehiculo=vehiculo).count()
-        
-        mantenimientos = Mantenimiento.objects.filter(vehiculo=vehiculo)
-        dias_mantenimiento = mantenimientos.aggregate(
-            total=Sum('dias_fuera_servicio')
-        )['total'] or 0
-        
-        total_dias_fuera = dias_fuera_servicio + dias_mantenimiento
         
         reporte.append({
             'vehiculo': vehiculo,
@@ -592,8 +604,11 @@ def registrar_arriendo(request):
         if form.is_valid():
             arriendo = form.save()
             # Actualizar estado del vehículo
-            vehiculo = arriendo.vehiculo
-            vehiculo.estado = 'Arrendado'
+            if arriendo.vehiculo_reemplazado:
+                vehiculo = arriendo.vehiculo_reemplazado
+                vehiculo.tipo_propiedad = 'Arrendado'
+                vehiculo.save()
+
             vehiculo.tipo_propiedad = 'Arrendado'
             vehiculo.save()
             messages.success(request, 'Arriendo registrado exitosamente.')
@@ -627,7 +642,7 @@ def dashboard(request):
         fecha_ingreso__year=anio_actual
     )
     costo_mantenimientos_mes = mantenimientos_mes.aggregate(
-        total=Sum('costo_total')
+        total=Sum('costo_total_real')
     )['total'] or Decimal('0')
     
     cargas_mes = CargaCombustible.objects.filter(
@@ -650,9 +665,15 @@ def dashboard(request):
     
     # Disponibilidad histórica
     vehiculos_con_disponibilidad = []
-    for vehiculo in Vehiculo.objects.all()[:10]:  # Top 10
-        disponibilidades = DisponibilidadVehiculo.objects.filter(vehiculo=vehiculo)
-        dias_fuera = disponibilidades.aggregate(total=Sum('dias_no_operativo'))['total'] or 0
+    for vehiculo in Vehiculo.objects.all()[:10]:
+        # Sumar días de mantenimientos pasados
+        dias_fuera = 0
+        mants = Mantenimiento.objects.filter(vehiculo=vehiculo)
+        for mant in mants:
+            fin = mant.fecha_salida if mant.fecha_salida else timezone.now().date()
+            delta = (fin - mant.fecha_ingreso).days
+            dias_fuera += max(0, delta)
+            
         vehiculos_con_disponibilidad.append({
             'vehiculo': vehiculo,
             'dias_fuera': dias_fuera,
@@ -717,3 +738,131 @@ def reporte_historial_unidad(request, patente):
         'fecha_fin': fecha_fin,
     })
 
+# Listar proveedores
+@login_required
+@user_passes_test(es_administrador)
+def listar_proveedores(request):
+    proveedores = Proveedor.objects.all().order_by('nombre_fantasia')
+    return render(request, 'flota/listar_proveedores.html', {'proveedores': proveedores})
+
+# Registrar proveedores
+@login_required
+@user_passes_test(es_administrador)
+def registrar_proveedor(request):
+    if request.method == 'POST':
+        form = ProveedorForm(request.POST)
+        if form.is_valid():
+            proveedor = form.save()
+            messages.success(request, f'Proveedor {proveedor.nombre_fantasia} registrado exitosamente.')
+            return redirect('listar_proveedores')
+    else:
+        form = ProveedorForm()
+    
+    return render(request, 'flota/registrar_proveedor.html', {'form': form, 'titulo': 'Registrar Proveedor'})
+
+# Modificar proveedores
+@login_required
+@user_passes_test(es_administrador)
+def modificar_proveedor(request, id):
+    proveedor = get_object_or_404(Proveedor, id=id)
+    if request.method == 'POST':
+        form = ProveedorForm(request.POST, instance=proveedor)
+        if form.is_valid():
+            proveedor = form.save()
+            messages.success(request, f'Proveedor {proveedor.nombre_fantasia} modificado exitosamente.')
+            return redirect('listar_proveedores')
+    else:
+        form = ProveedorForm(instance=proveedor)
+
+    return render(request, 'flota/registrar_proveedor.html', {'form': form, 'titulo': 'Modificar Proveedor'})
+
+# Eliminar proveedores
+@login_required
+@user_passes_test(es_administrador)
+def eliminar_proveedor(request, id):
+    proveedor = get_object_or_404(Proveedor, id=id)
+    if request.method == 'POST':
+        nombre_fantasia = proveedor.nombre_fantasia
+        proveedor.delete()
+        messages.success(request, f'Proveedor {nombre_fantasia} eliminado exitosamente.')
+        return redirect('listar_proveedores')
+    
+    return render(request, 'flota/eliminar_proveedor.html', {'proveedor': proveedor})
+
+
+# RF_29: Registrar orden de compra
+@login_required
+@user_passes_test(es_administrador)
+def registrar_orden_compra(request):
+    if request.method == 'POST':
+        form = OrdenCompraForm(request.POST, request.FILES)
+        if form.is_valid():
+            orden_compra = form.save()
+            messages.success(request, f'Orden de Compra {orden_compra.nro_oc} registrada exitosamente.')
+            return redirect('listar_ordenes_compra')
+    else:
+        form = OrdenCompraForm()
+    
+    return render(request, 'flota/registrar_orden_compra.html', {'form': form})
+
+
+# RF_30: Listar órdenes de compra
+@login_required
+def listar_ordenes_compra(request):
+    ordenes = OrdenCompra.objects.all().order_by('-fecha_emision', 'nro_oc')
+    
+    # Filtros
+    estado_filter = request.GET.get('estado')
+    proveedor_filter = request.GET.get('proveedor')
+    
+    if estado_filter:
+        ordenes = ordenes.filter(estado=estado_filter)
+    if proveedor_filter:
+        ordenes = ordenes.filter(proveedor__id=proveedor_filter)
+    
+    proveedores = Proveedor.objects.all()
+    
+    return render(request, 'flota/listar_ordenes_compra.html', {
+        'ordenes': ordenes,
+        'proveedores': proveedores,
+        'estado_filter': estado_filter,
+        'proveedor_filter': proveedor_filter,
+    })
+
+
+# RF_31: Modificar orden de compra
+@login_required
+@user_passes_test(es_administrador)
+def modificar_orden_compra(request, id):
+    orden = get_object_or_404(OrdenCompra, id=id)
+    if request.method == 'POST':
+        form = OrdenCompraForm(request.POST, request.FILES, instance=orden)
+        if form.is_valid():
+            orden = form.save()
+            messages.success(request, f'Orden de Compra {orden.nro_oc} modificada exitosamente.')
+            return redirect('listar_ordenes_compra')
+    else:
+        form = OrdenCompraForm(instance=orden)
+    
+    return render(request, 'flota/modificar_orden_compra.html', {'form': form, 'orden': orden})
+
+
+# RF_32: Eliminar orden de compra
+@login_required
+@user_passes_test(es_administrador)
+def eliminar_orden_compra(request, id):
+    orden = get_object_or_404(OrdenCompra, id=id)
+    if request.method == 'POST':
+        nro_oc = orden.nro_oc
+        orden.delete()
+        messages.success(request, f'Orden de Compra {nro_oc} eliminada exitosamente.')
+        return redirect('listar_ordenes_compra')
+    
+    return render(request, 'flota/eliminar_orden_compra.html', {'orden': orden})
+
+
+# RF_33: Detalle de orden de compra
+@login_required
+def detalle_orden_compra(request, id):
+    orden = get_object_or_404(OrdenCompra, id=id)
+    return render(request, 'flota/detalle_orden_compra.html', {'orden': orden})

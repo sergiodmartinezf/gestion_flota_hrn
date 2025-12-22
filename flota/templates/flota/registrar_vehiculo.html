@@ -1,0 +1,165 @@
+{% extends 'base.html' %}
+
+{% block title %}Registrar Vehículo - Gestión de Flota{% endblock %}
+
+{% block content %}
+<h2 class="mb-4"><i class="bi bi-car-front"></i> Registrar Vehículo</h2>
+
+<!-- Agrega esto para mostrar mensajes de error -->
+{% if messages %}
+    {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    {% endfor %}
+{% endif %}
+
+<!-- Muestra errores del formulario -->
+{% if form.errors %}
+    <div class="alert alert-danger">
+        <strong>Por favor corrige los siguientes errores:</strong>
+        <ul>
+            {% for field, errors in form.errors.items %}
+                {% for error in errors %}
+                    <li>{{ field|title }}: {{ error }}</li>
+                {% endfor %}
+            {% endfor %}
+        </ul>
+    </div>
+{% endif %}
+
+<form method="post">
+    {% csrf_token %}
+    <div class="row">
+        <div class="col-md-6">
+            <h5>Información Básica</h5>
+            <div class="mb-3">
+                <label for="{{ form.patente.id_for_label }}" class="form-label">Patente *</label>
+                {{ form.patente }}
+                {% if form.patente.errors %}
+                    <div class="text-danger small">{{ form.patente.errors }}</div>
+                {% endif %}
+            </div>
+            <div class="mb-3">
+                <label for="{{ form.marca.id_for_label }}" class="form-label">Marca *</label>
+                {{ form.marca }}
+                {% if form.marca.errors %}
+                    <div class="text-danger small">{{ form.marca.errors }}</div>
+                {% endif %}
+            </div>
+            <div class="mb-3">
+                <label for="{{ form.modelo.id_for_label }}" class="form-label">Modelo *</label>
+                {{ form.modelo }}
+                {% if form.modelo.errors %}
+                    <div class="text-danger small">{{ form.modelo.errors }}</div>
+                {% endif %}
+            </div>
+            <div class="mb-3">
+                <label for="{{ form.vin.id_for_label }}" class="form-label">VIN</label>
+                {{ form.vin }}
+                {% if form.vin.errors %}
+                    <div class="text-danger small">{{ form.vin.errors }}</div>
+                {% endif %}
+            </div>
+            <div class="mb-3">
+                <label for="{{ form.nro_motor.id_for_label }}" class="form-label">N° Motor</label>
+                {{ form.nro_motor }}
+                {% if form.nro_motor.errors %}
+                    <div class="text-danger small">{{ form.nro_motor.errors }}</div>
+                {% endif %}
+            </div>
+            <div class="mb-3">
+                <label for="{{ form.anio_adquisicion.id_for_label }}" class="form-label">Año Adquisición *</label>
+                {{ form.anio_adquisicion }}
+                {% if form.anio_adquisicion.errors %}
+                    <div class="text-danger small">{{ form.anio_adquisicion.errors }}</div>
+                {% endif %}
+            </div>
+            <!-- AÑADE ESTOS DOS CAMPOS FALTANTES -->
+            <div class="mb-3">
+                <label for="{{ form.vida_util.id_for_label }}" class="form-label">Vida Útil (años)</label>
+                {{ form.vida_util }}
+                {% if form.vida_util.errors %}
+                    <div class="text-danger small">{{ form.vida_util.errors }}</div>
+                {% endif %}
+            </div>
+            <div class="mb-3">
+                <label for="{{ form.establecimiento.id_for_label }}" class="form-label">Establecimiento *</label>
+                {{ form.establecimiento }}
+                {% if form.establecimiento.errors %}
+                    <div class="text-danger small">{{ form.establecimiento.errors }}</div>
+                {% endif %}
+            </div>
+        </div>
+        <div class="col-md-6">
+            <h5>Configuración</h5>
+            <div class="mb-3">
+                <label for="{{ form.tipo_carroceria.id_for_label }}" class="form-label">Tipo Carrocería *</label>
+                {{ form.tipo_carroceria }}
+                {% if form.tipo_carroceria.errors %}
+                    <div class="text-danger small">{{ form.tipo_carroceria.errors }}</div>
+                {% endif %}
+            </div>
+            <div class="mb-3">
+                <label for="{{ form.clase_ambulancia.id_for_label }}" class="form-label">Clase Ambulancia</label>
+                {{ form.clase_ambulancia }}
+                {% if form.clase_ambulancia.errors %}
+                    <div class="text-danger small">{{ form.clase_ambulancia.errors }}</div>
+                {% endif %}
+            </div>
+            <div class="mb-3">
+                <label for="{{ form.kilometraje_actual.id_for_label }}" class="form-label">Kilometraje Actual *</label>
+                {{ form.kilometraje_actual }}
+                {% if form.kilometraje_actual.errors %}
+                    <div class="text-danger small">{{ form.kilometraje_actual.errors }}</div>
+                {% endif %}
+            </div>
+            <div class="mb-3">
+                <label for="{{ form.umbral_mantencion.id_for_label }}" class="form-label">Umbral Mantención (km) *</label>
+                {{ form.umbral_mantencion }}
+                {% if form.umbral_mantencion.errors %}
+                    <div class="text-danger small">{{ form.umbral_mantencion.errors }}</div>
+                {% endif %}
+            </div>
+            <div class="mb-3">
+                <label for="{{ form.estado.id_for_label }}" class="form-label">Estado *</label>
+                {{ form.estado }}
+                {% if form.estado.errors %}
+                    <div class="text-danger small">{{ form.estado.errors }}</div>
+                {% endif %}
+            </div>
+            <div class="mb-3">
+                <label for="{{ form.tipo_propiedad.id_for_label }}" class="form-label">Tipo Propiedad *</label>
+                {{ form.tipo_propiedad }}
+                {% if form.tipo_propiedad.errors %}
+                    <div class="text-danger small">{{ form.tipo_propiedad.errors }}</div>
+                {% endif %}
+            </div>
+            <div class="mb-3">
+                <label for="{{ form.criticidad.id_for_label }}" class="form-label">Criticidad *</label>
+                {{ form.criticidad }}
+                {% if form.criticidad.errors %}
+                    <div class="text-danger small">{{ form.criticidad.errors }}</div>
+                {% endif %}
+            </div>
+            <div class="mb-3 form-check">
+                {{ form.es_samu }}
+                <label class="form-check-label" for="{{ form.es_samu.id_for_label }}">Es SAMU</label>
+                {% if form.es_samu.errors %}
+                    <div class="text-danger small">{{ form.es_samu.errors }}</div>
+                {% endif %}
+            </div>
+            <div class="mb-3 form-check">
+                {{ form.es_backup }}
+                <label class="form-check-label" for="{{ form.es_backup.id_for_label }}">Es Backup</label>
+                {% if form.es_backup.errors %}
+                    <div class="text-danger small">{{ form.es_backup.errors }}</div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    <button type="submit" class="btn btn-primary">Registrar</button>
+    <a href="{% url 'listar_flota' %}" class="btn btn-secondary">Cancelar</a>
+</form>
+{% endblock %}
