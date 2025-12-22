@@ -53,6 +53,9 @@ urlpatterns = [
     
     # Calendario (RF_23)
     path('calendario/', views.calendario_mantenciones, name='calendario_mantenciones'),
+    path('api/mantenimientos/', views.api_mantenimientos, name='api_mantenimientos'),
+    path('mantenimientos/<int:id>/editar/', views.editar_mantenimiento, name='editar_mantenimiento'),
+    path('mantenimientos/<int:id>/eliminar/', views.eliminar_mantenimiento, name='eliminar_mantenimiento'),
     
     # Reportes (RF_24-RF_25, RF_28)
     path('reportes/costos/', views.reporte_costos, name='reporte_costos'),

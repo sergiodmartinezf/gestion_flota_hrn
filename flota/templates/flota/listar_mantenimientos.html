@@ -10,6 +10,8 @@
     <a href="{% url 'programar_mantenimiento_preventivo' %}" class="btn btn-primary"><i class="bi bi-plus-circle"></i> Programar Preventivo</a>
     <a href="{% url 'registrar_mantenimiento_ejecutado' %}" class="btn btn-success"><i class="bi bi-check-circle"></i> Registrar Ejecutado</a>
     {% endif %}
+    <a href="{% url 'calendario_mantenciones' %}" class="btn btn-info text-white"><i class="bi bi-calendar-week"></i> Ver Calendario</a>
+    
     <form method="get" class="d-inline float-end">
         <input type="text" name="patente" placeholder="Filtrar por patente" value="{{ patente_filter }}" class="form-control d-inline-block" style="width: auto;">
         <button type="submit" class="btn btn-secondary">Filtrar</button>

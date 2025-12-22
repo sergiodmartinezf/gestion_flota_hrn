@@ -8,6 +8,7 @@ from django.utils import timezone
 from datetime import datetime, timedelta
 from decimal import Decimal
 import json
+from django.views.decorators.http import require_POST
 
 from .models import (
     Usuario, Vehiculo, Proveedor, OrdenCompra, OrdenTrabajo,
@@ -525,8 +526,65 @@ def alertas_presupuesto(request):
 # RF_23: Visualizar calendario de mantenciones
 @login_required
 def calendario_mantenciones(request):
-    mantenimientos = Mantenimiento.objects.filter(estado__in=['Programado', 'En taller']).order_by('fecha_ingreso')
-    return render(request, 'flota/calendario_mantenciones.html', {'mantenimientos': mantenimientos})
+    return render(request, 'flota/calendario_mantenciones.html')
+
+@login_required
+def api_mantenimientos(request):
+    mantenimientos = Mantenimiento.objects.all()
+    eventos = []
+    
+    for m in mantenimientos:
+        # Definir colores según estado
+        color = '#3788d8' # Azul (Programado)
+        if m.estado == 'En taller':
+            color = '#dc3545' # Rojo
+        elif m.estado == 'Finalizado':
+            color = '#198754' # Verde
+            
+        eventos.append({
+            'id': m.id,
+            'title': f"{m.vehiculo.patente} - {m.get_tipo_mantencion_display()}",
+            'start': m.fecha_ingreso.isoformat(),
+            'end': m.fecha_salida.isoformat() if m.fecha_salida else None,
+            'color': color,
+            'extendedProps': {
+                'descripcion': m.observaciones or 'Sin observaciones',
+                'estado': m.get_estado_display(),
+                'costo': str(m.costo_total_real) if m.costo_total_real else '0'
+            }
+        })
+        
+    return JsonResponse(eventos, safe=False)
+
+@login_required
+@user_passes_test(es_administrador)
+def editar_mantenimiento(request, id):
+    mantenimiento = get_object_or_404(Mantenimiento, id=id)
+    if request.method == 'POST':
+        form = MantenimientoForm(request.POST, instance=mantenimiento)
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'Mantenimiento actualizado correctamente.')
+            return redirect('calendario_mantenciones')
+    else:
+        form = MantenimientoForm(instance=mantenimiento)
+    
+    return render(request, 'flota/programar_mantenimiento_preventivo.html', {
+        'form': form, 
+        'titulo': f'Editar Mantención {mantenimiento.vehiculo.patente}'
+    })
+
+@login_required
+@user_passes_test(es_administrador)
+def eliminar_mantenimiento(request, id):
+    mantenimiento = get_object_or_404(Mantenimiento, id=id)
+    if request.method == 'POST':
+        mantenimiento.delete()
+        messages.success(request, 'Mantenimiento eliminado correctamente.')
+        return redirect('calendario_mantenciones')
+    
+    # Renderizar una confirmación simple
+    return render(request, 'flota/eliminar_mantenimiento.html', {'mantenimiento': mantenimiento})
 
 
 # RF_24: Generar reporte de costos
