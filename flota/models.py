@@ -312,9 +312,15 @@ class Mantenimiento(models.Model):
     
     descripcion_trabajo = models.TextField()
     estado = models.CharField(max_length=30, choices=ESTADOS, default='Programado')
+
+    nro_factura = models.CharField(max_length=50, blank=True, verbose_name="Número de Factura")
+    archivo_adjunto = models.FileField(upload_to='mantenimientos/', null=True, blank=True, verbose_name="Documento Adjunto")
+    
+    # Relación directa a Orden de Compra (si no pasa por Orden de Trabajo)
+    orden_compra = models.ForeignKey(OrdenCompra, on_delete=models.SET_NULL, null=True, blank=True, related_name='mantenimientos_directos')
     
     # --- GESTIÓN DE COSTOS (PLANIFICADO vs REAL) ---
-    costo_estimado = models.DecimalField(max_digits=12, decimal_places=2, default=0, help_text="Costo aproximado inicial")
+    costo_estimado = models.DecimalField(max_digits=12, decimal_places=2, default=0, blank=True, help_text="Costo aproximado inicial")
     
     # Desglose de costos reales
     costo_mano_obra = models.DecimalField(max_digits=12, decimal_places=2, default=0, verbose_name="Costo Mano de Obra")

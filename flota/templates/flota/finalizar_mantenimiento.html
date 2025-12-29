@@ -1,0 +1,61 @@
+{% extends 'base.html' %}
+
+{% block title %}Finalizar Mantenimiento{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-4">
+        <div class="card bg-light mb-3">
+            <div class="card-header">Datos Programados</div>
+            <div class="card-body">
+                <p><strong>Vehículo:</strong> {{ mantenimiento.vehiculo.patente }}</p>
+                <p><strong>Tipo:</strong> {{ mantenimiento.tipo_mantencion }}</p>
+                <p><strong>Fecha Ingreso:</strong> {{ mantenimiento.fecha_ingreso }}</p>
+                <p><strong>Costo Estimado:</strong> ${{ mantenimiento.costo_estimado }}</p>
+                <p><strong>Proveedor:</strong> {{ mantenimiento.proveedor }}</p>
+                <hr>
+                <small class="text-muted">Descripción original: {{ mantenimiento.descripcion_trabajo }}</small>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header bg-success text-white">Registrar Ejecución Real</div>
+            <div class="card-body">
+                <form method="post" enctype="multipart/form-data">
+                    {% csrf_token %}
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Fecha de Salida (Real)</label>
+                            {{ form.fecha_salida }}
+                        </div>
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Costo Mano de Obra ($)</label>
+                            {{ form.costo_mano_obra }}
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Costo Repuestos ($)</label>
+                            {{ form.costo_repuestos }}
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Observaciones / Trabajo Realizado</label>
+                        {{ form.descripcion_trabajo }}
+                    </div>
+
+                    <button type="submit" class="btn btn-success">
+                        <i class="bi bi-check-circle"></i> Confirmar y Cerrar Mantenimiento
+                    </button>
+                    <a href="{% url 'listar_mantenimientos' %}" class="btn btn-secondary">Cancelar</a>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

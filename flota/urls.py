@@ -44,6 +44,7 @@ urlpatterns = [
     # Mantenimientos (RF_18-RF_20)
     path('mantenimientos/programar/', views.programar_mantenimiento_preventivo, name='programar_mantenimiento_preventivo'),
     path('mantenimientos/registrar/', views.registrar_mantenimiento_ejecutado, name='registrar_mantenimiento_ejecutado'),
+    path('mantenimientos/<int:id>/finalizar/', views.finalizar_mantenimiento, name='finalizar_mantenimiento'),
     path('mantenimientos/', views.listar_mantenimientos, name='listar_mantenimientos'),
     
     # Presupuestos (RF_21-RF_22)
@@ -78,5 +79,12 @@ urlpatterns = [
     path('ordenes-compra/<int:id>/', views.detalle_orden_compra, name='detalle_orden_compra'),
     path('ordenes-compra/<int:id>/modificar/', views.modificar_orden_compra, name='modificar_orden_compra'),
     path('ordenes-compra/<int:id>/eliminar/', views.eliminar_orden_compra, name='eliminar_orden_compra'),
+
+    # Órdenes de Trabajo
+    path('ordenes-trabajo/registrar/', views.registrar_orden_trabajo, name='registrar_orden_trabajo'),
+    path('ordenes-trabajo/', views.listar_ordenes_trabajo, name='listar_ordenes_trabajo'),
+    path('ordenes-trabajo/<int:id>/', views.detalle_orden_trabajo, name='detalle_orden_trabajo'),
+    path('ordenes-trabajo/<int:id>/modificar/', views.modificar_orden_trabajo, name='modificar_orden_trabajo'),
+    path('ordenes-trabajo/<int:id>/eliminar/', views.eliminar_orden_trabajo, name='eliminar_orden_trabajo'),
 ]
 

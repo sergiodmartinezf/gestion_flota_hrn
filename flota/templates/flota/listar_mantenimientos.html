@@ -38,6 +38,13 @@
             <td>{{ mantenimiento.fecha_salida|date:"d/m/Y"|default:"-" }}</td>
             <td>{{ mantenimiento.get_estado_display }}</td>
             <td>${{ mantenimiento.costo_total|floatformat:0 }}</td>
+            <td>
+                {% if mant.estado == 'Programado' or mant.estado == 'En taller' %}
+                    <a href="{% url 'finalizar_mantenimiento' mant.id %}" class="btn btn-sm btn-success" title="Registrar como Ejecutado"><i class="bi bi-check-lg"></i> Finalizar</a>
+                {% else %}
+                    <span class="badge bg-secondary">Cerrado</span>
+                {% endif %}
+            </td>
         </tr>
         {% endfor %}
     </tbody>

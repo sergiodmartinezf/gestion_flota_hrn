@@ -195,6 +195,62 @@ class MantenimientoForm(forms.ModelForm):
         }
 
 
+class ProgramarMantenimientoForm(forms.ModelForm):
+    class Meta:
+        model = Mantenimiento
+        fields = [
+            'vehiculo', 'fecha_ingreso', 'km_al_ingreso', 
+            'proveedor', 'orden_trabajo', 'descripcion_trabajo', 
+            'costo_estimado', 'cuenta_presupuestaria'
+        ]
+        widgets = {
+            'vehiculo': forms.Select(attrs={'class': 'form-control'}),
+            'fecha_ingreso': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
+            'km_al_ingreso': forms.NumberInput(attrs={'class': 'form-control'}),
+            'proveedor': forms.Select(attrs={'class': 'form-control'}),
+            'orden_trabajo': forms.Select(attrs={'class': 'form-control'}),
+            'descripcion_trabajo': forms.Textarea(attrs={'class': 'form-control', 'rows': 4}),
+            'costo_estimado': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
+            'cuenta_presupuestaria': forms.Select(attrs={'class': 'form-control'}),
+        }
+
+    # Costo estimado es opcional
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['costo_estimado'].required = False
+
+
+class FinalizarMantenimientoForm(forms.ModelForm):
+    class Meta:
+        model = Mantenimiento
+        fields = [
+            'fecha_salida', 
+            'descripcion_trabajo',
+            'costo_mano_obra', 
+            'costo_repuestos',
+            'orden_compra', # Si se generó durante el proceso
+            'nro_factura',
+            'archivo_adjunto' # Si quieres subir la factura escaneada
+        ]
+        widgets = {
+            'fecha_salida': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
+            'descripcion_trabajo': forms.Textarea(attrs={'class': 'form-control', 'rows': 4}),
+            'costo_mano_obra': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
+            'costo_repuestos': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
+            'orden_compra': forms.Select(attrs={'class': 'form-control'}),
+        }
+
+    def clean(self):
+        cleaned_data = super().clean()
+        mano_obra = cleaned_data.get('costo_mano_obra') or 0
+        repuestos = cleaned_data.get('costo_repuestos') or 0
+        
+        if mano_obra + repuestos <= 0:
+            raise forms.ValidationError("Debe ingresar los costos reales para finalizar el mantenimiento.")
+        
+        return cleaned_data
+
+
 class FallaReportadaForm(forms.ModelForm):
     class Meta:
         model = FallaReportada
@@ -259,4 +315,25 @@ class OrdenCompraForm(forms.ModelForm):
             'estado': forms.Select(attrs={'class': 'form-control'}),
             'archivo_adjunto': forms.FileInput(attrs={'class': 'form-control'}),
             'cuenta_presupuestaria': forms.Select(attrs={'class': 'form-control'}),
+        }
+
+class OrdenTrabajoForm(forms.ModelForm):
+    class Meta:
+        model = OrdenTrabajo
+        fields = [
+            'nro_ot', 'descripcion', 'fecha_solicitud', 'vehiculo',
+            'proveedor', 'orden_compra'
+        ]
+        widgets = {
+            'nro_ot': forms.TextInput(attrs={'class': 'form-control'}),
+            'descripcion': forms.Textarea(attrs={'class': 'form-control', 'rows': 4}),
+            'fecha_solicitud': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
+            'vehiculo': forms.Select(attrs={'class': 'form-control'}),
+            'proveedor': forms.Select(attrs={'class': 'form-control'}),
+            'orden_compra': forms.Select(attrs={'class': 'form-control'}),
+        }
+        labels = {
+            'nro_ot': 'Número de Orden de Trabajo',
+            'descripcion': 'Descripción del trabajo solicitado',
+            'fecha_solicitud': 'Fecha de Solicitud',
         }

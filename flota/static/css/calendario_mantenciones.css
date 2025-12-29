@@ -5,6 +5,127 @@
     box-shadow: 0 0 10px rgba(0,0,0,0.1);
     min-height: 700px;
 }
+
 .fc-event {
     cursor: pointer;
 }
+
+/* INCREMENTAR SEPARACIÓN VERTICAL - ESTILOS PRINCIPALES */
+
+/* 1. Aumentar espacio entre filas del calendario */
+.fc .fc-daygrid-body {
+    margin-top: 8px !important;
+}
+
+/* 2. Aumentar padding entre días verticalmente */
+.fc .fc-daygrid-day {
+    padding: 10px 4px !important; /* Más padding vertical */
+    background-color: transparent;
+}
+
+/* 3. Estilo tipo tarjeta para cada día con más margen vertical */
+.fc .fc-daygrid-day-frame {
+    background-color: #ffffff;
+    border-radius: 14px;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
+    padding: 8px 6px;
+    margin: 12px 4px !important; /* 12px vertical, 4px horizontal */
+    height: 90% !important; /* Reducir altura para dar espacio */
+    min-height: 130px !important; /* Altura mínima */
+    transition: box-shadow 0.2s ease, transform 0.2s ease;
+    display: flex;
+    flex-direction: column;
+}
+
+.fc .fc-daygrid-day-frame:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    transform: translateY(-3px);
+}
+
+/* 4. Espacio extra entre las filas de días */
+.fc .fc-daygrid-body > tr > td {
+    padding-bottom: 10px !important; /* Espacio sustancial entre filas */
+}
+
+/* 5. Ajustar el contenedor interno del día */
+.fc .fc-daygrid-day-events {
+    margin-top: 4px !important;
+    margin-bottom: 4px !important;
+}
+
+/* 6. Reducir espacio horizontal si es necesario para compensar */
+.fc .fc-daygrid-day {
+    margin-left: 2px !important;
+    margin-right: 2px !important;
+}
+
+/* Número del día */
+.fc-daygrid-day-number {
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: #0d6efd;
+    padding: 4px 8px;
+    border-radius: 8px;
+    background-color: rgba(13, 110, 253, 0.1);
+    margin-bottom: 6px !important;
+    text-decoration: none;
+}
+
+/* Encabezados de columnas (días de la semana) */
+.fc-col-header-cell {
+    background-color: #f8f9fa;
+    padding: 12px 0;
+    font-weight: 600;
+    font-size: 0.95rem;
+}
+
+/* Eliminar bordes duros por defecto */
+.fc-theme-standard td,
+.fc-theme-standard th {
+    border: none !important;
+}
+
+/* Ajustar el calendario completo */
+#calendar {
+    background-color: #f1f3f5;
+    padding: 24px;
+    border-radius: 16px;
+}
+
+/* Estilos para el encabezado del calendario (botones de navegación) */
+.fc .fc-toolbar {
+    margin-bottom: 24px !important;
+}
+
+/* Ajustes responsivos */
+@media (max-width: 768px) {
+    .fc .fc-daygrid-day-frame {
+        margin: 8px 2px !important;
+        min-height: 100px !important;
+    }
+    
+    .fc .fc-daygrid-body > tr > td {
+        padding-bottom: 12px !important;
+    }
+    
+    .fc-daygrid-day-number {
+        font-size: 0.8rem;
+        padding: 3px 6px;
+    }
+}
+
+/* Asegurar que los días tengan espaciado uniforme */
+.fc .fc-daygrid-week {
+    display: table-row;
+}
+
+/* Ajustar el contenedor principal de días */
+.fc .fc-daygrid-body-balanced .fc-daygrid-day {
+    vertical-align: top;
+}
+
+/* Reducir espacio entre eventos dentro del mismo día */
+.fc .fc-daygrid-event {
+    margin-bottom: 2px !important;
+}
+

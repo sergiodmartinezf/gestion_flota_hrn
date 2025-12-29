@@ -1,5 +1,6 @@
 document.addEventListener('DOMContentLoaded', function() {
     var calendarEl = document.getElementById('calendar');
+    var eventsUrl = calendarEl.getAttribute('data-events-url');
     
     var calendar = new FullCalendar.Calendar(calendarEl, {
         initialView: 'dayGridMonth',
@@ -9,7 +10,7 @@ document.addEventListener('DOMContentLoaded', function() {
             center: 'title',
             right: 'dayGridMonth,timeGridWeek,listMonth'
         },
-        events: "{% url 'api_mantenimientos' %}", // Fuente de datos JSON
+        events: eventsUrl, // Fuente de datos JSON
         
         // Acción al hacer clic en un evento
         eventClick: function(info) {

@@ -11,15 +11,14 @@ import json
 from django.views.decorators.http import require_POST
 
 from .models import (
-    Usuario, Vehiculo, Proveedor, OrdenCompra, OrdenTrabajo,
-    Presupuesto, Arriendo, HojaRuta,
-    Viaje, CargaCombustible, Mantenimiento, AlertaMantencion,
-    FallaReportada
+    Usuario, Vehiculo, Proveedor, OrdenCompra, OrdenTrabajo, Presupuesto, Arriendo, 
+    HojaRuta, Viaje, CargaCombustible, Mantenimiento, AlertaMantencion, FallaReportada
 )
 from .forms import (
-    LoginForm, UsuarioForm, VehiculoForm, ProveedorForm,
-    HojaRutaForm, ViajeForm, CargaCombustibleForm, MantenimientoForm,
-    FallaReportadaForm, PresupuestoForm, ArriendoForm, OrdenCompraForm
+    LoginForm, UsuarioForm, VehiculoForm, ProveedorForm, HojaRutaForm, 
+    ViajeForm, CargaCombustibleForm, MantenimientoForm, ProgramarMantenimientoForm, 
+    FinalizarMantenimientoForm, FallaReportadaForm, PresupuestoForm, ArriendoForm, 
+    OrdenCompraForm, OrdenTrabajoForm
 )
 
 
@@ -412,22 +411,34 @@ def listar_incidentes(request):
 @user_passes_test(es_administrador)
 def programar_mantenimiento_preventivo(request):
     if request.method == 'POST':
-        form = MantenimientoForm(request.POST)
+        form = ProgramarMantenimientoForm(request.POST)
         if form.is_valid():
             mantenimiento = form.save(commit=False)
+            
+            # Se asignan valores
             mantenimiento.tipo_mantencion = 'Preventivo'
             mantenimiento.estado = 'Programado'
+            
+            # Costos reales parten en 0
+            mantenimiento.costo_mano_obra = 0
+            mantenimiento.costo_repuestos = 0
+
             mantenimiento.save()
             
-            # Actualizar estado del vehículo
+            # Se actualiza el estado del vehículo
             vehiculo = mantenimiento.vehiculo
             vehiculo.estado = 'En mantenimiento'
             vehiculo.save()
             
             messages.success(request, 'Mantenimiento preventivo programado exitosamente.')
             return redirect('listar_mantenimientos')
+        else:
+            # Errores
+            print("Errores del formulario:", form.errors)
+            messages.error(request, 'Por favor, corrige los errores en el formulario.')
     else:
-        form = MantenimientoForm(initial={'tipo_mantencion': 'Preventivo', 'estado': 'Programado'})
+        # Inicializamos el formulario limpio
+        form = ProgramarMantenimientoForm()
     
     return render(request, 'flota/programar_mantenimiento_preventivo.html', {'form': form})
 
@@ -548,7 +559,7 @@ def api_mantenimientos(request):
             'end': m.fecha_salida.isoformat() if m.fecha_salida else None,
             'color': color,
             'extendedProps': {
-                'descripcion': m.observaciones or 'Sin observaciones',
+                'descripcion': m.descripcion_trabajo or 'Sin observaciones',
                 'estado': m.get_estado_display(),
                 'costo': str(m.costo_total_real) if m.costo_total_real else '0'
             }
@@ -573,6 +584,56 @@ def editar_mantenimiento(request, id):
         'form': form, 
         'titulo': f'Editar Mantención {mantenimiento.vehiculo.patente}'
     })
+
+# flota/views.py
+
+@login_required
+@user_passes_test(es_administrador)
+def finalizar_mantenimiento(request, id):
+    mantenimiento = get_object_or_404(Mantenimiento, id=id)
+    
+    if request.method == 'POST':
+        form = FinalizarMantenimientoForm(request.POST, request.FILES, instance=mantenimiento)
+        if form.is_valid():
+            mant = form.save(commit=False)
+            
+            # Calcular costo total real
+            mant.costo_total_real = (mant.costo_mano_obra or 0) + (mant.costo_repuestos or 0)
+            
+            # Cambiar estado a finalizado
+            mant.estado = 'Finalizado'
+
+            mant.save()
+            
+            # Liberar el Vehículo
+            vehiculo = mant.vehiculo
+            vehiculo.estado = 'Disponible'
+            vehiculo.save()
+            
+            # Imputar al Presupuesto
+            if mant.cuenta_presupuestaria:
+                try:
+                    presupuesto = Presupuesto.objects.get(
+                        vehiculo=vehiculo,
+                        anio=mant.fecha_ingreso.year,
+                        cuenta=mant.cuenta_presupuestaria
+                    )
+                    presupuesto.monto_ejecutado += mant.costo_total_real
+                    presupuesto.save()
+                except Presupuesto.DoesNotExist:
+                    messages.warning(request, 'Mantenimiento guardado, pero no se encontró presupuesto asociado para descontar.')
+
+            messages.success(request, f'Mantenimiento de {vehiculo.patente} finalizado correctamente.')
+            return redirect('listar_mantenimientos')
+    else:
+        # Fecha de salida como hoy por defecto
+        form = FinalizarMantenimientoForm(instance=mantenimiento, initial={'fecha_salida': timezone.now().date()})
+
+    return render(request, 'flota/finalizar_mantenimiento.html', {
+        'form': form, 
+        'mantenimiento': mantenimiento
+    })
+
 
 @login_required
 @user_passes_test(es_administrador)
@@ -924,3 +985,89 @@ def eliminar_orden_compra(request, id):
 def detalle_orden_compra(request, id):
     orden = get_object_or_404(OrdenCompra, id=id)
     return render(request, 'flota/detalle_orden_compra.html', {'orden': orden})
+
+
+# Registrar Orden de Trabajo
+@login_required
+@user_passes_test(es_administrador)
+def registrar_orden_trabajo(request):
+    if request.method == 'POST':
+        form = OrdenTrabajoForm(request.POST)
+        if form.is_valid():
+            orden_trabajo = form.save()
+            messages.success(request, f'Orden de Trabajo {orden_trabajo.nro_ot} registrada exitosamente.')
+            return redirect('listar_ordenes_trabajo')
+    else:
+        form = OrdenTrabajoForm()
+    
+    return render(request, 'flota/registrar_orden_trabajo.html', {'form': form})
+
+
+# Listar Órdenes de Trabajo
+@login_required
+def listar_ordenes_trabajo(request):
+    ordenes = OrdenTrabajo.objects.all().order_by('-fecha_solicitud', 'nro_ot')
+    
+    # Filtros
+    vehiculo_filter = request.GET.get('vehiculo')
+    proveedor_filter = request.GET.get('proveedor')
+    
+    if vehiculo_filter:
+        ordenes = ordenes.filter(vehiculo__patente=vehiculo_filter)
+    if proveedor_filter:
+        ordenes = ordenes.filter(proveedor__id=proveedor_filter)
+    
+    # Datos para filtros
+    vehiculos = Vehiculo.objects.all().order_by('patente')
+    proveedores = Proveedor.objects.filter(es_taller=True).order_by('nombre_fantasia')
+    
+    return render(request, 'flota/listar_ordenes_trabajo.html', {
+        'ordenes': ordenes,
+        'vehiculos': vehiculos,
+        'proveedores': proveedores,
+        'vehiculo_filter': vehiculo_filter,
+        'proveedor_filter': proveedor_filter,
+    })
+
+
+# Detalle de Orden de Trabajo
+@login_required
+def detalle_orden_trabajo(request, id):
+    orden = get_object_or_404(OrdenTrabajo, id=id)
+    mantenimientos = Mantenimiento.objects.filter(orden_trabajo=orden)
+    
+    return render(request, 'flota/detalle_orden_trabajo.html', {
+        'orden': orden,
+        'mantenimientos': mantenimientos,
+    })
+
+
+# Modificar Orden de Trabajo
+@login_required
+@user_passes_test(es_administrador)
+def modificar_orden_trabajo(request, id):
+    orden = get_object_or_404(OrdenTrabajo, id=id)
+    if request.method == 'POST':
+        form = OrdenTrabajoForm(request.POST, instance=orden)
+        if form.is_valid():
+            orden = form.save()
+            messages.success(request, f'Orden de Trabajo {orden.nro_ot} modificada exitosamente.')
+            return redirect('listar_ordenes_trabajo')
+    else:
+        form = OrdenTrabajoForm(instance=orden)
+    
+    return render(request, 'flota/modificar_orden_trabajo.html', {'form': form, 'orden': orden})
+
+
+# Eliminar Orden de Trabajo
+@login_required
+@user_passes_test(es_administrador)
+def eliminar_orden_trabajo(request, id):
+    orden = get_object_or_404(OrdenTrabajo, id=id)
+    if request.method == 'POST':
+        nro_ot = orden.nro_ot
+        orden.delete()
+        messages.success(request, f'Orden de Trabajo {nro_ot} eliminada exitosamente.')
+        return redirect('listar_ordenes_trabajo')
+    
+    return render(request, 'flota/eliminar_orden_trabajo.html', {'orden': orden})

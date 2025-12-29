@@ -1,0 +1,172 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header bg-info text-white">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h4 class="mb-0">
+                            <i class="bi bi-wrench"></i> Orden de Trabajo: {{ orden.nro_ot }}
+                        </h4>
+                        <div class="btn-group">
+                            <a href="{% url 'modificar_orden_trabajo' orden.id %}" class="btn btn-warning btn-sm">
+                                <i class="bi bi-pencil"></i> Editar
+                            </a>
+                            <a href="{% url 'eliminar_orden_trabajo' orden.id %}" class="btn btn-danger btn-sm">
+                                <i class="bi bi-trash"></i> Eliminar
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h5>Información Principal</h5>
+                            <table class="table table-sm">
+                                <tr>
+                                    <th width="40%">Número OT:</th>
+                                    <td><strong>{{ orden.nro_ot }}</strong></td>
+                                </tr>
+                                <tr>
+                                    <th>Fecha Solicitud:</th>
+                                    <td>{{ orden.fecha_solicitud|date:"d/m/Y" }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Vehículo:</th>
+                                    <td>
+                                        <a href="{% url 'ficha_vehiculo' orden.vehiculo.patente %}" 
+                                           class="text-decoration-none">
+                                            {{ orden.vehiculo.patente }} - {{ orden.vehiculo.marca }} {{ orden.vehiculo.modelo }}
+                                        </a>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <th>Proveedor/Taller:</th>
+                                    <td>
+                                        <a href="#" class="text-decoration-none">
+                                            {{ orden.proveedor.nombre_fantasia }}
+                                        </a>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <th>Orden de Compra:</th>
+                                    <td>
+                                        {% if orden.orden_compra %}
+                                        <a href="{% url 'detalle_orden_compra' orden.orden_compra.id %}" 
+                                           class="badge bg-info text-decoration-none">
+                                            {{ orden.orden_compra.nro_oc }}
+                                        </a>
+                                        {% else %}
+                                        <span class="badge bg-warning">Sin OC asociada</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                            </table>
+                        </div>
+                        <div class="col-md-6">
+                            <h5>Descripción del Trabajo</h5>
+                            <div class="border rounded p-3 bg-light">
+                                {{ orden.descripcion|linebreaks }}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Mantenimientos asociados -->
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="bi bi-tools"></i> Mantenimientos Asociados
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if mantenimientos %}
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Tipo</th>
+                                    <th>Fecha Ingreso</th>
+                                    <th>Estado</th>
+                                    <th>Costo Total</th>
+                                    <th>Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for mantenimiento in mantenimientos %}
+                                <tr>
+                                    <td>{{ mantenimiento.get_tipo_mantencion_display }}</td>
+                                    <td>{{ mantenimiento.fecha_ingreso|date:"d/m/Y" }}</td>
+                                    <td>
+                                        <span class="badge 
+                                            {% if mantenimiento.estado == 'Finalizado' %}bg-success
+                                            {% elif mantenimiento.estado == 'En taller' %}bg-warning
+                                            {% else %}bg-info{% endif %}">
+                                            {{ mantenimiento.get_estado_display }}
+                                        </span>
+                                    </td>
+                                    <td>${{ mantenimiento.costo_total_real|floatformat:2 }}</td>
+                                    <td>
+                                        <a href="#" class="btn btn-sm btn-outline-primary">
+                                            <i class="bi bi-eye"></i>
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle"></i> No hay mantenimientos asociados a esta orden de trabajo.
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-4">
+            <!-- Acciones rápidas -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-lightning-charge"></i> Acciones Rápidas</h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <a href="{% url 'registrar_mantenimiento_ejecutado' %}?orden_trabajo={{ orden.id }}" 
+                           class="btn btn-success">
+                            <i class="bi bi-plus-circle"></i> Crear Mantenimiento
+                        </a>
+                        <a href="{% url 'listar_ordenes_trabajo' %}" class="btn btn-secondary">
+                            <i class="bi bi-list-ul"></i> Volver al Listado
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Información del vehículo -->
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-car-front"></i> Información del Vehículo</h5>
+                </div>
+                <div class="card-body">
+                    <p><strong>Patente:</strong> {{ orden.vehiculo.patente }}</p>
+                    <p><strong>Marca/Modelo:</strong> {{ orden.vehiculo.marca }} {{ orden.vehiculo.modelo }}</p>
+                    <p><strong>Kilometraje:</strong> {{ orden.vehiculo.kilometraje_actual|floatformat:0 }} km</p>
+                    <p><strong>Estado:</strong> 
+                        <span class="badge bg-{{ orden.vehiculo.estado|lower }}">
+                            {{ orden.vehiculo.get_estado_display }}
+                        </span>
+                    </p>
+                    <hr>
+                    <a href="{% url 'ficha_vehiculo' orden.vehiculo.patente %}" class="btn btn-sm btn-outline-primary">
+                        <i class="bi bi-box-arrow-up-right"></i> Ver Ficha Completa
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
