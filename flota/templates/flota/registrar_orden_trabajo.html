@@ -1,4 +1,7 @@
 {% extends 'base.html' %}
+
+{% load static %}
+
 {% block content %}
 <div class="container-fluid">
     <div class="row justify-content-center">
@@ -46,15 +49,5 @@
 {% endblock %}
 
 {% block extra_js %}
-<script>
-    // Inicializar campos de fecha
-    document.addEventListener('DOMContentLoaded', function() {
-        // Establecer fecha actual por defecto para fecha_solicitud
-        const fechaField = document.querySelector('#id_fecha_solicitud');
-        if (fechaField && !fechaField.value) {
-            const today = new Date().toISOString().split('T')[0];
-            fechaField.value = today;
-        }
-    });
-</script>
+<script src="{% static 'js/registrar_orden_trabajo.js' %}"></script>
 {% endblock %}

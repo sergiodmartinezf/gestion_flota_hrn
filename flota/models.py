@@ -10,15 +10,28 @@ class UsuarioManager(BaseUserManager):
     def create_user(self, rut, email, password=None, **extra_fields):
         if not email:
             raise ValueError('El usuario debe tener un email')
+        if not rut:
+            raise ValueError('El usuario debe tener un RUT')
+        
         email = self.normalize_email(email)
         user = self.model(rut=rut, email=email, **extra_fields)
-        user.set_password(password)
+        
+        if password:
+            user.set_password(password)
+        else:
+            # Contraseña por defecto: rut
+            user.set_password(rut)
+        
         user.save(using=self._db)
         return user
 
     def create_superuser(self, rut, email, password=None, **extra_fields):
         extra_fields.setdefault('rol', 'Administrador')
         extra_fields.setdefault('activo', True)
+        
+        if password is None:
+            password = rut  # Contraseña por defecto para superusuarios
+        
         return self.create_user(rut, email, password, **extra_fields)
 
 class Usuario(AbstractBaseUser):
@@ -258,6 +271,11 @@ class Presupuesto(models.Model):
     def __str__(self):
         destino = self.vehiculo.patente if self.vehiculo else "Flota General"
         return f"{self.anio} - {self.cuenta.codigo} - {destino}"
+
+    @property
+    def disponible(self):
+        """Monto disponible del presupuesto"""
+        return self.monto_asignado - self.monto_ejecutado
     
     @property
     def porcentaje_ejecutado(self):
@@ -378,45 +396,59 @@ class Mantenimiento(models.Model):
 
 
 class Arriendo(models.Model):
-    """
-    Registra arriendos de vehículos externos cuando la flota propia falla.
-    """
     ESTADOS = [
         ('Activo', 'Activo'),
         ('Finalizado', 'Finalizado'),
     ]
     
     id = models.AutoField(primary_key=True)
+    
+    # Vehículo arrendado (externo)
+    patente_arrendada = models.CharField(max_length=10, verbose_name="Patente vehículo arrendado")
+    marca_modelo_arrendado = models.CharField(max_length=100, verbose_name="Marca/Modelo arrendado")
+    
+    # Vehículo propio que está siendo reemplazado
+    vehiculo_reemplazado = models.ForeignKey(Vehiculo, on_delete=models.SET_NULL, null=True, blank=True, 
+                                            related_name='arriendos_sustitutos', 
+                                            verbose_name="Vehículo propio reemplazado")
+    
+    # Fechas y costos
     fecha_inicio = models.DateField()
     fecha_fin = models.DateField(null=True, blank=True)
-    
-    # Datos financieros
     costo_diario = models.DecimalField(max_digits=10, decimal_places=2, validators=[MinValueValidator(Decimal('0'))])
-    costo_estimado_total = models.DecimalField(max_digits=12, decimal_places=2, default=0, help_text="Cálculo proyección días x costo diario")
-    costo_final_real = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, help_text="Monto final facturado")
+    costo_total = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, 
+                                     verbose_name="Costo total facturado")
     
-    motivo = models.TextField(help_text="Ej: Ambulancia HR-55 en pana de motor")
+    # Información de gestión
+    motivo = models.TextField(help_text="Ej: Ambulancia HR-PG-25 en pana de motor - Estimado 15 días en taller")
+    nro_orden_compra = models.CharField(max_length=50, blank=True, verbose_name="N° Orden de Compra")
+    nro_factura = models.CharField(max_length=50, blank=True, verbose_name="N° Factura")
     
     # Relaciones
-    # Vehículo propio que está siendo reemplazado (Opcional, si es ampliación de flota es null)
-    vehiculo_reemplazado = models.ForeignKey(Vehiculo, on_delete=models.SET_NULL, null=True, blank=True, related_name='arriendos_sustitutos')
     proveedor = models.ForeignKey(Proveedor, on_delete=models.PROTECT, related_name='arriendos')
-    orden_compra = models.ForeignKey(OrdenCompra, on_delete=models.SET_NULL, null=True, blank=True, related_name='arriendos')
     estado = models.CharField(max_length=20, choices=ESTADOS, default='Activo')
+    
+    # Campos calculados
+    dias_arriendo = models.IntegerField(default=0, verbose_name="Días de arriendo")
     
     class Meta:
         db_table = 'arriendo'
         verbose_name = 'Arriendo de Vehículo'
         verbose_name_plural = 'Arriendos de Vehículos'
     
+    def save(self, *args, **kwargs):
+        # Calcular días de arriendo
+        if self.fecha_inicio and self.fecha_fin:
+            self.dias_arriendo = (self.fecha_fin - self.fecha_inicio).days
+        
+        # Calcular costo total si hay costo diario y días
+        if self.costo_diario and self.dias_arriendo > 0 and not self.costo_total:
+            self.costo_total = self.costo_diario * Decimal(self.dias_arriendo)
+        
+        super().save(*args, **kwargs)
+    
     def __str__(self):
-        return f"Arriendo {self.proveedor.nombre_fantasia} (Reemplaza: {self.vehiculo_reemplazado})"
-
-    @property
-    def dias_arriendo(self):
-        if self.fecha_fin and self.fecha_inicio:
-            return (self.fecha_fin - self.fecha_inicio).days
-        return 0
+        return f"Arriendo {self.patente_arrendada} ({self.proveedor}) - Reemplaza: {self.vehiculo_reemplazado}"
 
 
 # --- OPERATIVA DIARIA ---

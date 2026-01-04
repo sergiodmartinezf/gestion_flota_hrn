@@ -3,50 +3,86 @@
 {% block title %}Registrar Arriendo - Gestión de Flota{% endblock %}
 
 {% block content %}
-<h2 class="mb-4"><i class="bi bi-file-earmark-text"></i> Registrar Arriendo</h2>
+<h2 class="mb-4"><i class="bi bi-truck"></i> Registrar Arriendo de Vehículo</h2>
+
+<div class="alert alert-info">
+    <i class="bi bi-info-circle"></i> 
+    Registra un vehículo arrendado que reemplazará temporalmente a un vehículo propio en reparación.
+</div>
 
 <form method="post">
     {% csrf_token %}
+    
     <div class="row">
         <div class="col-md-6">
+            <h5 class="border-bottom pb-2">Vehículo Propio (Reemplazado)</h5>
             <div class="mb-3">
-                <label for="{{ form.vehiculo.id_for_label }}" class="form-label">Vehículo *</label>
-                {{ form.vehiculo }}
+                <label class="form-label">Vehículo a reemplazar *</label>
+                {{ form.vehiculo_reemplazado }}
+                <div class="form-text">Selecciona el vehículo propio que está fuera de servicio.</div>
             </div>
+            
             <div class="mb-3">
-                <label for="{{ form.proveedor.id_for_label }}" class="form-label">Proveedor *</label>
+                <label class="form-label">Motivo del arriendo *</label>
+                {{ form.motivo }}
+                <div class="form-text">Ej: "Ambulancia HR-PG-25 en pana de motor - Estimado 15 días en taller"</div>
+            </div>
+            
+            <h5 class="border-bottom pb-2 mt-4">Proveedor</h5>
+            <div class="mb-3">
+                <label class="form-label">Proveedor (Arrendador) *</label>
                 {{ form.proveedor }}
-            </div>
-            <div class="mb-3">
-                <label for="{{ form.fecha_inicio.id_for_label }}" class="form-label">Fecha Inicio *</label>
-                {{ form.fecha_inicio }}
-            </div>
-            <div class="mb-3">
-                <label for="{{ form.fecha_fin.id_for_label }}" class="form-label">Fecha Fin</label>
-                {{ form.fecha_fin }}
+                <div class="form-text">Empresa que provee el vehículo arrendado (ej: Resmed).</div>
             </div>
         </div>
+        
         <div class="col-md-6">
+            <h5 class="border-bottom pb-2">Vehículo Arrendado</h5>
             <div class="mb-3">
-                <label for="{{ form.costo_diario.id_for_label }}" class="form-label">Costo Diario *</label>
+                <label class="form-label">Patente vehículo arrendado *</label>
+                {{ form.patente_arrendada }}
+            </div>
+            
+            <div class="mb-3">
+                <label class="form-label">Marca/Modelo arrendado *</label>
+                {{ form.marca_modelo_arrendado }}
+            </div>
+            
+            <h5 class="border-bottom pb-2 mt-4">Condiciones del Arriendo</h5>
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label class="form-label">Fecha inicio *</label>
+                        {{ form.fecha_inicio }}
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label class="form-label">Fecha fin estimada</label>
+                        {{ form.fecha_fin }}
+                        <div class="form-text">Dejar en blanco si no se conoce.</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="mb-3">
+                <label class="form-label">Costo diario (CLP) *</label>
                 {{ form.costo_diario }}
             </div>
+            
             <div class="mb-3">
-                <label for="{{ form.costo_total.id_for_label }}" class="form-label">Costo Total *</label>
-                {{ form.costo_total }}
-            </div>
-            <div class="mb-3">
-                <label for="{{ form.nro_orden_compra.id_for_label }}" class="form-label">N° Orden de Compra</label>
+                <label class="form-label">N° Orden de Compra (opcional)</label>
                 {{ form.nro_orden_compra }}
-            </div>
-            <div class="mb-3">
-                <label for="{{ form.estado.id_for_label }}" class="form-label">Estado *</label>
-                {{ form.estado }}
             </div>
         </div>
     </div>
-    <button type="submit" class="btn btn-primary">Registrar</button>
-    <a href="{% url 'listar_arriendos' %}" class="btn btn-secondary">Cancelar</a>
+    
+    <div class="mt-4">
+        <button type="submit" class="btn btn-primary">
+            <i class="bi bi-save"></i> Registrar Arriendo
+        </button>
+        <a href="{% url 'listar_arriendos' %}" class="btn btn-secondary">Cancelar</a>
+    </div>
 </form>
 {% endblock %}
 

@@ -1,5 +1,6 @@
 from django import forms
 from django.contrib.auth.forms import UserCreationForm
+from datetime import datetime
 from .models import (
     Usuario, Vehiculo, Proveedor, OrdenCompra, OrdenTrabajo,
     Presupuesto, Arriendo, HojaRuta, Viaje, CargaCombustible,
@@ -23,19 +24,19 @@ class UsuarioForm(forms.ModelForm):
     password = forms.CharField(
         label='Contraseña',
         widget=forms.PasswordInput(attrs={'class': 'form-control'}),
-        required=False
+        required=True
     )
     password_confirm = forms.CharField(
         label='Confirmar Contraseña',
         widget=forms.PasswordInput(attrs={'class': 'form-control'}),
-        required=False
+        required=True
     )
     
     class Meta:
         model = Usuario
         fields = ['rut', 'nombre', 'apellido', 'email', 'rol', 'activo']
         widgets = {
-            'rut': forms.TextInput(attrs={'class': 'form-control'}),
+            'rut': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ej: 12345678-9'}),
             'nombre': forms.TextInput(attrs={'class': 'form-control'}),
             'apellido': forms.TextInput(attrs={'class': 'form-control'}),
             'email': forms.EmailInput(attrs={'class': 'form-control'}),
@@ -43,21 +44,47 @@ class UsuarioForm(forms.ModelForm):
             'activo': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
         }
     
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Si es una edición (instance existe), hacer password no obligatorio
+        if self.instance.pk:
+            self.fields['password'].required = False
+            self.fields['password_confirm'].required = False
+        else:
+            self.fields['password'].required = True
+            self.fields['password_confirm'].required = True
+    
     def clean(self):
         cleaned_data = super().clean()
         password = cleaned_data.get('password')
         password_confirm = cleaned_data.get('password_confirm')
         
-        if password and password != password_confirm:
-            raise forms.ValidationError('Las contraseñas no coinciden.')
+        # Solo validar contraseñas si estamos creando o cambiando contraseña
+        if self.instance.pk:
+            # Edición: si se ingresó contraseña, validar
+            if password or password_confirm:
+                if password != password_confirm:
+                    raise forms.ValidationError('Las contraseñas no coinciden.')
+        else:
+            # Creación: contraseñas son obligatorias
+            if not password:
+                raise forms.ValidationError('Debe ingresar una contraseña.')
+            if password != password_confirm:
+                raise forms.ValidationError('Las contraseñas no coinciden.')
         
         return cleaned_data
     
     def save(self, commit=True):
         user = super().save(commit=False)
         password = self.cleaned_data.get('password')
+        
+        # Si se proporcionó una nueva contraseña, establecerla
         if password:
             user.set_password(password)
+        elif not user.pk:
+            # Si es nuevo usuario sin contraseña, usar rut como contraseña temporal
+            user.set_password(self.cleaned_data['rut'])
+        
         if commit:
             user.save()
         return user
@@ -266,30 +293,87 @@ class FallaReportadaForm(forms.ModelForm):
 class PresupuestoForm(forms.ModelForm):
     class Meta:
         model = Presupuesto
-        fields = ['vehiculo', 'anio', 'cuenta', 'monto_asignado']  # reemplaza convenio por cuenta presupuestaria
+        fields = ['vehiculo', 'anio', 'cuenta', 'monto_asignado']
         widgets = {
             'vehiculo': forms.Select(attrs={'class': 'form-control'}),
-            'anio': forms.NumberInput(attrs={'class': 'form-control'}),
+            'anio': forms.NumberInput(attrs={'class': 'form-control', 'min': '2000', 'max': '2100'}),
             'cuenta': forms.Select(attrs={'class': 'form-control'}),
-            'monto_asignado': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
+            'monto_asignado': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01', 'min': '0'}),
         }
+        labels = {
+            'vehiculo': 'Vehículo (opcional)',
+            'anio': 'Año Presupuestario',
+            'cuenta': 'Cuenta SIGFE',
+            'monto_asignado': 'Monto Asignado',
+        }
+        help_texts = {
+            'vehiculo': 'Dejar en blanco para presupuesto general de flota',
+            'anio': 'Ej: 2024',
+            'monto_asignado': 'Monto en pesos chilenos',
+        }
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Ordenar vehículos por patente
+        self.fields['vehiculo'].queryset = Vehiculo.objects.all().order_by('patente')
+        # Ordenar cuentas por código
+        self.fields['cuenta'].queryset = CuentaPresupuestaria.objects.all().order_by('codigo')
+        # Hacer vehículo opcional
+        self.fields['vehiculo'].required = False
+        # Año actual por defecto
+        if not self.instance.pk:  # Solo para creación, no edición
+            self.fields['anio'].initial = datetime.now().year
+    
+    def clean(self):
+        cleaned_data = super().clean()
+        anio = cleaned_data.get('anio')
+        cuenta = cleaned_data.get('cuenta')
+        vehiculo = cleaned_data.get('vehiculo')
+        
+        # Validar combinación única
+        if anio and cuenta:
+            existing = Presupuesto.objects.filter(
+                anio=anio,
+                cuenta=cuenta,
+                vehiculo=vehiculo
+            )
+            if self.instance.pk:
+                existing = existing.exclude(pk=self.instance.pk)
+            
+            if existing.exists():
+                tipo = f"para {vehiculo.patente}" if vehiculo else "global"
+                raise forms.ValidationError(
+                    f'Ya existe un presupuesto para el año {anio}, cuenta {cuenta} {tipo}.'
+                )
+        
+        # Validar año razonable
+        if anio:
+            current_year = datetime.now().year
+            if anio < 2000 or anio > current_year + 10:
+                raise forms.ValidationError('Por favor ingrese un año válido (2000-2030).')
+        
+        return cleaned_data
 
 
 class ArriendoForm(forms.ModelForm):
     class Meta:
         model = Arriendo
         fields = [
-            'vehiculo_reemplazado', 'proveedor', 'fecha_inicio', 'fecha_fin',
-            'costo_diario', 'motivo', 'orden_compra', 'estado'
+            'vehiculo_reemplazado', 'proveedor', 
+            'patente_arrendada', 'marca_modelo_arrendado',
+            'fecha_inicio', 'fecha_fin', 'costo_diario',
+            'motivo', 'nro_orden_compra', 'estado'
         ]
         widgets = {
             'vehiculo_reemplazado': forms.Select(attrs={'class': 'form-control'}),
             'proveedor': forms.Select(attrs={'class': 'form-control'}),
+            'patente_arrendada': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ej: ABC-123'}),
+            'marca_modelo_arrendado': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ej: Mercedes Sprinter'}),
             'fecha_inicio': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
             'fecha_fin': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
             'costo_diario': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
             'motivo': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
-            'orden_compra': forms.Select(attrs={'class': 'form-control'}),
+            'nro_orden_compra': forms.TextInput(attrs={'class': 'form-control'}),
             'estado': forms.Select(attrs={'class': 'form-control'}),
         }
 

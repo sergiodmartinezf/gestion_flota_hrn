@@ -65,9 +65,17 @@ def registrar_usuario(request):
     if request.method == 'POST':
         form = UsuarioForm(request.POST)
         if form.is_valid():
-            usuario = form.save()
-            messages.success(request, f'Usuario {usuario.nombre_completo} registrado exitosamente.')
-            return redirect('listar_usuarios')
+            try:
+                usuario = form.save()
+                messages.success(request, f'Usuario {usuario.nombre_completo} registrado exitosamente. Contraseña establecida.')
+                return redirect('listar_usuarios')
+            except Exception as e:
+                messages.error(request, f'Error al registrar usuario: {str(e)}')
+        else:
+            # Mostrar errores específicos
+            for field, errors in form.errors.items():
+                for error in errors:
+                    messages.error(request, f'{field}: {error}')
     else:
         form = UsuarioForm()
     
@@ -513,7 +521,38 @@ def registrar_presupuesto(request):
 @login_required
 def listar_presupuestos(request):
     presupuestos = Presupuesto.objects.all().order_by('-anio', 'vehiculo')
-    return render(request, 'flota/listar_presupuestos.html', {'presupuestos': presupuestos})
+    
+    # Filtros
+    anio_filter = request.GET.get('anio')
+    vehiculo_filter = request.GET.get('vehiculo')
+    
+    if anio_filter:
+        presupuestos = presupuestos.filter(anio=anio_filter)
+    if vehiculo_filter:
+        presupuestos = presupuestos.filter(vehiculo__patente=vehiculo_filter)
+    
+    # Calcular totales
+    total_asignado = presupuestos.aggregate(
+        total=Sum('monto_asignado')
+    )['total'] or Decimal('0')
+    
+    total_ejecutado = presupuestos.aggregate(
+        total=Sum('monto_ejecutado')
+    )['total'] or Decimal('0')
+    
+    total_disponible = total_asignado - total_ejecutado
+    
+    vehiculos = Vehiculo.objects.all().order_by('patente')
+    
+    return render(request, 'flota/listar_presupuestos.html', {
+        'presupuestos': presupuestos,
+        'vehiculos': vehiculos,
+        'anio_filter': anio_filter,
+        'vehiculo_filter': vehiculo_filter,
+        'total_asignado': total_asignado,
+        'total_ejecutado': total_ejecutado,
+        'total_disponible': total_disponible,
+    })
 
 
 # RF_22: Visualizar alertas de presupuesto
@@ -742,6 +781,41 @@ def registrar_arriendo(request):
 def listar_arriendos(request):
     arriendos = Arriendo.objects.all().order_by('-fecha_inicio')
     return render(request, 'flota/listar_arriendos.html', {'arriendos': arriendos})
+
+
+@login_required
+@user_passes_test(es_administrador)
+def finalizar_arriendo(request, id):
+    arriendo = get_object_or_404(Arriendo, id=id)
+    
+    if request.method == 'POST':
+        # Actualizar arriendo
+        arriendo.estado = 'Finalizado'
+        arriendo.fecha_fin = timezone.now().date()
+        arriendo.save()
+        
+        # Reactivar el vehículo propio si ya está disponible
+        if arriendo.vehiculo_reemplazado:
+            vehiculo = arriendo.vehiculo_reemplazado
+            # Verificar si el vehículo sigue en taller o ya está listo
+            mantenimientos_activos = Mantenimiento.objects.filter(
+                vehiculo=vehiculo,
+                estado__in=['En taller', 'Esperando repuestos']
+            )
+            
+            if mantenimientos_activos.exists():
+                vehiculo.estado = 'En mantenimiento'
+                messages.info(request, f'Vehículo {vehiculo.patente} sigue en mantenimiento.')
+            else:
+                vehiculo.estado = 'Disponible'
+                messages.success(request, f'Vehículo {vehiculo.patente} reactivado y disponible.')
+            
+            vehiculo.save()
+        
+        messages.success(request, f'Arriendo {arriendo.patente_arrendada} finalizado.')
+        return redirect('listar_arriendos')
+    
+    return render(request, 'flota/finalizar_arriendo.html', {'arriendo': arriendo})
 
 
 # RF_27: Visualizar panel de indicadores (Dashboard)
