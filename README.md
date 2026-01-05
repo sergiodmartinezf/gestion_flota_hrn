@@ -48,18 +48,42 @@ python manage.py runserver
 
 ```
 proyecto/
-├── gestion_flota/          # Configuración del proyecto Django
-├── flota/                  # Aplicación principal
-│   ├── models.py          # Modelos de base de datos (14 tablas)
-│   ├── views.py           # Vistas y lógica de negocio
-│   ├── forms.py           # Formularios
-│   ├── urls.py            # URLs de la aplicación
-│   └── admin.py           # Configuración del admin Django
-├── templates/             # Plantillas HTML
-│   └── flota/            # Templates de la aplicación
-├── static/               # Archivos estáticos (CSS, JS, imágenes)
-├── manage.py             # Script de gestión Django
-└── requirements.txt       # Dependencias del proyecto
+├── 1contexto/                    # Documentos del contexto del proyecto
+├── gestion_flota/                # Configuración del proyecto Django
+│   ├── __init__.py
+│   ├── asgi.py
+│   ├── settings.py
+│   ├── urls.py
+│   └── wsgi.py
+├── flota/                        # Aplicación principal
+│   ├── __init__.py
+│   ├── __pycache__/             # Archivos compilados Python
+│   ├── admin.py                 # Configuración del admin Django
+│   ├── apps.py                  # Configuración de la aplicación
+│   ├── forms.py                 # Formularios del sistema
+│   ├── models.py                # Modelos de base de datos (14 tablas)
+│   ├── signals.py               # Señales de Django
+│   ├── urls.py                  # URLs de la aplicación
+│   ├── utils.py                 # Utilidades auxiliares
+│   ├── views.py                 # Vistas y lógica de negocio
+│   ├── management/              # Comandos de gestión
+│   │   └── commands/
+│   │       └── crear_datos_iniciales.py
+│   ├── migrations/              # Migraciones de base de datos
+│   ├── static/                  # Archivos estáticos de la app
+│   │   ├── css/                # Hojas de estilo
+│   │   ├── images/             # Imágenes
+│   │   └── js/                 # Scripts JavaScript
+│   └── templates/              # Plantillas HTML
+│       └── flota/              # Templates de la aplicación
+├── media/                       # Archivos multimedia subidos
+├── manage.py                    # Script de gestión Django
+├── requirements.txt              # Dependencias del proyecto
+├── README.md                    # Documentación del proyecto
+├── RESUMEN_CORRECCIONES.md       # Resumen de correcciones realizadas
+├── ANALISIS_CUMPLIMIENTO_REQUISITOS.md  # Análisis de cumplimiento
+├── ERRORES_ENCONTRADOS.md        # Registro de errores encontrados
+└── THIRD_PARTY_LICENSES.md       # Licencias de terceros
 ```
 
 ## Base de Datos
@@ -83,7 +107,7 @@ El sistema utiliza PostgreSQL. La base de datos incluye las siguientes tablas:
 
 ## Roles de Usuario
 
-- **Administrador**: Acceso completo al sistema, puede gestionar usuarios, vehículos, mantenimientos, presupuestos y arriendos
-- **Conductor**: Puede registrar bitácoras, cargas de combustible e incidentes
+- **Administrador**: Acceso completo al sistema, puede gestionar usuarios, vehículos, mantenimientos, presupuestos y arriendos. Puede visualizar bitácoras, cargas de combustible e incidentes pero no registrar nuevos.
+- **Conductor**: Puede registrar bitácoras, cargas de combustible e incidentes, además de visualizar los registros existentes.
 - **Visualizador**: Solo lectura, puede ver información pero no modificar
 
