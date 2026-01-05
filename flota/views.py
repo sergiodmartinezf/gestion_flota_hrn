@@ -9,6 +9,7 @@ from datetime import datetime, timedelta
 from decimal import Decimal
 import json
 from django.views.decorators.http import require_POST
+from .utils import exportar_reporte_excel, exportar_planilla_mantenimientos_excel
 
 from .models import (
     Usuario, Vehiculo, Proveedor, OrdenCompra, OrdenTrabajo, Presupuesto, Arriendo, 
@@ -86,8 +87,17 @@ def registrar_usuario(request):
 @login_required
 @user_passes_test(es_administrador)
 def listar_usuarios(request):
-    usuarios = Usuario.objects.all().order_by('apellido', 'nombre')
-    return render(request, 'flota/listar_usuarios.html', {'usuarios': usuarios})
+    mostrar_deshabilitados = request.GET.get('mostrar_deshabilitados', 'false') == 'true'
+    
+    if mostrar_deshabilitados:
+        usuarios = Usuario.objects.all().order_by('apellido', 'nombre')
+    else:
+        usuarios = Usuario.objects.filter(activo=True).order_by('apellido', 'nombre')
+    
+    return render(request, 'flota/listar_usuarios.html', {
+        'usuarios': usuarios,
+        'mostrar_deshabilitados': mostrar_deshabilitados,
+    })
 
 
 # RF_04: Modificar usuario
@@ -98,9 +108,17 @@ def modificar_usuario(request, rut):
     if request.method == 'POST':
         form = UsuarioForm(request.POST, instance=usuario)
         if form.is_valid():
-            usuario = form.save()
-            messages.success(request, f'Usuario {usuario.nombre_completo} modificado exitosamente.')
-            return redirect('listar_usuarios')
+            try:
+                usuario = form.save()
+                messages.success(request, f'Usuario {usuario.nombre_completo} modificado exitosamente.')
+                return redirect('listar_usuarios')
+            except Exception as e:
+                messages.error(request, f'Error al modificar usuario: {str(e)}')
+        else:
+            # Mostrar errores específicos
+            for field, errors in form.errors.items():
+                for error in errors:
+                    messages.error(request, f'{field}: {error}')
     else:
         form = UsuarioForm(instance=usuario)
     
@@ -112,6 +130,12 @@ def modificar_usuario(request, rut):
 @user_passes_test(es_administrador)
 def deshabilitar_usuario(request, rut):
     usuario = get_object_or_404(Usuario, rut=rut)
+    
+    # Prevenir que un administrador se deshabilite a sí mismo
+    if request.user.rut == usuario.rut:
+        messages.error(request, 'No puedes deshabilitarte a ti mismo. Otro administrador debe hacerlo.')
+        return redirect('listar_usuarios')
+    
     if request.method == 'POST':
         usuario.activo = False
         usuario.save()
@@ -316,6 +340,10 @@ def registrar_bitacora(request):
             if vehiculo.kilometraje_actual < hoja_ruta.km_fin:
                 vehiculo.kilometraje_actual = hoja_ruta.km_fin
                 vehiculo.save()
+            elif hoja_ruta.km_fin < vehiculo.kilometraje_actual:
+                # Validar que el kilometraje no retroceda
+                messages.warning(request, f'El kilometraje final ({hoja_ruta.km_fin} km) es menor al actual ({vehiculo.kilometraje_actual} km). Verifique los datos.')
+                return render(request, 'flota/registrar_bitacora.html', {'form': form})
             
             messages.success(request, 'Bitácora registrada exitosamente.')
             return redirect('listar_bitacoras')
@@ -354,14 +382,24 @@ def registrar_carga_combustible(request):
     if request.method == 'POST':
         form = CargaCombustibleForm(request.POST)
         if form.is_valid():
-            carga = form.save(commit=False)
-            if request.user.rol == 'Conductor':
-                carga.conductor = request.user
-            carga.save()
-            messages.success(request, 'Carga de combustible registrada exitosamente.')
-            return redirect('listar_cargas_combustible')
+            try:
+                carga = form.save(commit=False)
+                if request.user.rol == 'Conductor':
+                    carga.conductor = request.user
+                carga.save()
+                messages.success(request, 'Carga de combustible registrada exitosamente.')
+                return redirect('listar_cargas_combustible')
+            except Exception as e:
+                messages.error(request, f'Error al registrar carga de combustible: {str(e)}')
+        else:
+            # Mostrar errores específicos
+            for field, errors in form.errors.items():
+                for error in errors:
+                    messages.error(request, f'{field}: {error}')
     else:
         form = CargaCombustibleForm()
+        # Filtrar proveedores activos
+        form.fields['proveedor'].queryset = Proveedor.objects.filter(activo=True).order_by('nombre_fantasia')
     
     return render(request, 'flota/registrar_carga_combustible.html', {'form': form})
 
@@ -383,23 +421,34 @@ def registrar_incidente(request):
     if request.method == 'POST':
         form = FallaReportadaForm(request.POST)
         if form.is_valid():
-            falla = form.save(commit=False)
-            falla.conductor = request.user
-            falla.save()
-            
-            # Crear alerta si es necesario
-            vehiculo = falla.vehiculo
-            if vehiculo.kilometraje_actual >= vehiculo.umbral_mantencion:
-                AlertaMantencion.objects.create(
-                    vehiculo=vehiculo,
-                    descripcion=f'Falla reportada: {falla.descripcion}',
-                    valor_umbral=vehiculo.kilometraje_actual,
-                )
-            
-            messages.success(request, 'Incidente registrado exitosamente.')
-            return redirect('listar_incidentes')
+            try:
+                falla = form.save(commit=False)
+                falla.conductor = request.user
+                falla.save()
+                
+                # Crear alerta si es necesario
+                vehiculo = falla.vehiculo
+                if vehiculo.umbral_mantencion > 0 and vehiculo.kilometraje_actual >= vehiculo.umbral_mantencion:
+                    AlertaMantencion.objects.create(
+                        vehiculo=vehiculo,
+                        descripcion=f'Falla reportada: {falla.descripcion}',
+                        valor_umbral=vehiculo.kilometraje_actual,
+                    )
+                
+                messages.success(request, 'Incidente registrado exitosamente.')
+                return redirect('listar_incidentes')
+            except Exception as e:
+                messages.error(request, f'Error al registrar incidente: {str(e)}')
+        else:
+            for field, errors in form.errors.items():
+                for error in errors:
+                    messages.error(request, f'{field}: {error}')
     else:
         form = FallaReportadaForm()
+        # Establecer fecha actual por defecto
+        if not form.instance.pk:
+            from datetime import date
+            form.fields['fecha_reporte'].initial = date.today()
     
     return render(request, 'flota/registrar_incidente.html', {'form': form})
 
@@ -451,43 +500,60 @@ def programar_mantenimiento_preventivo(request):
     return render(request, 'flota/programar_mantenimiento_preventivo.html', {'form': form})
 
 
-# RF_19: Registrar mantenimiento ejecutado
+# RF_19: Registrar mantenimiento correctivo
 @login_required
 @user_passes_test(es_administrador)
-def registrar_mantenimiento_ejecutado(request):
+def registrar_mantenimiento_correctivo(request):
     if request.method == 'POST':
         form = MantenimientoForm(request.POST)
         if form.is_valid():
-            mantenimiento = form.save()
-            
-            # Actualizar presupuesto si existe
-            if mantenimiento.cuenta_presupuestaria:
-                presupuestos = Presupuesto.objects.filter(
-                    vehiculo=mantenimiento.vehiculo,
-                    anio=mantenimiento.fecha_ingreso.year,
-                    cuenta=mantenimiento.cuenta_presupuestaria
-                )
-                for presupuesto in presupuestos:
-                    presupuesto.monto_ejecutado += mantenimiento.costo_total_real
-                    presupuesto.save()
-            
-            # Actualizar estado del vehículo
-            vehiculo = mantenimiento.vehiculo
-            if mantenimiento.fecha_salida:
-                vehiculo.estado = 'Disponible'
+            try:
+                mantenimiento = form.save(commit=False)
+                mantenimiento.tipo_mantencion = 'Correctivo'
+                mantenimiento.estado = 'En taller'
+                
+                # Calcular costo total real si se proporcionaron costos
+                if mantenimiento.costo_mano_obra or mantenimiento.costo_repuestos:
+                    mantenimiento.costo_total_real = (mantenimiento.costo_mano_obra or 0) + (mantenimiento.costo_repuestos or 0)
+                
+                mantenimiento.save()
+                
+                # Actualizar estado del vehículo
+                vehiculo = mantenimiento.vehiculo
+                vehiculo.estado = 'En mantenimiento'
                 vehiculo.save()
-            
-            messages.success(request, 'Mantenimiento ejecutado registrado exitosamente.')
-            return redirect('listar_mantenimientos')
+                
+                # El signal actualizará el presupuesto automáticamente si es necesario
+                # (aunque el signal solo actualiza para preventivos, los correctivos no deberían descontar del presupuesto preventivo)
+                
+                messages.success(request, 'Mantenimiento correctivo registrado exitosamente.')
+                return redirect('listar_mantenimientos')
+            except Exception as e:
+                messages.error(request, f'Error al registrar mantenimiento correctivo: {str(e)}')
+        else:
+            for field, errors in form.errors.items():
+                for error in errors:
+                    messages.error(request, f'{field}: {error}')
     else:
         form = MantenimientoForm()
+        # Filtrar proveedores activos
+        form.fields['proveedor'].queryset = Proveedor.objects.filter(activo=True, es_taller=True).order_by('nombre_fantasia')
     
-    return render(request, 'flota/registrar_mantenimiento_ejecutado.html', {'form': form})
+    return render(request, 'flota/registrar_mantenimiento_correctivo.html', {'form': form})
 
 
 # RF_20: Listar mantenimientos
 @login_required
 def listar_mantenimientos(request):
+    # Exportar planilla Excel si se solicita
+    if request.GET.get('exportar') == 'planilla':
+        anio = request.GET.get('anio', timezone.now().year)
+        try:
+            anio = int(anio)
+        except (ValueError, TypeError):
+            anio = timezone.now().year
+        return exportar_planilla_mantenimientos_excel(anio)
+    
     patente = request.GET.get('patente')
     mantenimientos = Mantenimiento.objects.all()
     
@@ -502,6 +568,38 @@ def listar_mantenimientos(request):
     })
 
 
+# Cambiar estado de mantenimiento (AJAX)
+@login_required
+@user_passes_test(es_administrador)
+@require_POST
+def cambiar_estado_mantenimiento(request, id):
+    import json
+    mantenimiento = get_object_or_404(Mantenimiento, id=id)
+    
+    try:
+        data = json.loads(request.body)
+        nuevo_estado = data.get('estado')
+        
+        if nuevo_estado in dict(Mantenimiento.ESTADOS):
+            mantenimiento.estado = nuevo_estado
+            mantenimiento.save()
+            
+            # Actualizar estado del vehículo si es necesario
+            vehiculo = mantenimiento.vehiculo
+            if nuevo_estado == 'Finalizado' and mantenimiento.fecha_salida:
+                vehiculo.estado = 'Disponible'
+                vehiculo.save()
+            elif nuevo_estado in ['En taller', 'Esperando repuestos']:
+                vehiculo.estado = 'En mantenimiento'
+                vehiculo.save()
+            
+            return JsonResponse({'success': True})
+        else:
+            return JsonResponse({'success': False, 'error': 'Estado inválido'})
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)})
+
+
 # RF_21: Registrar presupuesto anual por convenio
 @login_required
 @user_passes_test(es_administrador)
@@ -509,9 +607,16 @@ def registrar_presupuesto(request):
     if request.method == 'POST':
         form = PresupuestoForm(request.POST)
         if form.is_valid():
-            presupuesto = form.save()
-            messages.success(request, 'Presupuesto registrado exitosamente.')
-            return redirect('listar_presupuestos')
+            try:
+                presupuesto = form.save()
+                messages.success(request, 'Presupuesto registrado exitosamente.')
+                return redirect('listar_presupuestos')
+            except Exception as e:
+                messages.error(request, f'Error al registrar presupuesto: {str(e)}')
+        else:
+            for field, errors in form.errors.items():
+                for error in errors:
+                    messages.error(request, f'{field}: {error}')
     else:
         form = PresupuestoForm()
     
@@ -519,8 +624,44 @@ def registrar_presupuesto(request):
 
 
 @login_required
+@user_passes_test(es_administrador)
+def modificar_presupuesto(request, id):
+    presupuesto = get_object_or_404(Presupuesto, id=id)
+    if request.method == 'POST':
+        form = PresupuestoForm(request.POST, instance=presupuesto)
+        if form.is_valid():
+            try:
+                presupuesto = form.save()
+                messages.success(request, 'Presupuesto modificado exitosamente.')
+                return redirect('listar_presupuestos')
+            except Exception as e:
+                messages.error(request, f'Error al modificar presupuesto: {str(e)}')
+        else:
+            for field, errors in form.errors.items():
+                for error in errors:
+                    messages.error(request, f'{field}: {error}')
+    else:
+        form = PresupuestoForm(instance=presupuesto)
+    
+    return render(request, 'flota/modificar_presupuesto.html', {'form': form, 'presupuesto': presupuesto})
+
+
+@login_required
+@user_passes_test(es_administrador)
+def deshabilitar_presupuesto(request, id):
+    presupuesto = get_object_or_404(Presupuesto, id=id)
+    if request.method == 'POST':
+        presupuesto.activo = False
+        presupuesto.save()
+        messages.success(request, 'Presupuesto deshabilitado exitosamente.')
+        return redirect('listar_presupuestos')
+    
+    return render(request, 'flota/deshabilitar_presupuesto.html', {'presupuesto': presupuesto})
+
+
+@login_required
 def listar_presupuestos(request):
-    presupuestos = Presupuesto.objects.all().order_by('-anio', 'vehiculo')
+    presupuestos = Presupuesto.objects.filter(activo=True).order_by('-anio', 'vehiculo')
     
     # Filtros
     anio_filter = request.GET.get('anio')
@@ -558,7 +699,7 @@ def listar_presupuestos(request):
 # RF_22: Visualizar alertas de presupuesto
 @login_required
 def alertas_presupuesto(request):
-    presupuestos = Presupuesto.objects.all()
+    presupuestos = Presupuesto.objects.filter(activo=True)
     alertas = []
     
     for presupuesto in presupuestos:
@@ -573,10 +714,110 @@ def alertas_presupuesto(request):
     return render(request, 'flota/alertas_presupuesto.html', {'alertas': alertas})
 
 
+# Reporte de Variación Presupuestaria (ahora parte de reporte_costos, pero se mantiene para exportación)
+@login_required
+def reporte_variacion_presupuestaria(request):
+    """
+    Reporte que compara presupuesto planificado vs ejecutado.
+    Alerta cuando la variación es mayor al 10% (requisito crítico).
+    """
+    anio = request.GET.get('anio', timezone.now().year)
+    try:
+        anio = int(anio)
+    except (ValueError, TypeError):
+        anio = timezone.now().year
+    
+    # Obtener presupuestos del año seleccionado (solo activos)
+    # NOTA: Según requisito, este reporte es para "presupuesto anual para lo preventivo"
+    # El monto_ejecutado ya está calculado solo con mantenimientos preventivos en signals.py
+    presupuestos = Presupuesto.objects.filter(anio=anio, activo=True).select_related('vehiculo', 'cuenta')
+    
+    reporte = []
+    alertas_variacion = []
+    
+    for presupuesto in presupuestos:
+        # Recalcular monto ejecutado solo con mantenimientos preventivos para este reporte
+        # (por si acaso el signal no se ejecutó correctamente)
+        monto_ejecutado_preventivo = Mantenimiento.objects.filter(
+            cuenta_presupuestaria=presupuesto.cuenta,
+            vehiculo=presupuesto.vehiculo,
+            fecha_ingreso__year=anio,
+            tipo_mantencion='Preventivo'
+        ).aggregate(total=Sum('costo_total_real'))['total'] or Decimal('0')
+        
+        # Calcular variación usando el monto ejecutado de preventivos
+        diferencia = monto_ejecutado_preventivo - presupuesto.monto_asignado
+        porcentaje_variacion = (diferencia / presupuesto.monto_asignado * 100) if presupuesto.monto_asignado > 0 else 0
+        
+        # Determinar si hay alerta (solo cuando se sobrepasa el presupuesto en más del 10%)
+        # No alertar si hay mucho presupuesto sin usar, solo cuando se excede
+        tiene_alerta = porcentaje_variacion > 10
+        
+        porcentaje_ejecutado = (monto_ejecutado_preventivo / presupuesto.monto_asignado * 100) if presupuesto.monto_asignado > 0 else 0
+        
+        item_reporte = {
+            'vehiculo': presupuesto.vehiculo.patente if presupuesto.vehiculo else 'Flota General',
+            'marca_modelo': f"{presupuesto.vehiculo.marca} {presupuesto.vehiculo.modelo}" if presupuesto.vehiculo else 'N/A',
+            'cuenta_sigfe': presupuesto.cuenta.codigo,
+            'nombre_cuenta': presupuesto.cuenta.nombre,
+            'monto_asignado': presupuesto.monto_asignado,
+            'monto_ejecutado': monto_ejecutado_preventivo,  # Solo preventivos
+            'diferencia': diferencia,
+            'porcentaje_variacion': porcentaje_variacion,
+            'porcentaje_ejecutado': porcentaje_ejecutado,
+            'tiene_alerta': tiene_alerta,
+            'presupuesto': presupuesto,  # Para el template
+        }
+        
+        reporte.append(item_reporte)
+        
+        if tiene_alerta:
+            alertas_variacion.append(item_reporte)
+    
+    # Exportar a Excel si se solicita
+    if request.GET.get('exportar') == 'excel':
+        columnas = [
+            ('Vehículo', 'vehiculo', 'texto'),
+            ('Marca/Modelo', 'marca_modelo', 'texto'),
+            ('Cuenta SIGFE', 'cuenta_sigfe', 'texto'),
+            ('Nombre Cuenta', 'nombre_cuenta', 'texto'),
+            ('Monto Asignado', 'monto_asignado', 'moneda'),
+            ('Monto Ejecutado', 'monto_ejecutado', 'moneda'),
+            ('Diferencia', 'diferencia', 'moneda'),
+            ('% Variación', 'porcentaje_variacion', 'decimal'),
+            ('% Ejecutado', 'porcentaje_ejecutado', 'decimal'),
+        ]
+        return exportar_reporte_excel(
+            f'Análisis de Variación Presupuestaria - Año {anio}',
+            reporte,
+            columnas,
+            f'variacion_presupuestaria_{anio}_{datetime.now().strftime("%Y%m%d")}.xlsx'
+        )
+    
+    # Obtener años disponibles: desde el año actual hacia atrás hasta 5 años
+    anio_actual = timezone.now().year
+    anios_disponibles = list(range(anio_actual, anio_actual - 6, -1))
+    # Agregar años que tienen presupuestos registrados
+    anios_con_presupuestos = list(Presupuesto.objects.values_list('anio', flat=True).distinct())
+    anios_disponibles = sorted(set(anios_disponibles + anios_con_presupuestos), reverse=True)
+    
+    return render(request, 'flota/reporte_variacion_presupuestaria.html', {
+        'reporte': reporte,
+        'alertas_variacion': alertas_variacion,
+        'anio': anio,
+        'anios_disponibles': anios_disponibles,
+    })
+
+
 # RF_23: Visualizar calendario de mantenciones
 @login_required
 def calendario_mantenciones(request):
-    return render(request, 'flota/calendario_mantenciones.html')
+    vehiculos = Vehiculo.objects.all().order_by('patente')
+    proveedores = Proveedor.objects.filter(es_taller=True, activo=True).order_by('nombre_fantasia')
+    return render(request, 'flota/calendario_mantenciones.html', {
+        'vehiculos': vehiculos,
+        'proveedores': proveedores,
+    })
 
 @login_required
 def api_mantenimientos(request):
@@ -591,11 +832,15 @@ def api_mantenimientos(request):
         elif m.estado == 'Finalizado':
             color = '#198754' # Verde
             
+        # Asegurar que las fechas estén correctamente formateadas
+        start_date = m.fecha_ingreso.isoformat() if m.fecha_ingreso else None
+        end_date = m.fecha_salida.isoformat() if m.fecha_salida else None
+        
         eventos.append({
             'id': m.id,
             'title': f"{m.vehiculo.patente} - {m.get_tipo_mantencion_display()}",
-            'start': m.fecha_ingreso.isoformat(),
-            'end': m.fecha_salida.isoformat() if m.fecha_salida else None,
+            'start': start_date,
+            'end': end_date,
             'color': color,
             'extendedProps': {
                 'descripcion': m.descripcion_trabajo or 'Sin observaciones',
@@ -613,15 +858,22 @@ def editar_mantenimiento(request, id):
     if request.method == 'POST':
         form = MantenimientoForm(request.POST, instance=mantenimiento)
         if form.is_valid():
-            form.save()
-            messages.success(request, 'Mantenimiento actualizado correctamente.')
-            return redirect('calendario_mantenciones')
+            try:
+                form.save()
+                messages.success(request, 'Mantenimiento actualizado correctamente.')
+                return redirect('listar_mantenimientos')
+            except Exception as e:
+                messages.error(request, f'Error al actualizar mantenimiento: {str(e)}')
+        else:
+            for field, errors in form.errors.items():
+                for error in errors:
+                    messages.error(request, f'{field}: {error}')
     else:
         form = MantenimientoForm(instance=mantenimiento)
     
-    return render(request, 'flota/programar_mantenimiento_preventivo.html', {
+    return render(request, 'flota/editar_mantenimiento.html', {
         'form': form, 
-        'titulo': f'Editar Mantención {mantenimiento.vehiculo.patente}'
+        'mantenimiento': mantenimiento
     })
 
 # flota/views.py
@@ -647,20 +899,16 @@ def finalizar_mantenimiento(request, id):
             # Liberar el Vehículo
             vehiculo = mant.vehiculo
             vehiculo.estado = 'Disponible'
+            
+            # Actualizar kilometraje si el mantenimiento tiene un kilometraje mayor
+            if mant.km_al_ingreso > vehiculo.kilometraje_actual:
+                vehiculo.kilometraje_actual = mant.km_al_ingreso
+            
             vehiculo.save()
             
-            # Imputar al Presupuesto
-            if mant.cuenta_presupuestaria:
-                try:
-                    presupuesto = Presupuesto.objects.get(
-                        vehiculo=vehiculo,
-                        anio=mant.fecha_ingreso.year,
-                        cuenta=mant.cuenta_presupuestaria
-                    )
-                    presupuesto.monto_ejecutado += mant.costo_total_real
-                    presupuesto.save()
-                except Presupuesto.DoesNotExist:
-                    messages.warning(request, 'Mantenimiento guardado, pero no se encontró presupuesto asociado para descontar.')
+            # El signal actualizará el presupuesto automáticamente si es preventivo
+            # Los mantenimientos correctivos NO deben descontar del presupuesto preventivo
+            # (según requisito: "presupuesto anual para lo preventivo")
 
             messages.success(request, f'Mantenimiento de {vehiculo.patente} finalizado correctamente.')
             return redirect('listar_mantenimientos')
@@ -687,11 +935,67 @@ def eliminar_mantenimiento(request, id):
     return render(request, 'flota/eliminar_mantenimiento.html', {'mantenimiento': mantenimiento})
 
 
-# RF_24: Generar reporte de costos
+# RF_24: Generar reporte de costos (ahora incluye variación presupuestaria)
 @login_required
 def reporte_costos(request):
+    # Si se solicita exportar variación presupuestaria
+    if request.GET.get('exportar') == 'excel' and request.GET.get('tipo') == 'variacion':
+        return reporte_variacion_presupuestaria(request)
+    
+    # Si se solicita exportar costos
+    if request.GET.get('exportar') == 'excel' and not request.GET.get('tipo'):
+        vehiculos = Vehiculo.objects.all()
+        reporte = []
+        
+        for vehiculo in vehiculos:
+            mantenimientos = Mantenimiento.objects.filter(vehiculo=vehiculo)
+            costo_mantenimientos = mantenimientos.aggregate(total=Sum('costo_total_real'))['total'] or Decimal('0')
+            
+            cargas = CargaCombustible.objects.filter(patente_vehiculo=vehiculo)
+            costo_combustible = cargas.aggregate(total=Sum('costo_total'))['total'] or Decimal('0')
+            
+            arriendos = Arriendo.objects.filter(vehiculo_reemplazado=vehiculo)
+            costo_arriendos = arriendos.aggregate(total=Sum('costo_total'))['total'] or Decimal('0')
+            
+            costo_total = costo_mantenimientos + costo_combustible + costo_arriendos
+            costo_por_km = costo_total / vehiculo.kilometraje_actual if vehiculo.kilometraje_actual > 0 else Decimal('0')
+            
+            presupuesto = Presupuesto.objects.filter(vehiculo=vehiculo).aggregate(
+                total=Sum('monto_asignado')
+            )['total'] or Decimal('0')
+            
+            reporte.append({
+                'patente': vehiculo.patente,
+                'marca_modelo': f"{vehiculo.marca} {vehiculo.modelo}",
+                'costo_mantenimientos': costo_mantenimientos,
+                'costo_combustible': costo_combustible,
+                'costo_arriendos': costo_arriendos,
+                'costo_total': costo_total,
+                'costo_por_km': costo_por_km,
+                'presupuesto': presupuesto,
+                'vehiculo': vehiculo,
+            })
+        
+        columnas = [
+            ('Vehículo', 'patente', 'texto'),
+            ('Marca/Modelo', 'marca_modelo', 'texto'),
+            ('Costo Mantenimientos', 'costo_mantenimientos', 'moneda'),
+            ('Costo Combustible', 'costo_combustible', 'moneda'),
+            ('Costo Arriendos', 'costo_arriendos', 'moneda'),
+            ('Costo Total', 'costo_total', 'moneda'),
+            ('Costo por Km', 'costo_por_km', 'decimal'),
+            ('Presupuesto', 'presupuesto', 'moneda'),
+        ]
+        return exportar_reporte_excel(
+            'Reporte de Costos por Vehículo',
+            reporte,
+            columnas,
+            f'reporte_costos_{datetime.now().strftime("%Y%m%d")}.xlsx'
+        )
+    
+    # Obtener datos de costos
     vehiculos = Vehiculo.objects.all()
-    reporte = []
+    reporte_costos_data = []
     
     for vehiculo in vehiculos:
         mantenimientos = Mantenimiento.objects.filter(vehiculo=vehiculo)
@@ -701,7 +1005,7 @@ def reporte_costos(request):
         costo_combustible = cargas.aggregate(total=Sum('costo_total'))['total'] or Decimal('0')
         
         arriendos = Arriendo.objects.filter(vehiculo_reemplazado=vehiculo)
-        costo_arriendos = arriendos.aggregate(total=Sum('costo_final_real'))['total'] or Decimal('0')
+        costo_arriendos = arriendos.aggregate(total=Sum('costo_total'))['total'] or Decimal('0')
         
         costo_total = costo_mantenimientos + costo_combustible + costo_arriendos
         costo_por_km = costo_total / vehiculo.kilometraje_actual if vehiculo.kilometraje_actual > 0 else Decimal('0')
@@ -710,22 +1014,80 @@ def reporte_costos(request):
             total=Sum('monto_asignado')
         )['total'] or Decimal('0')
         
-        reporte.append({
-            'vehiculo': vehiculo,
+        reporte_costos_data.append({
+            'patente': vehiculo.patente,
+            'marca_modelo': f"{vehiculo.marca} {vehiculo.modelo}",
             'costo_mantenimientos': costo_mantenimientos,
             'costo_combustible': costo_combustible,
             'costo_arriendos': costo_arriendos,
             'costo_total': costo_total,
             'costo_por_km': costo_por_km,
             'presupuesto': presupuesto,
+            'vehiculo': vehiculo,
         })
     
-    return render(request, 'flota/reporte_costos.html', {'reporte': reporte})
+    # Obtener datos de variación presupuestaria
+    anio = request.GET.get('anio', timezone.now().year)
+    try:
+        anio = int(anio)
+    except (ValueError, TypeError):
+        anio = timezone.now().year
+    
+    presupuestos = Presupuesto.objects.filter(anio=anio, activo=True).select_related('vehiculo', 'cuenta')
+    
+    reporte_variacion = []
+    alertas_variacion = []
+    
+    for presupuesto in presupuestos:
+        monto_ejecutado_preventivo = Mantenimiento.objects.filter(
+            cuenta_presupuestaria=presupuesto.cuenta,
+            vehiculo=presupuesto.vehiculo,
+            fecha_ingreso__year=anio,
+            tipo_mantencion='Preventivo'
+        ).aggregate(total=Sum('costo_total_real'))['total'] or Decimal('0')
+        
+        diferencia = monto_ejecutado_preventivo - presupuesto.monto_asignado
+        porcentaje_variacion = (diferencia / presupuesto.monto_asignado * 100) if presupuesto.monto_asignado > 0 else 0
+        
+        tiene_alerta = porcentaje_variacion > 10
+        
+        porcentaje_ejecutado = (monto_ejecutado_preventivo / presupuesto.monto_asignado * 100) if presupuesto.monto_asignado > 0 else 0
+        
+        item_reporte = {
+            'vehiculo': presupuesto.vehiculo.patente if presupuesto.vehiculo else 'Flota General',
+            'marca_modelo': f"{presupuesto.vehiculo.marca} {presupuesto.vehiculo.modelo}" if presupuesto.vehiculo else 'N/A',
+            'cuenta_sigfe': presupuesto.cuenta.codigo,
+            'nombre_cuenta': presupuesto.cuenta.nombre,
+            'monto_asignado': presupuesto.monto_asignado,
+            'monto_ejecutado': monto_ejecutado_preventivo,
+            'diferencia': diferencia,
+            'porcentaje_variacion': porcentaje_variacion,
+            'porcentaje_ejecutado': porcentaje_ejecutado,
+            'tiene_alerta': tiene_alerta,
+            'presupuesto': presupuesto,
+        }
+        
+        reporte_variacion.append(item_reporte)
+        
+        if tiene_alerta:
+            alertas_variacion.append(item_reporte)
+    
+    # Obtener años disponibles
+    anio_actual = timezone.now().year
+    anios_disponibles = list(range(anio_actual, anio_actual - 6, -1))
+    anios_con_presupuestos = list(Presupuesto.objects.values_list('anio', flat=True).distinct())
+    anios_disponibles = sorted(set(anios_disponibles + anios_con_presupuestos), reverse=True)
+    
+    return render(request, 'flota/reporte_costos.html', {
+        'reporte': reporte_costos_data,
+        'reporte_variacion': reporte_variacion,
+        'alertas_variacion': alertas_variacion,
+        'anio': anio,
+        'anios_disponibles': anios_disponibles,
+    })
 
 
-# RF_25: Generar reporte de disponibilidad
-# En flota/views.py
-
+# RF_25: Generar reporte de disponibilidad (ahora parte de reporte_costos)
 @login_required
 def reporte_disponibilidad(request):
     vehiculos = Vehiculo.objects.all()
@@ -744,11 +1106,29 @@ def reporte_disponibilidad(request):
         incidentes = FallaReportada.objects.filter(vehiculo=vehiculo).count()
         
         reporte.append({
-            'vehiculo': vehiculo,
+            'patente': vehiculo.patente,
+            'marca_modelo': f"{vehiculo.marca} {vehiculo.modelo}",
             'dias_fuera_servicio': total_dias_fuera,
             'incidentes': incidentes,
-            'estado': vehiculo.estado,
+            'estado': vehiculo.get_estado_display(),
+            'vehiculo': vehiculo,  # Para el template
         })
+    
+    # Exportar a Excel si se solicita
+    if request.GET.get('exportar') == 'excel':
+        columnas = [
+            ('Vehículo', 'patente', 'texto'),
+            ('Marca/Modelo', 'marca_modelo', 'texto'),
+            ('Días Fuera de Servicio', 'dias_fuera_servicio', 'entero'),
+            ('Número de Incidentes', 'incidentes', 'entero'),
+            ('Estado Actual', 'estado', 'texto'),
+        ]
+        return exportar_reporte_excel(
+            'Reporte de Disponibilidad de Flota',
+            reporte,
+            columnas,
+            f'reporte_disponibilidad_{datetime.now().strftime("%Y%m%d")}.xlsx'
+        )
     
     return render(request, 'flota/reporte_disponibilidad.html', {'reporte': reporte})
 
@@ -761,14 +1141,11 @@ def registrar_arriendo(request):
         form = ArriendoForm(request.POST)
         if form.is_valid():
             arriendo = form.save()
-            # Actualizar estado del vehículo
+            # Actualizar estado del vehículo reemplazado
             if arriendo.vehiculo_reemplazado:
                 vehiculo = arriendo.vehiculo_reemplazado
-                vehiculo.tipo_propiedad = 'Arrendado'
+                vehiculo.estado = 'Fuera de servicio'
                 vehiculo.save()
-
-            vehiculo.tipo_propiedad = 'Arrendado'
-            vehiculo.save()
             messages.success(request, 'Arriendo registrado exitosamente.')
             return redirect('listar_arriendos')
     else:
@@ -935,7 +1312,7 @@ def reporte_historial_unidad(request, patente):
 @login_required
 @user_passes_test(es_administrador)
 def listar_proveedores(request):
-    proveedores = Proveedor.objects.all().order_by('nombre_fantasia')
+    proveedores = Proveedor.objects.filter(activo=True).order_by('nombre_fantasia')
     return render(request, 'flota/listar_proveedores.html', {'proveedores': proveedores})
 
 # Registrar proveedores
@@ -969,18 +1346,18 @@ def modificar_proveedor(request, id):
 
     return render(request, 'flota/registrar_proveedor.html', {'form': form, 'titulo': 'Modificar Proveedor'})
 
-# Eliminar proveedores
+# Deshabilitar proveedores
 @login_required
 @user_passes_test(es_administrador)
-def eliminar_proveedor(request, id):
+def deshabilitar_proveedor(request, id):
     proveedor = get_object_or_404(Proveedor, id=id)
     if request.method == 'POST':
-        nombre_fantasia = proveedor.nombre_fantasia
-        proveedor.delete()
-        messages.success(request, f'Proveedor {nombre_fantasia} eliminado exitosamente.')
+        proveedor.activo = False
+        proveedor.save()
+        messages.success(request, f'Proveedor {proveedor.nombre_fantasia} deshabilitado exitosamente.')
         return redirect('listar_proveedores')
     
-    return render(request, 'flota/eliminar_proveedor.html', {'proveedor': proveedor})
+    return render(request, 'flota/deshabilitar_proveedor.html', {'proveedor': proveedor})
 
 
 # RF_29: Registrar orden de compra
@@ -1093,7 +1470,7 @@ def listar_ordenes_trabajo(request):
     
     # Datos para filtros
     vehiculos = Vehiculo.objects.all().order_by('patente')
-    proveedores = Proveedor.objects.filter(es_taller=True).order_by('nombre_fantasia')
+    proveedores = Proveedor.objects.filter(es_taller=True, activo=True).order_by('nombre_fantasia')
     
     return render(request, 'flota/listar_ordenes_trabajo.html', {
         'ordenes': ordenes,

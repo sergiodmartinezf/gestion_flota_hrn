@@ -92,6 +92,7 @@ class Proveedor(models.Model):
     email_contacto = models.EmailField(blank=True)
     es_taller = models.BooleanField(default=False, verbose_name="Es Taller Mecánico")
     es_arrendador = models.BooleanField(default=False, verbose_name="Es Arrendador de Vehículos")
+    activo = models.BooleanField(default=True, verbose_name="Activo")
     
     class Meta:
         db_table = 'proveedor'
@@ -212,15 +213,22 @@ class Vehiculo(models.Model):
     
     # Clasificación
     tipo_carroceria = models.CharField(max_length=20, choices=TIPOS_CARROCERIA)
+    CLASES_AMBULANCIA = [
+        ('URBANA (4X2)', 'URBANA (4X2)'),
+        ('TODO TERRENO (4X4)', 'TODO TERRENO (4X4)'),
+        ('MARÍTIMO (LANCHA)', 'MARÍTIMO (LANCHA)'),
+    ]
+    
     clase_ambulancia = models.CharField(
         max_length=50, 
         blank=True, 
-        null=True, 
-        verbose_name="Clase Ambulancia (M1, M2, etc.)"
+        null=True,
+        choices=CLASES_AMBULANCIA,
+        verbose_name="Clase Ambulancia"
     )
     es_samu = models.BooleanField(default=False, verbose_name="Pertenece a SAMU")
     establecimiento = models.CharField(max_length=200, default='Hospital Río Negro')
-    criticidad = models.CharField(max_length=20, choices=CRITICIDAD, default='Normal')
+    criticidad = models.CharField(max_length=20, choices=CRITICIDAD, default='No crítico')
     es_backup = models.BooleanField(
         default=False, 
         verbose_name="¿Es vehículo de backup?"
@@ -261,6 +269,9 @@ class Presupuesto(models.Model):
     
     # Opcional: Presupuesto específico por vehículo, si es null es presupuesto global de la cuenta
     vehiculo = models.ForeignKey(Vehiculo, on_delete=models.CASCADE, related_name='presupuestos', null=True, blank=True)
+    
+    # Campo para deshabilitar en vez de eliminar
+    activo = models.BooleanField(default=True, verbose_name="Activo")
     
     class Meta:
         db_table = 'presupuesto'
@@ -310,8 +321,8 @@ class OrdenTrabajo(models.Model):
 
 class Mantenimiento(models.Model):
     TIPOS_MANTENCION = [
-        ('Preventivo', 'Preventivo (Pauta)'),
-        ('Correctivo', 'Correctivo (Reparación)'),
+        ('Preventivo', 'Preventivo'),
+        ('Correctivo', 'Correctivo'),
     ]
     
     ESTADOS = [
@@ -326,6 +337,8 @@ class Mantenimiento(models.Model):
     tipo_mantencion = models.CharField(max_length=20, choices=TIPOS_MANTENCION)
     fecha_ingreso = models.DateField()
     fecha_salida = models.DateField(null=True, blank=True)
+    fecha_programada = models.DateField(null=True, blank=True, verbose_name="Fecha Programada", 
+                                         help_text="Fecha en que se programó realizar el mantenimiento (para alertas por tiempo)")
     km_al_ingreso = models.IntegerField(validators=[MinValueValidator(0)])
     
     descripcion_trabajo = models.TextField()

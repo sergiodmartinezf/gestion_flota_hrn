@@ -1,0 +1,92 @@
+{% extends 'base.html' %}
+
+{% block title %}Variación Presupuestaria - Gestión de Flota{% endblock %}
+
+{% block content %}
+<h2 class="mb-4"><i class="bi bi-cash-stack"></i> Análisis de Variación Presupuestaria</h2>
+
+<form method="get" class="mb-3">
+    <div class="row">
+        <div class="col-md-4">
+            <label>Año</label>
+            <select name="anio" class="form-control">
+                {% for anio_opcion in anios_disponibles %}
+                <option value="{{ anio_opcion }}" {% if anio_opcion == anio %}selected{% endif %}>
+                    {{ anio_opcion }}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-4">
+            <label>&nbsp;</label><br>
+            <button type="submit" class="btn btn-primary">Filtrar</button>
+        </div>
+    </div>
+</form>
+
+<div class="mb-3">
+    <a href="?anio={{ anio }}&exportar=excel" class="btn btn-success">
+        <i class="bi bi-file-earmark-excel"></i> Exportar a Excel
+    </a>
+</div>
+
+{% if alertas_variacion %}
+<div class="alert alert-danger">
+    <strong><i class="bi bi-exclamation-triangle"></i> {{ alertas_variacion|length }} alerta(s) de sobrepaso presupuestario >10%</strong>
+    <p>Los siguientes presupuestos han sido excedidos en más del 10% del monto planificado.</p>
+</div>
+{% endif %}
+
+<table class="table table-striped">
+    <thead>
+        <tr>
+            <th>Vehículo</th>
+            <th>Cuenta SIGFE</th>
+            <th>Monto Asignado</th>
+            <th>Monto Ejecutado</th>
+            <th>Diferencia</th>
+            <th>% Variación</th>
+            <th>% Ejecutado</th>
+            <th>Estado</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for item in reporte %}
+        <tr {% if item.tiene_alerta %}class="table-warning"{% endif %}>
+            <td><strong>{{ item.vehiculo }}</strong><br><small>{{ item.marca_modelo }}</small></td>
+            <td>{{ item.cuenta_sigfe }}<br><small>{{ item.nombre_cuenta }}</small></td>
+            <td>${{ item.monto_asignado|floatformat:0 }}</td>
+            <td>${{ item.monto_ejecutado|floatformat:0 }}</td>
+            <td>
+                {% if item.diferencia > 0 %}
+                    <span class="text-danger">+${{ item.diferencia|floatformat:0 }}</span>
+                {% else %}
+                    <span class="text-success">${{ item.diferencia|floatformat:0 }}</span>
+                {% endif %}
+            </td>
+            <td>
+                {% if item.tiene_alerta %}
+                    <span class="badge bg-danger">{{ item.porcentaje_variacion|floatformat:2 }}%</span>
+                {% else %}
+                    <span class="badge bg-success">{{ item.porcentaje_variacion|floatformat:2 }}%</span>
+                {% endif %}
+            </td>
+            <td>{{ item.porcentaje_ejecutado|floatformat:2 }}%</td>
+            <td>
+                {% if item.tiene_alerta %}
+                    <span class="badge bg-warning">⚠ Variación >10%</span>
+                {% else %}
+                    <span class="badge bg-success">✓ Dentro del rango</span>
+                {% endif %}
+            </td>
+        </tr>
+        {% empty %}
+        <tr>
+            <td colspan="8" class="text-center">No hay datos para el año seleccionado.</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+{% endblock %}
+

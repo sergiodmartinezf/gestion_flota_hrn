@@ -70,28 +70,37 @@
                 <td class="text-end">${{ p.monto_asignado|floatformat:0 }}</td>
                 <td class="text-end">${{ p.monto_ejecutado|floatformat:0 }}</td>
                 <td class="text-end">
-                    {% with disponible=p.monto_asignado|add:p.monto_ejecutado|add:"0" %}
-                        ${{ disponible|floatformat:0 }}
-                    {% endwith %}
+                    ${{ p.disponible|floatformat:0 }}
                 </td>
                 <td>
                     <div class="d-flex align-items-center">
-                        <div class="progress flex-grow-1" style="height: 20px;">
+                        <div class="progress flex-grow-1" style="height: 25px;">
                             <div class="progress-bar 
-                                {% if p.porcentaje_ejecutado < 50 %}bg-success
-                                {% elif p.porcentaje_ejecutado < 80 %}bg-warning
-                                {% else %}bg-danger{% endif %}" 
+                                {% if p.porcentaje_ejecutado < 50 %}bg-success text-dark
+                                {% elif p.porcentaje_ejecutado < 80 %}bg-warning text-dark
+                                {% elif p.porcentaje_ejecutado < 100 %}bg-danger text-white
+                                {% else %}bg-dark text-white{% endif %}" 
                                 role="progressbar" 
-                                style="width: {% if p.porcentaje_ejecutado > 100 %}100{% else %}{{ p.porcentaje_ejecutado }}{% endif %}%">
+                                style="width: {% if p.porcentaje_ejecutado > 100 %}100{% else %}{{ p.porcentaje_ejecutado }}{% endif %}%; font-weight: bold; display: flex; align-items: center; justify-content: center;"
+                                aria-valuenow="{{ p.porcentaje_ejecutado }}" 
+                                aria-valuemin="0" 
+                                aria-valuemax="100">
+                                {{ p.porcentaje_ejecutado|floatformat:1 }}%
                             </div>
                         </div>
-                        <span class="ms-2">{{ p.porcentaje_ejecutado|floatformat:1 }}%</span>
                     </div>
                 </td>
                 <td>
-                    <a href="#" class="btn btn-sm btn-outline-info" title="Ver detalles">
-                        <i class="bi bi-eye"></i>
+                    {% if user.rol == 'Administrador' %}
+                    <a href="{% url 'modificar_presupuesto' p.id %}" class="btn btn-sm btn-warning" title="Editar">
+                        <i class="bi bi-pencil"></i>
                     </a>
+                    <a href="{% url 'deshabilitar_presupuesto' p.id %}" class="btn btn-sm btn-danger" title="Deshabilitar">
+                        <i class="bi bi-x-circle"></i>
+                    </a>
+                    {% else %}
+                    <span class="text-muted">-</span>
+                    {% endif %}
                 </td>
             </tr>
             {% endfor %}
@@ -113,10 +122,5 @@
 </div>
 {% endif %}
 
-<div class="mt-4">
-    <a href="{% url 'dashboard' %}" class="btn btn-outline-secondary">
-        <i class="bi bi-arrow-left"></i> Volver al Dashboard
-    </a>
-</div>
 {% endblock %}
 

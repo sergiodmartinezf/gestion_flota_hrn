@@ -20,12 +20,13 @@
 
 <div id='calendar' data-events-url="{% url 'api_mantenimientos' %}"></div>
 
-<div class="modal fade" id="eventoModal" tabindex="-1">
+<!-- Modal para ver detalles de mantenimiento -->
+<div class="modal fade" id="eventoModal" tabindex="-1" aria-labelledby="modalTitulo" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title" id="modalTitulo">Detalle Mantención</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
             </div>
             <div class="modal-body">
                 <p><strong>Estado:</strong> <span id="modalEstado"></span></p>
@@ -52,10 +53,90 @@
         </div>
     </div>
 </div>
+
+<!-- Modal para programar nuevo mantenimiento desde calendario -->
+<div class="modal fade" id="modalProgramar" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Programar Mantenimiento</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="formProgramar" method="post" action="{% url 'programar_mantenimiento_preventivo' %}">
+                    {% csrf_token %}
+                    <input type="hidden" name="fecha_ingreso" id="programar_fecha_ingreso">
+                    <div class="mb-3">
+                        <label class="form-label">Vehículo *</label>
+                        <select name="vehiculo" id="programar_vehiculo" class="form-control" required>
+                            <option value="">Seleccione un vehículo</option>
+                            {% for vehiculo in vehiculos %}
+                            <option value="{{ vehiculo.patente }}" data-kilometraje="{{ vehiculo.kilometraje_actual }}">
+                                {{ vehiculo.patente }} - {{ vehiculo.marca }} {{ vehiculo.modelo }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Fecha Programada</label>
+                        <input type="date" name="fecha_programada" id="programar_fecha_programada" class="form-control">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Kilometraje al Ingreso *</label>
+                        <input type="number" name="km_al_ingreso" id="programar_km_al_ingreso" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Proveedor/Taller *</label>
+                        <select name="proveedor" id="programar_proveedor" class="form-control" required>
+                            <option value="">Seleccione un proveedor</option>
+                            {% for proveedor in proveedores %}
+                            <option value="{{ proveedor.id }}">{{ proveedor.nombre_fantasia }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Descripción del Trabajo *</label>
+                        <textarea name="descripcion_trabajo" id="programar_descripcion" class="form-control" rows="3" required></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Costo Estimado</label>
+                        <input type="number" name="costo_estimado" id="programar_costo" class="form-control" step="0.01">
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" onclick="enviarProgramar()">Programar</button>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block extra_js %}
 <script src="{% static 'js/index.global.min.js' %}"></script>
 <script src="{% static 'js/es.global.min.js' %}"></script>
+<script src="{% static 'js/validaciones.js' %}"></script>
 <script src="{% static 'js/calendario_mantenciones.js' %}"></script>
+<script>
+// Función para enviar formulario de programar desde calendario
+function enviarProgramar() {
+    const form = document.getElementById('formProgramar');
+    const errores = [];
+    
+    // Validaciones básicas
+    errores.push(...validarSeleccion(document.getElementById('programar_vehiculo')?.value, 'vehículo', true));
+    errores.push(...validarFecha(document.getElementById('programar_fecha_ingreso')?.value, 'fecha de ingreso', true));
+    errores.push(...validarEnteroPositivo(document.getElementById('programar_km_al_ingreso')?.value, 'kilometraje', 0, 9999999, true));
+    errores.push(...validarSeleccion(document.getElementById('programar_proveedor')?.value, 'proveedor', true));
+    errores.push(...validarCampoObligatorio(document.getElementById('programar_descripcion')?.value, 'descripción del trabajo', true));
+    
+    if (errores.length > 0) {
+        mostrarErroresValidacion(errores, 'Errores en el Formulario');
+        return false;
+    }
+    
+    form.submit();
+}
+</script>
 {% endblock %}

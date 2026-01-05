@@ -5,9 +5,11 @@
 {% block content %}
 <h2 class="mb-4"><i class="bi bi-journal-text"></i> Bitácoras</h2>
 
+{% if user.rol == 'Conductor' %}
 <div class="mb-3">
     <a href="{% url 'registrar_bitacora' %}" class="btn btn-primary"><i class="bi bi-plus-circle"></i> Registrar Bitácora</a>
 </div>
+{% endif %}
 
 <table class="table table-striped">
     <thead>

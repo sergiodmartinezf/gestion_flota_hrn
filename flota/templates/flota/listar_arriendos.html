@@ -25,12 +25,26 @@
     <tbody>
         {% for arriendo in arriendos %}
         <tr>
-            <td>{{ arriendo.vehiculo.patente }}</td>
+            <td>
+                <strong>{{ arriendo.patente_arrendada }}</strong><br>
+                <small class="text-muted">{{ arriendo.marca_modelo_arrendado }}</small>
+                {% if arriendo.vehiculo_reemplazado %}
+                <br><small class="text-info">Reemplaza: {{ arriendo.vehiculo_reemplazado.patente }}</small>
+                {% endif %}
+            </td>
             <td>{{ arriendo.proveedor.nombre_fantasia }}</td>
             <td>{{ arriendo.fecha_inicio|date:"d/m/Y" }}</td>
             <td>{{ arriendo.fecha_fin|date:"d/m/Y"|default:"-" }}</td>
-            <td>${{ arriendo.costo_total|floatformat:0 }}</td>
-            <td>{{ arriendo.get_estado_display }}</td>
+            <td>${{ arriendo.costo_total|floatformat:0|default:"-" }}</td>
+            <td>
+                <span class="badge {% if arriendo.estado == 'Activo' %}bg-success{% else %}bg-secondary{% endif %}">
+                    {{ arriendo.get_estado_display }}
+                </span>
+            </td>
+        </tr>
+        {% empty %}
+        <tr>
+            <td colspan="6" class="text-center">No hay arriendos registrados.</td>
         </tr>
         {% endfor %}
     </tbody>

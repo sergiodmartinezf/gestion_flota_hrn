@@ -1,0 +1,35 @@
+{% extends 'base.html' %}
+
+{% block title %}Deshabilitar Presupuesto - Gestión de Flota{% endblock %}
+
+{% block content %}
+<h2 class="mb-4"><i class="bi bi-x-circle"></i> Deshabilitar Presupuesto</h2>
+
+<div class="alert alert-warning">
+    <i class="bi bi-exclamation-triangle"></i> 
+    ¿Está seguro de que desea deshabilitar este presupuesto?
+    <br><strong>Nota:</strong> El presupuesto no se eliminará, solo se marcará como inactivo.
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <h5>Presupuesto {{ presupuesto.anio }}</h5>
+        <p><strong>Vehículo:</strong> {{ presupuesto.vehiculo.patente|default:"Flota General" }}</p>
+        <p><strong>Cuenta SIGFE:</strong> {{ presupuesto.cuenta.codigo }} - {{ presupuesto.cuenta.nombre }}</p>
+        <p><strong>Monto Asignado:</strong> ${{ presupuesto.monto_asignado|floatformat:0 }}</p>
+        <p><strong>Monto Ejecutado:</strong> ${{ presupuesto.monto_ejecutado|floatformat:0 }}</p>
+        <p><strong>Disponible:</strong> ${{ presupuesto.disponible|floatformat:0 }}</p>
+    </div>
+</div>
+
+<form method="post" class="mt-4">
+    {% csrf_token %}
+    <button type="submit" class="btn btn-danger">
+        <i class="bi bi-x-circle"></i> Deshabilitar Presupuesto
+    </button>
+    <a href="{% url 'listar_presupuestos' %}" class="btn btn-secondary">
+        <i class="bi bi-arrow-left"></i> Cancelar
+    </a>
+</form>
+{% endblock %}
+

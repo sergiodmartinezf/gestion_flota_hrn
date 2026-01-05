@@ -59,7 +59,7 @@
                 <div class="form-text">Seleccione la cuenta presupuestaria</div>
             </div>
             <div class="mb-3">
-                <label for="{{ form.monto_asignado.id_for_label }}" class="form-label">Monto Tope Anual *</label>
+                <label for="{{ form.monto_asignado.id_for_label }}" class="form-label">Monto Asignado *</label>
                 {{ form.monto_asignado }}
                 {% if form.monto_asignado.errors %}
                     <div class="text-danger small mt-1">
@@ -67,6 +67,9 @@
                             {{ error }}
                         {% endfor %}
                     </div>
+                {% endif %}
+                {% if form.monto_asignado.help_text %}
+                    <div class="form-text">{{ form.monto_asignado.help_text }}</div>
                 {% endif %}
             </div>
         </div>

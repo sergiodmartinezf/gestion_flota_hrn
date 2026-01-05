@@ -5,9 +5,11 @@
 {% block content %}
 <h2 class="mb-4"><i class="bi bi-fuel-pump"></i> Cargas de Combustible</h2>
 
+{% if user.rol == 'Conductor' %}
 <div class="mb-3">
     <a href="{% url 'registrar_carga_combustible' %}" class="btn btn-primary"><i class="bi bi-plus-circle"></i> Registrar Carga</a>
 </div>
+{% endif %}
 
 <table class="table table-striped">
     <thead>
