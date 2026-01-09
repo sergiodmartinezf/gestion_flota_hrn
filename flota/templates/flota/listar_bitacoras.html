@@ -34,6 +34,10 @@
             <td>{{ bitacora.km_fin }}</td>
             <td>{{ bitacora.km_recorridos }}</td>
         </tr>
+        {% empty %}
+        <tr>
+            <td colspan="7" class="text-center">No hay bitácoras registradas.</td>
+        </tr>
         {% endfor %}
     </tbody>
 </table>

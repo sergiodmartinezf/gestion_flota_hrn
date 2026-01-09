@@ -46,14 +46,15 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Permitir crear eventos al hacer clic en una fecha
         dateClick: function(info) {
-            {% if user.rol == 'Administrador' %}
-            // Abrir modal para programar mantenimiento
-            const modalProgramar = new bootstrap.Modal(document.getElementById('modalProgramar'));
-            document.getElementById('programar_fecha_ingreso').value = info.dateStr;
-            document.getElementById('programar_fecha_programada').value = info.dateStr;
-            modalProgramar.show();
-            {% endif %}
-        },
+            if (typeof ES_ADMIN !== 'undefined' && ES_ADMIN) {
+                const modalProgramar = new bootstrap.Modal(
+                    document.getElementById('modalProgramar')
+                );
+                document.getElementById('programar_fecha_ingreso').value = info.dateStr;
+                document.getElementById('programar_fecha_programada').value = info.dateStr;
+                modalProgramar.show();
+            }
+        },        
         
         // Acción al hacer clic en un evento existente
         eventClick: function(info) {

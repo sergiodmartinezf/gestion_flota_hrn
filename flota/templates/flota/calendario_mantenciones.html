@@ -119,6 +119,10 @@
 <script src="{% static 'js/validaciones.js' %}"></script>
 <script src="{% static 'js/calendario_mantenciones.js' %}"></script>
 <script>
+// Variable para calendario_mantenciones.js
+const ES_ADMIN = {% if user.rol == 'Administrador' %}true{% else %}false{% endif %};
+</script>
+<script>
 // Función para enviar formulario de programar desde calendario
 function enviarProgramar() {
     const form = document.getElementById('formProgramar');

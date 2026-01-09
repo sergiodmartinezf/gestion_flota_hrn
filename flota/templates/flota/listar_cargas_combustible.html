@@ -32,6 +32,10 @@
             <td>${{ carga.costo_total|floatformat:0 }}</td>
             <td>{{ carga.nro_boleta|default:"-" }}</td>
         </tr>
+        {% empty %}
+        <tr>
+            <td colspan="6" class="text-center">No hay cargas de combustible registradas.</td>
+        </tr>
         {% endfor %}
     </tbody>
 </table>

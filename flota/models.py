@@ -147,6 +147,14 @@ class OrdenCompra(models.Model):
     cuenta_presupuestaria = models.ForeignKey(CuentaPresupuestaria, on_delete=models.PROTECT, related_name='ordenes_compra', null=True, blank=True)
     presupuesto = models.ForeignKey('Presupuesto', on_delete=models.PROTECT, related_name='ordenes_compra', null=True, blank=True, verbose_name="Presupuesto asociado")
     
+    TIPO_ADQUISICION = [
+        ('Convenio Marco', 'Convenio Marco'),
+        ('Licitación Pública', 'Licitación Pública'),
+        ('Trato Directo', 'Trato Directo'),
+        ('Compra Ágil', 'Compra Ágil'),
+    ]
+    tipo_adquisicion = models.CharField(max_length=30, choices=TIPO_ADQUISICION, default='Convenio Marco')
+
     class Meta:
         db_table = 'orden_compra'
         verbose_name = 'Orden de Compra'
