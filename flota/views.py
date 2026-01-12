@@ -9,7 +9,7 @@ from datetime import datetime, timedelta
 from decimal import Decimal
 import json
 from django.views.decorators.http import require_POST
-from .utils import exportar_reporte_excel, exportar_planilla_mantenimientos_excel
+from .utils import consultar_oc_mercado_publico, exportar_reporte_excel, exportar_planilla_mantenimientos_excel
 
 from .models import (
     Usuario, Vehiculo, Proveedor, OrdenCompra, OrdenTrabajo, Presupuesto, Arriendo, 
@@ -1312,8 +1312,17 @@ def reporte_historial_unidad(request, patente):
 @login_required
 @user_passes_test(es_administrador)
 def listar_proveedores(request):
-    proveedores = Proveedor.objects.filter(activo=True).order_by('nombre_fantasia')
-    return render(request, 'flota/listar_proveedores.html', {'proveedores': proveedores})
+    mostrar_deshabilitados = request.GET.get('mostrar_deshabilitados', 'false') == 'true'
+    
+    if mostrar_deshabilitados:
+        proveedores = Proveedor.objects.all().order_by('nombre_fantasia')
+    else:
+        proveedores = Proveedor.objects.filter(activo=True).order_by('nombre_fantasia')
+    
+    return render(request, 'flota/listar_proveedores.html', {
+        'proveedores': proveedores,
+        'mostrar_deshabilitados': mostrar_deshabilitados,
+    })
 
 # Registrar proveedores
 @login_required
@@ -1346,6 +1355,20 @@ def modificar_proveedor(request, id):
 
     return render(request, 'flota/registrar_proveedor.html', {'form': form, 'titulo': 'Modificar Proveedor'})
 
+# Habilitar proveedor
+@login_required
+@user_passes_test(es_administrador)
+def habilitar_proveedor(request, id):
+    proveedor = get_object_or_404(Proveedor, id=id)
+    
+    if request.method == 'POST':
+        proveedor.activo = True
+        proveedor.save()
+        messages.success(request, f'Proveedor {proveedor.nombre_fantasia} habilitado exitosamente.')
+        return redirect('listar_proveedores')
+    
+    return render(request, 'flota/habilitar_proveedor.html', {'proveedor': proveedor})
+
 # Deshabilitar proveedores
 @login_required
 @user_passes_test(es_administrador)
@@ -1358,6 +1381,69 @@ def deshabilitar_proveedor(request, id):
         return redirect('listar_proveedores')
     
     return render(request, 'flota/deshabilitar_proveedor.html', {'proveedor': proveedor})
+
+
+def importar_orden_compra(request):
+    if request.method == 'POST':
+        codigo_oc = request.POST.get('codigo_oc', '').strip().upper()
+        
+        if not codigo_oc:
+            messages.error(request, "Debe ingresar un código de Orden de Compra.")
+            return redirect('importar_oc')
+
+        # 1. Consultar API
+        datos = consultar_oc_mercado_publico(codigo_oc)
+
+        if 'error' in datos:
+            messages.error(request, datos['error'])
+        else:
+            try:
+                # 2. Gestionar Proveedor (Crear si no existe)
+                proveedor, created_prov = Proveedor.objects.get_or_create(
+                    rut_empresa=datos['proveedor_rut'],
+                    defaults={
+                        'nombre_fantasia': datos['proveedor_nombre'],
+                        'giro': 'Importado desde Mercado Público',  # Valor por defecto
+                        'telefono': '',
+                        'email_contacto': '',  # La API no proporciona email
+                        'es_taller': True,     # Asumir que es taller si es proveedor de mantenimiento
+                        'es_arrendador': False,
+                        'activo': True
+                    }
+                )
+                
+                if created_prov:
+                    messages.info(request, f"Se ha creado el proveedor {proveedor.nombre_fantasia} automáticamente.")
+
+                # 3. Crear Orden de Compra
+                oc, created_oc = OrdenCompra.objects.get_or_create(
+                    nro_oc=datos['codigo'],
+                    defaults={
+                        'descripcion': datos['descripcion'],
+                        'fecha_emision': datos['fecha_emision'],
+                        'monto_neto': datos.get('monto_neto', 0),
+                        'monto_total': datos.get('monto_total', 0),
+                        'impuesto': datos.get('impuestos', 0),
+                        'id_licitacion': datos.get('id_licitacion', ''),
+                        'estado': datos['estado'],
+                        'proveedor': proveedor,
+                        'tipo_adquisicion': 'Licitación Pública',  # Valor por defecto
+                    }
+                )
+
+                if created_oc:
+                    messages.success(request, f"Orden de Compra {oc.nro_oc} importada exitosamente.")
+                    return redirect('detalle_orden_compra', id=oc.id)
+                else:
+                    messages.warning(request, f"La Orden de Compra {oc.nro_oc} ya existía en el sistema.")
+                    return redirect('detalle_orden_compra', id=oc.id)
+
+            except Exception as e:
+                messages.error(request, f"Error al guardar en base de datos: {str(e)}")
+
+        return redirect('importar_oc')
+
+    return render(request, 'flota/importar_oc.html')
 
 
 # RF_29: Registrar orden de compra

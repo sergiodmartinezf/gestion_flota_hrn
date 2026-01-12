@@ -75,9 +75,11 @@ urlpatterns = [
     path('proveedores/', views.listar_proveedores, name='listar_proveedores'),
     path('proveedores/registrar/', views.registrar_proveedor, name='registrar_proveedor'),
     path('proveedores/<int:id>/modificar/', views.modificar_proveedor, name='modificar_proveedor'),
+    path('proveedores/<int:id>/habilitar/', views.habilitar_proveedor, name='habilitar_proveedor'), 
     path('proveedores/<int:id>/deshabilitar/', views.deshabilitar_proveedor, name='deshabilitar_proveedor'),
 
     # Órdenes de Compra (RF_29-RF_33)
+    path('ordenes-compra/importar/', views.importar_orden_compra, name='importar_oc'),
     path('ordenes-compra/registrar/', views.registrar_orden_compra, name='registrar_orden_compra'),
     path('ordenes-compra/', views.listar_ordenes_compra, name='listar_ordenes_compra'),
     path('ordenes-compra/<int:id>/', views.detalle_orden_compra, name='detalle_orden_compra'),

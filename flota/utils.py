@@ -1,29 +1,85 @@
 """
 Utilidades para exportación y generación de reportes
 """
+import requests
+from django.conf import settings
 from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from openpyxl.utils import get_column_letter
 from django.http import HttpResponse
 from datetime import datetime
 
+def consultar_oc_mercado_publico(codigo_oc):
+    """
+    Consulta la API de Mercado Público y retorna un diccionario con datos limpios
+    """
+    try:
+        ticket = getattr(settings, 'MERCADO_PUBLICO_TICKET', None)
 
-def crear_estilos_excel():
-    """Crea estilos reutilizables para Excel"""
-    return {
-        'titulo': Font(bold=True, size=14),
-        'encabezado': Font(bold=True, size=11),
-        'encabezado_fill': PatternFill(start_color="366092", end_color="366092", fill_type="solid"),
-        'encabezado_font': Font(bold=True, color="FFFFFF", size=10),
-        'borde': Border(
-            left=Side(style='thin'),
-            right=Side(style='thin'),
-            top=Side(style='thin'),
-            bottom=Side(style='thin')
-        ),
-        'centrado': Alignment(horizontal='center', vertical='center'),
-        'derecha': Alignment(horizontal='right', vertical='center'),
-    }
+        if not ticket or ticket == 'BLABLABLA':
+            return {'error': 'Ticket no configurado o inválido.'}
+        
+        # Usar HTTPS
+        url = f"https://api.mercadopublico.cl/servicios/v1/publico/ordenesdecompra.json?codigo={codigo_oc}&ticket={ticket}"
+        
+        print(f"Consultando API: {url}")
+        
+        # Agregar headers para evitar bloqueos
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+            'Accept': 'application/json',
+            'Accept-Language': 'es-CL,es;q=0.9',
+        }
+        
+        # Aumentar timeout y verificar SSL
+        response = requests.get(url, headers=headers, timeout=30, verify=True)
+        response.raise_for_status()
+        
+        data = response.json()
+        
+        # Depuración: ver qué devuelve
+        print(f"Cantidad de resultados: {data.get('Cantidad', 0)}")
+        
+        if data.get('Cantidad', 0) == 0:
+            return {'error': f'No se encontró la orden de compra {codigo_oc} en Mercado Público.'}
+
+        if 'Listado' not in data or not data['Listado']:
+            return {'error': 'La API no devolvió datos en el formato esperado.'}
+
+        oc_data = data['Listado'][0]
+
+        # Extraer datos con valores por defecto
+        info_limpia = {
+            'codigo': oc_data.get('Codigo', codigo_oc),
+            'estado': oc_data.get('Estado', 'Emitida'),
+            'fecha_emision': oc_data.get('Fechas', {}).get('FechaCreacion', '').split('T')[0],
+            'descripcion': oc_data.get('Descripcion', oc_data.get('Nombre', f'Orden de compra {codigo_oc}'))[:200],
+            'monto_neto': oc_data.get('TotalNeto', 0),
+            'monto_total': oc_data.get('Total', 0),
+            'impuestos': oc_data.get('Impuestos', 0),
+            'proveedor_rut': oc_data.get('Proveedor', {}).get('RutSucursal', ''),
+            'proveedor_nombre': oc_data.get('Proveedor', {}).get('Nombre', 'Proveedor Desconocido'),
+            'proveedor_contacto_nombre': oc_data.get('Proveedor', {}).get('NombreContacto', ''),
+            'proveedor_contacto_cargo': oc_data.get('Proveedor', {}).get('CargoContacto', ''),
+            'id_licitacion': oc_data.get('CodigoLicitacion', ''),
+        }
+        
+        # Validar que tenemos datos mínimos
+        if not info_limpia['proveedor_rut'] or not info_limpia['fecha_emision']:
+            return {'error': 'La API devolvió datos incompletos.'}
+        
+        return info_limpia
+
+    except requests.exceptions.SSLError as e:
+        return {'error': f'Error SSL al conectar con Mercado Público. Posible problema de certificados: {str(e)}'}
+    except requests.exceptions.Timeout:
+        return {'error': 'Tiempo de espera agotado al conectar con Mercado Público.'}
+    except requests.exceptions.ConnectionError as e:
+        return {'error': f'Error de conexión con Mercado Público. Verifica tu conexión a internet: {str(e)}'}
+    except requests.exceptions.HTTPError as e:
+        return {'error': f'Error HTTP {e.response.status_code}: {str(e)}'}
+    except Exception as e:
+        return {'error': f'Error inesperado: {str(e)}'}
 
 
 def exportar_reporte_excel(titulo, datos, columnas, nombre_archivo=None):

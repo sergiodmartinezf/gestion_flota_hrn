@@ -1,0 +1,49 @@
+{% extends 'base.html' %}
+
+{% block title %}Habilitar Proveedor - Gestión de Flota{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <div class="card shadow-sm">
+            <div class="card-header bg-success text-white">
+                <h4 class="mb-0"><i class="bi bi-check-circle"></i> Habilitar Proveedor</h4>
+            </div>
+            <div class="card-body">
+                <p class="alert alert-info">
+                    <i class="bi bi-info-circle"></i> Está a punto de habilitar al proveedor:
+                </p>
+                
+                <div class="mb-3">
+                    <strong>Nombre:</strong> {{ proveedor.nombre_fantasia }}
+                </div>
+                <div class="mb-3">
+                    <strong>RUT:</strong> {{ proveedor.rut_empresa }}
+                </div>
+                <div class="mb-3">
+                    <strong>Giro:</strong> {{ proveedor.giro }}
+                </div>
+                
+                <form method="post">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label for="razon_habilitacion" class="form-label">Razón de habilitación (opcional):</label>
+                        <textarea name="razon_habilitacion" id="razon_habilitacion" 
+                                  class="form-control" rows="3" 
+                                  placeholder="Ej: Se renovó contrato, se resolvieron problemas anteriores..."></textarea>
+                    </div>
+                    
+                    <div class="d-flex justify-content-between">
+                        <a href="{% url 'listar_proveedores' %}" class="btn btn-secondary">
+                            <i class="bi bi-x-circle"></i> Cancelar
+                        </a>
+                        <button type="submit" class="btn btn-success">
+                            <i class="bi bi-check-circle"></i> Confirmar Habilitación
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,3 +1,4 @@
+import re
 from django import forms
 from django.contrib.auth.forms import UserCreationForm
 from datetime import datetime
@@ -23,8 +24,9 @@ class LoginForm(forms.Form):
 class UsuarioForm(forms.ModelForm):
     password = forms.CharField(
         label='Contraseña',
-        widget=forms.PasswordInput(attrs={'class': 'form-control'}),
-        required=True
+        widget=forms.PasswordInput(attrs={'class': 'form-control', 'placeholder': 'Mínimo 8 caracteres, mayúscula, minúscula, número y símbolo'}),
+        required=True,
+        help_text='Requisitos: 8+ caracteres, al menos 1 mayúscula, 1 minúscula, 1 número y 1 símbolo especial'
     )
     password_confirm = forms.CharField(
         label='Confirmar Contraseña',
@@ -50,11 +52,39 @@ class UsuarioForm(forms.ModelForm):
         if self.instance.pk:
             self.fields['password'].required = False
             self.fields['password_confirm'].required = False
-            # El RUT es la primary key, no debe ser editable (usar readonly en lugar de disabled para que se envíe en POST)
+            self.fields['password'].help_text = 'Dejar en blanco para mantener la contraseña actual'
+            # El RUT es la primary key, no debe ser editable
             self.fields['rut'].widget.attrs['readonly'] = True
         else:
             self.fields['password'].required = True
             self.fields['password_confirm'].required = True
+    
+    def clean_password(self):
+        password = self.cleaned_data.get('password')
+        
+        # Solo validar si se proporcionó una contraseña (en creación o cambio)
+        if password:
+            # Validar longitud mínima
+            if len(password) < 8:
+                raise forms.ValidationError('La contraseña debe tener al menos 8 caracteres.')
+            
+            # Validar al menos una mayúscula
+            if not re.search(r'[A-Z]', password):
+                raise forms.ValidationError('La contraseña debe contener al menos una letra mayúscula.')
+            
+            # Validar al menos una minúscula
+            if not re.search(r'[a-z]', password):
+                raise forms.ValidationError('La contraseña debe contener al menos una letra minúscula.')
+            
+            # Validar al menos un número
+            if not re.search(r'[0-9]', password):
+                raise forms.ValidationError('La contraseña debe contener al menos un número.')
+            
+            # Validar al menos un símbolo especial
+            if not re.search(r'[!@#$%^&*()_+\-=\[\]{};\':"\\|,.<>\/?]', password):
+                raise forms.ValidationError('La contraseña debe contener al menos un símbolo especial.')
+        
+        return password
     
     def clean(self):
         cleaned_data = super().clean()

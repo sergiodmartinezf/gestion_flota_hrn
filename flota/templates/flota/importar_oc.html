@@ -1,0 +1,40 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>Importar Orden de Compra desde Mercado Público</h2>
+    
+    <div class="card">
+        <div class="card-body">
+            <form method="post">
+                {% csrf_token %}
+                <div class="mb-3">
+                    <label for="codigo_oc" class="form-label">Código de Orden de Compra</label>
+                    <input type="text" class="form-control" id="codigo_oc" name="codigo_oc" 
+                           placeholder="Ej: 1057531-912-CC25" required>
+                    <div class="form-text">Ingresa el código de la OC de Mercado Público</div>
+                </div>
+                
+                <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-cloud-download"></i> Importar OC
+                </button>
+                <a href="{% url 'listar_ordenes_compra' %}" class="btn btn-secondary">Cancelar</a>
+            </form>
+        </div>
+    </div>
+    
+    <div class="card mt-4">
+        <div class="card-header">
+            <h5>¿Cómo obtener el código?</h5>
+        </div>
+        <div class="card-body">
+            <ol>
+                <li>Ve a <a href="https://www.mercadopublico.cl" target="_blank">Mercado Público</a></li>
+                <li>Busca la orden de compra</li>
+                <li>Copia el código que aparece en formato: <code>XXXXXX-XXX-XX25</code></li>
+                <li>Ejemplo: <code>1057531-912-CC25</code></li>
+            </ol>
+        </div>
+    </div>
+</div>
+{% endblock %}

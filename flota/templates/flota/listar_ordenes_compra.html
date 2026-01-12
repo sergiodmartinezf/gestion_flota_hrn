@@ -1,8 +1,9 @@
 {% extends 'base.html' %}
+
 {% block content %}
+
 <h2>Órdenes de Compra</h2>
 
-<!-- Filtros -->
 <form method="get" class="mb-4">
     <div class="row">
         <div class="col-md-4">
@@ -38,7 +39,7 @@
 </form>
 
 <!-- Botón para registrar nueva OC -->
-<a href="{% url 'registrar_orden_compra' %}" class="btn btn-success mb-3">
+<a href="{% url 'importar_oc' %}" class="btn btn-success mb-3">
     <i class="bi bi-plus-circle"></i> Nueva Orden de Compra
 </a>
 
@@ -61,17 +62,7 @@
             <td>{{ orden.fecha_emision }}</td>
             <td>{{ orden.proveedor.nombre_fantasia }}</td>
             <td>${{ orden.monto_total|floatformat:2 }}</td>
-            <td>
-                <span class="badge 
-                    {% if orden.estado == 'Emitida' %}bg-primary
-                    {% elif orden.estado == 'Aceptada' %}bg-info
-                    {% elif orden.estado == 'Recepcionada' %}bg-warning
-                    {% elif orden.estado == 'Pagada' %}bg-success
-                    {% elif orden.estado == 'Anulada' %}bg-danger
-                    {% endif %}">
-                    {{ orden.estado }}
-                </span>
-            </td>
+            <td><span class="badge bg-info">{{ orden.estado }}</span></td>
             <td>
                 <a href="{% url 'detalle_orden_compra' orden.id %}" class="btn btn-sm btn-info" title="Ver detalles">
                     <i class="bi bi-eye"></i>

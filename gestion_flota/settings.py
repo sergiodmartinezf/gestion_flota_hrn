@@ -4,6 +4,10 @@ Django settings for gestion_flota project.
 
 from pathlib import Path
 import os
+from dotenv import load_dotenv
+
+# Cargar las variables del archivo .env
+load_dotenv()
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -131,4 +135,7 @@ AUTH_USER_MODEL = 'flota.Usuario'
 LOGIN_URL = 'login'
 LOGIN_REDIRECT_URL = 'dashboard'
 LOGOUT_REDIRECT_URL = 'login'
+
+# Ticket de Mercado Público
+MERCADO_PUBLICO_TICKET = os.getenv('MERCADO_PUBLICO_TICKET')
 

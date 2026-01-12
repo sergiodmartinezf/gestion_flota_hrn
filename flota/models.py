@@ -129,6 +129,7 @@ class OrdenCompra(models.Model):
 
     id = models.AutoField(primary_key=True)
     nro_oc = models.CharField(max_length=50, unique=True, verbose_name="Nro Orden de Compra")
+    descripcion = models.TextField(blank=True, verbose_name="Descripción de la OC")
     fecha_emision = models.DateField()
     
     # Montos planificados (según OC física)

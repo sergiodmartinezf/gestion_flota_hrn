@@ -108,6 +108,79 @@ function validarSeleccion(valor, campo = 'campo', obligatorio = true, mostrarAle
     return errores;
 }
 
+// VALIDACIONES DE CONTRASEÑA NUEVAS
+
+// Validar fortaleza de contraseña
+function validarFortalezaPassword(password, campo = 'contraseña', mostrarAlerta = false) {
+    const errores = [];
+    
+    if (!password) {
+        errores.push(`La ${campo} es obligatoria`);
+    } else {
+        // Mínimo 8 caracteres
+        if (password.length < 8) {
+            errores.push(`La ${campo} debe tener al menos 8 caracteres`);
+        }
+        
+        // Al menos una mayúscula
+        if (!/[A-Z]/.test(password)) {
+            errores.push(`La ${campo} debe contener al menos una letra mayúscula (A-Z)`);
+        }
+        
+        // Al menos una minúscula
+        if (!/[a-z]/.test(password)) {
+            errores.push(`La ${campo} debe contener al menos una letra minúscula (a-z)`);
+        }
+        
+        // Al menos un número
+        if (!/[0-9]/.test(password)) {
+            errores.push(`La ${campo} debe contener al menos un número (0-9)`);
+        }
+        
+        // Al menos un símbolo especial (lista más completa)
+        if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?~`]/.test(password)) {
+            errores.push(`La ${campo} debe contener al menos un símbolo especial (ej: !@#$%^&*)`);
+        }
+        
+        // Opcional: Validar caracteres no permitidos
+        if (/[áéíóúÁÉÍÓÚñÑ]/.test(password)) {
+            errores.push(`La ${campo} no debe contener caracteres acentuados ni la letra ñ`);
+        }
+    }
+    
+    if (mostrarAlerta && errores.length > 0) {
+        mostrarErroresValidacion(errores, `Error en ${campo}`);
+    }
+    return errores;
+}
+
+// Validar coincidencia de contraseñas
+function validarCoincidenciaPassword(password, confirmacion, campo1 = 'contraseña', campo2 = 'confirmación de contraseña', mostrarAlerta = false) {
+    const errores = [];
+    
+    if (password !== confirmacion) {
+        errores.push(`La ${campo1} y la ${campo2} no coinciden`);
+    }
+    
+    if (mostrarAlerta && errores.length > 0) {
+        mostrarErroresValidacion(errores, `Error en ${campo1} y ${campo2}`);
+    }
+    return errores;
+}
+
+// Validación completa de contraseña (fortaleza + coincidencia)
+function validarPasswordCompleto(password, confirmacion, campo = 'contraseña', mostrarAlerta = false) {
+    const erroresFortaleza = validarFortalezaPassword(password, campo, false);
+    const erroresCoincidencia = validarCoincidenciaPassword(password, confirmacion, campo, 'confirmación de contraseña', false);
+    const todosErrores = [...erroresFortaleza, ...erroresCoincidencia];
+    
+    if (mostrarAlerta && todosErrores.length > 0) {
+        mostrarErroresValidacion(todosErrores, `Error en ${campo}`);
+    }
+    
+    return todosErrores;
+}
+
 // Validar formulario completo
 function validarFormulario(validaciones, titulo = 'Errores en el Formulario') {
     const todosLosErrores = [];
