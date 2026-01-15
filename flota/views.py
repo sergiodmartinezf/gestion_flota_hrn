@@ -367,12 +367,27 @@ def api_vehiculos_kilometraje(request):
 
 @login_required
 def listar_bitacoras(request):
+    # Filtro base según rol de usuario
     if request.user.rol == 'Conductor':
         bitacoras = HojaRuta.objects.filter(conductor=request.user).order_by('-fecha', '-creado_en')
     else:
-        bitacoras = HojaRuta.objects.all().order_by('-fecha', '-creado_en')
-    
-    return render(request, 'flota/listar_bitacoras.html', {'bitacoras': bitacoras})
+        bitacoras = HojaRuta.objects.all()
+
+    # Filtro por vehículo
+    vehiculo_filtro = request.GET.get('vehiculo')
+    if vehiculo_filtro:
+        bitacoras = bitacoras.filter(vehiculo__patente=vehiculo_filtro)
+
+    bitacoras = bitacoras.order_by('-fecha', '-creado_en')
+
+    # Obtener lista de vehículos para el filtro
+    vehiculos = Vehiculo.objects.all().order_by('patente')
+
+    return render(request, 'flota/listar_bitacoras.html', {
+        'bitacoras': bitacoras,
+        'vehiculos': vehiculos,
+        'vehiculo_filtro': vehiculo_filtro
+    })
 
 
 # RF_16: Registrar carga de combustible
@@ -406,12 +421,27 @@ def registrar_carga_combustible(request):
 
 @login_required
 def listar_cargas_combustible(request):
+    # Filtro base según rol de usuario
     if request.user.rol == 'Conductor':
         cargas = CargaCombustible.objects.filter(conductor=request.user).order_by('-fecha')
     else:
-        cargas = CargaCombustible.objects.all().order_by('-fecha')
-    
-    return render(request, 'flota/listar_cargas_combustible.html', {'cargas': cargas})
+        cargas = CargaCombustible.objects.all()
+
+    # Filtro por vehículo
+    vehiculo_filtro = request.GET.get('vehiculo')
+    if vehiculo_filtro:
+        cargas = cargas.filter(patente_vehiculo__patente=vehiculo_filtro)
+
+    cargas = cargas.order_by('-fecha')
+
+    # Obtener lista de vehículos para el filtro
+    vehiculos = Vehiculo.objects.all().order_by('patente')
+
+    return render(request, 'flota/listar_cargas_combustible.html', {
+        'cargas': cargas,
+        'vehiculos': vehiculos,
+        'vehiculo_filtro': vehiculo_filtro
+    })
 
 
 # RF_17: Registrar incidente (Falla Reportada)
@@ -455,12 +485,28 @@ def registrar_incidente(request):
 
 @login_required
 def listar_incidentes(request):
+    # Filtro base según rol de usuario
     if request.user.rol == 'Conductor':
         incidentes = FallaReportada.objects.filter(conductor=request.user).order_by('-fecha_reporte')
     else:
-        incidentes = FallaReportada.objects.all().order_by('-fecha_reporte')
-    
-    return render(request, 'flota/listar_incidentes.html', {'incidentes': incidentes})
+        incidentes = FallaReportada.objects.all()
+
+    # Filtro por vehículo
+    vehiculo_filtro = request.GET.get('vehiculo')
+    if vehiculo_filtro:
+        incidentes = incidentes.filter(vehiculo__patente=vehiculo_filtro)
+
+    incidentes = incidentes.order_by('-fecha_reporte')
+
+    # Obtener lista de vehículos para el filtro
+    vehiculos = Vehiculo.objects.all().order_by('patente')
+    print(f"DEBUG incidentes: {vehiculos.count()} vehículos encontrados para filtro")
+
+    return render(request, 'flota/listar_incidentes.html', {
+        'incidentes': incidentes,
+        'vehiculos': vehiculos,
+        'vehiculo_filtro': vehiculo_filtro
+    })
 
 
 # RF_18: Programar mantenimiento preventivo
@@ -726,8 +772,7 @@ def reporte_variacion_presupuestaria(request):
         anio = int(anio)
     except (ValueError, TypeError):
         anio = timezone.now().year
-    
-    # Obtener presupuestos del año seleccionado (solo activos)
+
     # NOTA: Según requisito, este reporte es para "presupuesto anual para lo preventivo"
     # El monto_ejecutado ya está calculado solo con mantenimientos preventivos en signals.py
     presupuestos = Presupuesto.objects.filter(anio=anio, activo=True).select_related('vehiculo', 'cuenta')
@@ -737,7 +782,6 @@ def reporte_variacion_presupuestaria(request):
     
     for presupuesto in presupuestos:
         # Recalcular monto ejecutado solo con mantenimientos preventivos para este reporte
-        # (por si acaso el signal no se ejecutó correctamente)
         monto_ejecutado_preventivo = Mantenimiento.objects.filter(
             cuenta_presupuestaria=presupuesto.cuenta,
             vehiculo=presupuesto.vehiculo,
@@ -895,23 +939,24 @@ def finalizar_mantenimiento(request, id):
             mant.estado = 'Finalizado'
 
             mant.save()
-            
-            # Liberar el Vehículo
-            vehiculo = mant.vehiculo
-            vehiculo.estado = 'Disponible'
-            
-            # Actualizar kilometraje si el mantenimiento tiene un kilometraje mayor
-            if mant.km_al_ingreso > vehiculo.kilometraje_actual:
-                vehiculo.kilometraje_actual = mant.km_al_ingreso
-            
-            vehiculo.save()
-            
-            # El signal actualizará el presupuesto automáticamente si es preventivo
-            # Los mantenimientos correctivos NO deben descontar del presupuesto preventivo
-            # (según requisito: "presupuesto anual para lo preventivo")
 
-            messages.success(request, f'Mantenimiento de {vehiculo.patente} finalizado correctamente.')
+            # VERIFICACIÓN DE VARIACIÓN
+            if mant.cuenta_presupuestaria and mant.vehiculo:
+                presupuesto = Presupuesto.objects.filter(
+                    cuenta=mant.cuenta_presupuestaria, 
+                    vehiculo=mant.vehiculo, 
+                    anio=mant.fecha_ingreso.year
+                ).first()
+                
+                if presupuesto and presupuesto.monto_asignado > 0:
+                    variacion = (presupuesto.monto_ejecutado - presupuesto.monto_asignado)
+                    porcentaje = (variacion / presupuesto.monto_asignado) * 100
+                    
+                    if porcentaje > 10:
+                        messages.warning(request, f"⚠️ ALERTA: El presupuesto para {mant.vehiculo} se ha excedido en un {porcentaje:.1f}% (Tope permitido 10%).")
+
             return redirect('listar_mantenimientos')
+
     else:
         # Fecha de salida como hoy por defecto
         form = FinalizarMantenimientoForm(instance=mantenimiento, initial={'fecha_salida': timezone.now().date()})
@@ -1403,7 +1448,7 @@ def importar_orden_compra(request):
                     rut_empresa=datos['proveedor_rut'],
                     defaults={
                         'nombre_fantasia': datos['proveedor_nombre'],
-                        'giro': 'Importado desde Mercado Público',  # Valor por defecto
+                        'giro': '',
                         'telefono': '',
                         'email_contacto': '',  # La API no proporciona email
                         'es_taller': True,     # Asumir que es taller si es proveedor de mantenimiento

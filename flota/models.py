@@ -270,6 +270,12 @@ class Presupuesto(models.Model):
     """
     id = models.AutoField(primary_key=True)
     anio = models.IntegerField(verbose_name="Año Presupuestario")
+
+    TIPO_PRESUPUESTO = [
+        ('Preventivo', 'Preventivo (Por Vehículo)'),
+        ('Operativo', 'Operativo/Correctivo (Bolsa General)'),
+    ]
+    tipo_presupuesto = models.CharField(max_length=20, choices=TIPO_PRESUPUESTO, default='Preventivo')
     
     cuenta = models.ForeignKey(CuentaPresupuestaria, on_delete=models.PROTECT, related_name='presupuestos', verbose_name="Cuenta SIGFE")
     
@@ -353,10 +359,9 @@ class Mantenimiento(models.Model):
     descripcion_trabajo = models.TextField()
     estado = models.CharField(max_length=30, choices=ESTADOS, default='Programado')
 
-    nro_factura = models.CharField(max_length=50, blank=True, verbose_name="Número de Factura")
+    nro_factura = models.CharField(max_length=50, blank=True, null=True, verbose_name="Número de Factura")
     archivo_adjunto = models.FileField(upload_to='mantenimientos/', null=True, blank=True, verbose_name="Documento Adjunto")
     
-    # Relación directa a Orden de Compra (si no pasa por Orden de Trabajo)
     orden_compra = models.ForeignKey(OrdenCompra, on_delete=models.SET_NULL, null=True, blank=True, related_name='mantenimientos_directos')
     
     # --- GESTIÓN DE COSTOS (PLANIFICADO vs REAL) ---
@@ -372,7 +377,6 @@ class Mantenimiento(models.Model):
     orden_trabajo = models.ForeignKey(OrdenTrabajo, on_delete=models.SET_NULL, null=True, blank=True, related_name='mantenimientos')
     proveedor = models.ForeignKey(Proveedor, on_delete=models.PROTECT, related_name='mantenimientos')
     
-    # Para imputación presupuestaria específica de este evento
     cuenta_presupuestaria = models.ForeignKey(CuentaPresupuestaria, on_delete=models.SET_NULL, null=True, blank=True)
 
     class Meta:
@@ -425,52 +429,82 @@ class Arriendo(models.Model):
     
     id = models.AutoField(primary_key=True)
     
-    # Vehículo arrendado (externo)
-    patente_arrendada = models.CharField(max_length=10, verbose_name="Patente vehículo arrendado")
-    marca_modelo_arrendado = models.CharField(max_length=100, verbose_name="Marca/Modelo arrendado")
+    # Vinculación de vehículo arrendado con tabla de vehículos
+    vehiculo_arrendado = models.ForeignKey(
+        Vehiculo, 
+        on_delete=models.PROTECT, 
+        related_name='contratos_arriendo',
+        limit_choices_to={'tipo_propiedad': 'Arrendado'},
+        verbose_name="Vehículo Arrendado (Activo)"
+    )
     
-    # Vehículo propio que está siendo reemplazado
-    vehiculo_reemplazado = models.ForeignKey(Vehiculo, on_delete=models.SET_NULL, null=True, blank=True, 
-                                            related_name='arriendos_sustitutos', 
-                                            verbose_name="Vehículo propio reemplazado")
+    # Vinculación con vehículo que reemplaza
+    vehiculo_reemplazado = models.ForeignKey(
+        Vehiculo, 
+        on_delete=models.PROTECT, # Si se borra el vehículo, no se borra el historial del arriendo
+        null=True, 
+        blank=True, 
+        related_name='arriendos_sustitutos', 
+        limit_choices_to={'tipo_propiedad': 'Propio'},
+        verbose_name="Vehículo Propio Reemplazado"
+    )
     
     # Fechas y costos
-    fecha_inicio = models.DateField()
-    fecha_fin = models.DateField(null=True, blank=True)
+    fecha_inicio = models.DateField(verbose_name="Fecha Inicio Contrato")
+    fecha_fin = models.DateField(null=True, blank=True, verbose_name="Fecha Fin Contrato")
+    
+    # Costos
     costo_diario = models.DecimalField(max_digits=10, decimal_places=2, validators=[MinValueValidator(Decimal('0'))])
-    costo_total = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, 
-                                     verbose_name="Costo total facturado")
+    costo_total = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, verbose_name="Costo total estimado/real")
     
-    # Información de gestión
-    motivo = models.TextField(help_text="Ej: Ambulancia HR-PG-25 en pana de motor - Estimado 15 días en taller")
-    nro_orden_compra = models.CharField(max_length=50, blank=True, verbose_name="N° Orden de Compra")
-    nro_factura = models.CharField(max_length=50, blank=True, verbose_name="N° Factura")
-    
-    # Relaciones
+    # Gestión
+    motivo = models.TextField(help_text="Ej: Ambulancia HR-PG-25 en pana de motor")
+    nro_orden_compra = models.ForeignKey(OrdenCompra, on_delete=models.SET_NULL, null=True, blank=True, related_name='arriendos') 
     proveedor = models.ForeignKey(Proveedor, on_delete=models.PROTECT, related_name='arriendos')
-    estado = models.CharField(max_length=20, choices=ESTADOS, default='Activo')
     
-    # Campos calculados
+    estado = models.CharField(max_length=20, choices=ESTADOS, default='Activo')
     dias_arriendo = models.IntegerField(default=0, verbose_name="Días de arriendo")
+    
+    cuenta_presupuestaria = models.ForeignKey(CuentaPresupuestaria, on_delete=models.PROTECT, null=True, blank=True)
     
     class Meta:
         db_table = 'arriendo'
-        verbose_name = 'Arriendo de Vehículo'
-        verbose_name_plural = 'Arriendos de Vehículos'
+        verbose_name = 'Contrato de Arriendo'
+        verbose_name_plural = 'Contratos de Arriendo'
     
+    def clean(self):
+        # Validar que no estemos tratando de arrendar un vehículo propio
+        if self.vehiculo_arrendado and self.vehiculo_arrendado.tipo_propiedad == 'Propio':
+            raise ValidationError("El vehículo seleccionado como 'Arrendado' figura como 'Propio' en el sistema.")
+            
+        # Validar que no se reemplace un vehículo con sigo mismo
+        if self.vehiculo_reemplazado and self.vehiculo_arrendado == self.vehiculo_reemplazado:
+            raise ValidationError("El vehículo arrendado no puede ser el mismo que el reemplazado.")
+
     def save(self, *args, **kwargs):
         # Calcular días de arriendo
         if self.fecha_inicio and self.fecha_fin:
             self.dias_arriendo = (self.fecha_fin - self.fecha_inicio).days
+            if self.dias_arriendo < 0:
+                self.dias_arriendo = 0
         
-        # Calcular costo total si hay costo diario y días
-        if self.costo_diario and self.dias_arriendo > 0 and not self.costo_total:
+        # Calcular costo total estimado
+        if self.costo_diario and self.dias_arriendo > 0:
             self.costo_total = self.costo_diario * Decimal(self.dias_arriendo)
         
+        # Al activar el arriendo, cambiamos el estado del vehículo arrendado a 'Disponible'
+        if self.estado == 'Activo' and self.vehiculo_arrendado:
+            self.vehiculo_arrendado.estado = 'Disponible'
+            self.vehiculo_arrendado.save()
+            
+            # Marcar el vehículo propio como 'Fuera de servicio' si no lo está
+            if self.vehiculo_reemplazado and self.vehiculo_reemplazado.estado != 'Baja':
+                 pass
+
         super().save(*args, **kwargs)
     
     def __str__(self):
-        return f"Arriendo {self.patente_arrendada} ({self.proveedor}) - Reemplaza: {self.vehiculo_reemplazado}"
+        return f"Arriendo {self.vehiculo_arrendado.patente} ({self.proveedor}) - Reemplaza: {self.vehiculo_reemplazado}"
 
 
 # --- OPERATIVA DIARIA ---
@@ -554,9 +588,8 @@ class CargaCombustible(models.Model):
     
     patente_vehiculo = models.ForeignKey(Vehiculo, on_delete=models.PROTECT, related_name='cargas_combustible')
     conductor = models.ForeignKey(Usuario, on_delete=models.PROTECT, related_name='cargas_combustible', null=True, blank=True)
-    proveedor = models.ForeignKey(Proveedor, on_delete=models.PROTECT, related_name='cargas_combustible')
+    proveedor = models.ForeignKey(Proveedor, on_delete=models.SET_NULL, related_name='cargas_combustible', null=True, blank=True)
     
-    # Opcional: Vincular a Cuenta Presupuestaria de Combustible (Ej: 22.03.001)
     cuenta_presupuestaria = models.ForeignKey(CuentaPresupuestaria, on_delete=models.SET_NULL, null=True, blank=True)
     
     class Meta:
@@ -572,12 +605,11 @@ class FallaReportada(models.Model):
     id = models.AutoField(primary_key=True)
     fecha_reporte = models.DateField()
     descripcion = models.TextField()
-    nivel_urgencia = models.CharField(max_length=20, choices=[('Alta', 'Alta'), ('Media', 'Media'), ('Baja', 'Baja')], default='Media')
+    nivel_urgencia = models.CharField(max_length=20, choices=[('Alta', 'Alta'), ('Media', 'Media'), ('Baja', 'Baja')], null=True, blank=True,default='Media')
     
     vehiculo = models.ForeignKey(Vehiculo, on_delete=models.CASCADE, related_name='fallas_reportadas')
     conductor = models.ForeignKey(Usuario, on_delete=models.PROTECT, related_name='fallas_reportadas')
     
-    # Si la falla deriva en mantenimiento
     mantenimiento = models.ForeignKey(Mantenimiento, on_delete=models.SET_NULL, null=True, blank=True, related_name='fallas_origen')
     
     class Meta:

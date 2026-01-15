@@ -48,6 +48,20 @@ def consultar_oc_mercado_publico(codigo_oc):
 
         oc_data = data['Listado'][0]
 
+        items_str = ""
+        if 'Listado' in oc_data.get('Items', {}):
+            items = []
+            lista = oc_data['Items']['Listado']
+            if isinstance(lista, dict):
+                lista = [lista]
+                
+            for item in lista:
+                nombre = item.get('Producto', '')
+                espec = item.get('EspecificacionComprador', '')
+                items.append(f"{nombre} - {espec}")
+            
+            items_str = "\n".join(items)
+
         # Extraer datos con valores por defecto
         info_limpia = {
             'codigo': oc_data.get('Codigo', codigo_oc),
@@ -62,6 +76,7 @@ def consultar_oc_mercado_publico(codigo_oc):
             'proveedor_contacto_nombre': oc_data.get('Proveedor', {}).get('NombreContacto', ''),
             'proveedor_contacto_cargo': oc_data.get('Proveedor', {}).get('CargoContacto', ''),
             'id_licitacion': oc_data.get('CodigoLicitacion', ''),
+            'items_str': items_str
         }
         
         # Validar que tenemos datos mínimos
@@ -244,10 +259,10 @@ def exportar_planilla_mantenimientos_excel(anio=None):
         datos_vehiculo = [
             vehiculo.establecimiento,
             vehiculo.get_tipo_carroceria_display(),
-            '',  # Tipo ambulancia (no está en modelo)
+            '',
             vehiculo.clase_ambulancia or '',
             'Sí' if vehiculo.es_samu else 'No',
-            '',  # Función (no está en modelo)
+            '', 
             vehiculo.marca,
             vehiculo.modelo,
             vehiculo.patente,
@@ -260,7 +275,7 @@ def exportar_planilla_mantenimientos_excel(anio=None):
             vida_util_residual,
             vehiculo.get_criticidad_display(),
             'Sí' if vehiculo.es_backup else 'No',
-            '', '', '', '', '', '', '', ''  # Campos de mantenimiento vacíos en primera fila
+            '', '', '', '', '', '', '', ''
         ]
         
         for idx, valor in enumerate(datos_vehiculo, start=1):

@@ -12,7 +12,7 @@ document.addEventListener('DOMContentLoaded', function() {
             errores.push(...validarEnteroPositivo(document.getElementById('id_kilometraje_al_cargar')?.value, 'kilometraje', 0, 9999999, true));
             errores.push(...validarNumeroDecimal(document.getElementById('id_litros')?.value, 'litros', 0, 9999, true));
             errores.push(...validarNumeroDecimal(document.getElementById('id_costo_total')?.value, 'costo total', 0, 9999999, true));
-            errores.push(...validarSeleccion(document.getElementById('id_proveedor')?.value, 'proveedor', true));
+            errores.push(...validarSeleccion(document.getElementById('id_proveedor')?.value, 'proveedor', false));
             
             if (errores.length > 0) {
                 e.preventDefault();

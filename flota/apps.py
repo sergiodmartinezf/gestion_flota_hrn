@@ -6,4 +6,4 @@ class FlotaConfig(AppConfig):
     name = 'flota'
     
     def ready(self):
-        import flota.signals  # noqa
+        import flota.signals
