@@ -1,11 +1,19 @@
 {% extends 'base.html' %}
+{% load static %}
 
 {% block title %}Programar Mantenimiento Preventivo - Gestión de Flota{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/validaciones.js' %}"></script>
+<script src="{% static 'js/programar_mantenimiento.js' %}"></script>
+{% endblock %}
 
 {% block content %}
 <h2 class="mb-4"><i class="bi bi-tools"></i> Programar Mantenimiento Preventivo</h2>
 
-<form method="post">
+<div class="card">
+    <div class="card-body">
+        <form method="post">
     {% csrf_token %}
     <div class="row">
         <div class="col-md-6">
@@ -25,24 +33,32 @@
                 <label for="{{ form.proveedor.id_for_label }}" class="form-label">Proveedor/Taller *</label>
                 {{ form.proveedor }}
             </div>
-        </div>
-        <div class="col-md-6">
             <div class="mb-3">
                 <label for="{{ form.orden_trabajo.id_for_label }}" class="form-label">Orden de Trabajo</label>
                 {{ form.orden_trabajo }}
             </div>
+        </div>
+        <div class="col-md-6">
             <div class="mb-3">
-                <label for="{{ form.orden_compra.id_for_label }}" class="form-label">Orden de Compra</label>
-                {{ form.orden_compra }}
+                <label for="{{ form.descripcion_trabajo.id_for_label }}" class="form-label">Descripción del Trabajo *</label>
+                {{ form.descripcion_trabajo }}
             </div>
             <div class="mb-3">
-                <label for="{{ form.descripcion.id_for_label }}" class="form-label">Descripción *</label>
-                {{ form.descripcion }}
+                <label for="{{ form.costo_estimado.id_for_label }}" class="form-label">Costo Estimado</label>
+                {{ form.costo_estimado }}
+            </div>
+            <div class="mb-3">
+                <label for="{{ form.cuenta_presupuestaria.id_for_label }}" class="form-label">Cuenta Presupuestaria</label>
+                {{ form.cuenta_presupuestaria }}
             </div>
         </div>
+        </div>
+        <div class="mt-3">
+            <button type="submit" class="btn btn-primary"><i class="bi bi-check-circle"></i> Programar</button>
+            <a href="{% url 'listar_mantenimientos' %}" class="btn btn-secondary"><i class="bi bi-x-circle"></i> Cancelar</a>
+        </div>
+        </form>
     </div>
-    <button type="submit" class="btn btn-primary">Programar</button>
-    <a href="{% url 'listar_mantenimientos' %}" class="btn btn-secondary">Cancelar</a>
-</form>
+</div>
 {% endblock %}
 

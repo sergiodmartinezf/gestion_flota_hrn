@@ -1,0 +1,115 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="container-fluid">
+    <h2 class="mb-4"><i class="bi bi-wrench"></i> Órdenes de Trabajo</h2>
+
+    <!-- Filtros -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <form method="get" class="row g-3">
+                <div class="col-md-4">
+                    <label for="vehiculo" class="form-label">Vehículo:</label>
+                    <select name="vehiculo" id="vehiculo" class="form-select">
+                        <option value="">Todos los vehículos</option>
+                        {% for vehiculo in vehiculos %}
+                        <option value="{{ vehiculo.patente }}" {% if vehiculo_filter == vehiculo.patente %}selected{% endif %}>
+                            {{ vehiculo.patente }} - {{ vehiculo.marca }} {{ vehiculo.modelo }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label for="proveedor" class="form-label">Proveedor/Taller:</label>
+                    <select name="proveedor" id="proveedor" class="form-select">
+                        <option value="">Todos los proveedores</option>
+                        {% for proveedor in proveedores %}
+                        <option value="{{ proveedor.id }}" {% if proveedor_filter == proveedor.id|stringformat:"i" %}selected{% endif %}>
+                            {{ proveedor.nombre_fantasia }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-4 d-flex align-items-end">
+                    <div class="btn-group">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-funnel"></i> Filtrar
+                        </button>
+                        <a href="{% url 'listar_ordenes_trabajo' %}" class="btn btn-secondary">
+                            <i class="bi bi-x-circle"></i> Limpiar
+                        </a>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Botón para registrar nueva OT -->
+    <div class="mb-3">
+        <a href="{% url 'registrar_orden_trabajo' %}" class="btn btn-success">
+            <i class="bi bi-plus-circle"></i> Nueva Orden de Trabajo
+        </a>
+    </div>
+
+    <!-- Tabla de órdenes de trabajo -->
+    <div class="card">
+        <div class="card-body">
+            {% if ordenes %}
+            <div class="table-responsive">
+                <table class="table table-hover table-striped">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>N° OT</th>
+                            <th>Fecha Solicitud</th>
+                            <th>Vehículo</th>
+                            <th>Proveedor</th>
+                            <th>Orden Compra</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for orden in ordenes %}
+                        <tr>
+                            <td><strong>{{ orden.nro_ot }}</strong></td>
+                            <td>{{ orden.fecha_solicitud|date:"d/m/Y" }}</td>
+                            <td>
+                                <span class="badge bg-secondary">{{ orden.vehiculo.patente }}</span><br>
+                                <small>{{ orden.vehiculo.marca }} {{ orden.vehiculo.modelo }}</small>
+                            </td>
+                            <td>{{ orden.proveedor.nombre_fantasia }}</td>
+                            <td>
+                                {% if orden.orden_compra %}
+                                <span class="badge bg-info">{{ orden.orden_compra.nro_oc }}</span>
+                                {% else %}
+                                <span class="badge bg-warning">Sin OC</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div class="btn-group btn-group-sm" role="group">
+                                    <a href="{% url 'detalle_orden_trabajo' orden.id %}" class="btn btn-info" 
+                                       title="Ver detalles">
+                                        <i class="bi bi-eye"></i>
+                                    </a>
+                                    <a href="{% url 'modificar_orden_trabajo' orden.id %}" class="btn btn-warning" 
+                                       title="Editar">
+                                        <i class="bi bi-pencil"></i>
+                                    </a>
+                                    <a href="{% url 'eliminar_orden_trabajo' orden.id %}" class="btn btn-danger" 
+                                       title="Eliminar">
+                                        <i class="bi bi-trash"></i>
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="alert alert-info">
+                <i class="bi bi-info-circle"></i> No hay órdenes de trabajo registradas.
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

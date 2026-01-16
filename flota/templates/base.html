@@ -19,13 +19,15 @@
                     <h4><i class="bi bi-truck"></i> Gestión Flota</h4>
                     <hr>
                     <ul class="nav flex-column">
+                        {% if user.rol == 'Administrador' or user.rol == 'Visualizador' %}
                         <li><a href="{% url 'dashboard' %}"><i class="bi bi-speedometer2"></i> Dashboard</a></li>
                         {% if user.rol == 'Administrador' %}
                         <li><a href="{% url 'listar_usuarios' %}"><i class="bi bi-people"></i> Usuarios</a></li>
                         {% endif %}
                         <li><a href="{% url 'listar_flota' %}"><i class="bi bi-car-front"></i> Flota</a></li>
-                        <li><a href="{% url 'disponibilidad_flota' %}"><i class="bi bi-check-circle"></i> Disponibilidad</a></li>
-                        
+                        <!--<li><a href="{% url 'disponibilidad_flota' %}"><i class="bi bi-check-circle"></i> Disponibilidad</a></li>-->
+                        {% endif %}
+
                         {% if user.rol == 'Conductor' or user.rol == 'Administrador' %}
                         <li>
                             <a href="{% if user.rol == 'Administrador' %}{% url 'listar_bitacoras' %}{% else %}{% url 'registrar_bitacora' %}{% endif %}">
@@ -44,17 +46,19 @@
                         </li>
                         {% endif %}
 
-                        {% if user.rol == 'Administrador' %}
+                        {% if user.rol == 'Administrador' or user.rol == 'Visualizador' %}
                         <li><a href="{% url 'listar_mantenimientos' %}"><i class="bi bi-tools"></i> Mantenimientos</a></li>
                         <li><a href="{% url 'listar_presupuestos' %}"><i class="bi bi-cash-stack"></i> Presupuestos</a></li>
                         <li><a href="{% url 'listar_arriendos' %}"><i class="bi bi-file-earmark-text"></i> Arriendos</a></li>
+                        {% if user.rol == 'Administrador' %}
                         <li><a href="{% url 'listar_proveedores' %}"><i class="bi bi-shop"></i> Proveedores</a></li>
-                        <li><a href="{% url 'listar_ordenes_compra' %}"><i class="bi bi-cart-check"></i> Órdenes de Compra</a></li>
                         {% endif %}
-                        
+                        <li><a href="{% url 'listar_ordenes_compra' %}"><i class="bi bi-cart-check"></i> Órdenes de Compra</a></li>
+                        <li><a href="{% url 'listar_ordenes_trabajo' %}"><i class="bi bi-wrench"></i> Órdenes de Trabajo</a></li>
                         <li><a href="{% url 'alertas_mantenimiento' %}"><i class="bi bi-bell"></i> Alertas</a></li>
-                        <li><a><i class="bi bi-calendar"></i> Calendario</a></li>
+                        <li><a href="{% url 'calendario_mantenciones' %}"><i class="bi bi-calendar"></i> Calendario</a></li>
                         <li><a href="{% url 'reporte_costos' %}"><i class="bi bi-graph-up"></i> Reportes</a></li>
+                        {% endif %}
                         <hr>
                         <li><a href="{% url 'logout' %}"><i class="bi bi-box-arrow-right"></i> Cerrar Sesión</a></li>
                     </ul>
@@ -85,6 +89,8 @@
     {% endif %}
     
     <script src="{% static 'js/bootstrap.bundle.min.js' %}"></script>
+    <script src="{% static 'js/formateador_rut.js' %}"></script>
+    <script src="{% static 'js/formatear_fechas.js' %}"></script>
     {% block extra_js %}{% endblock %}
 </body>
 </html>

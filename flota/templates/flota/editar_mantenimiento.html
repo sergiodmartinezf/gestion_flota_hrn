@@ -1,0 +1,122 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Editar Mantenimiento - Gestión de Flota{% endblock %}
+
+{% block content %}
+<h2 class="mb-4"><i class="bi bi-pencil"></i> Editar Mantenimiento: {{ mantenimiento.vehiculo.patente }}</h2>
+
+<div class="card">
+    <div class="card-body">
+        <form method="post">
+            {% csrf_token %}
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="{{ form.vehiculo.id_for_label }}" class="form-label">Vehículo *</label>
+                        {{ form.vehiculo }}
+                        {% if form.vehiculo.errors %}
+                            <div class="text-danger small">{{ form.vehiculo.errors }}</div>
+                        {% endif %}
+                    </div>
+                    <div class="mb-3">
+                        <label for="{{ form.tipo_mantencion.id_for_label }}" class="form-label">Tipo de Mantenimiento *</label>
+                        {{ form.tipo_mantencion }}
+                        {% if form.tipo_mantencion.errors %}
+                            <div class="text-danger small">{{ form.tipo_mantencion.errors }}</div>
+                        {% endif %}
+                    </div>
+                    <div class="mb-3">
+                        <label for="{{ form.fecha_ingreso.id_for_label }}" class="form-label">Fecha de Ingreso *</label>
+                        {{ form.fecha_ingreso }}
+                        {% if form.fecha_ingreso.errors %}
+                            <div class="text-danger small">{{ form.fecha_ingreso.errors }}</div>
+                        {% endif %}
+                    </div>
+                    <div class="mb-3">
+                        <label for="{{ form.fecha_salida.id_for_label }}" class="form-label">Fecha de Salida</label>
+                        {{ form.fecha_salida }}
+                        {% if form.fecha_salida.errors %}
+                            <div class="text-danger small">{{ form.fecha_salida.errors }}</div>
+                        {% endif %}
+                    </div>
+                    <div class="mb-3">
+                        <label for="{{ form.km_al_ingreso.id_for_label }}" class="form-label">Kilometraje al Ingreso *</label>
+                        {{ form.km_al_ingreso }}
+                        {% if form.km_al_ingreso.errors %}
+                            <div class="text-danger small">{{ form.km_al_ingreso.errors }}</div>
+                        {% endif %}
+                    </div>
+                    <div class="mb-3">
+                        <label for="{{ form.estado.id_for_label }}" class="form-label">Estado *</label>
+                        {{ form.estado }}
+                        {% if form.estado.errors %}
+                            <div class="text-danger small">{{ form.estado.errors }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="{{ form.proveedor.id_for_label }}" class="form-label">Proveedor *</label>
+                        {{ form.proveedor }}
+                        {% if form.proveedor.errors %}
+                            <div class="text-danger small">{{ form.proveedor.errors }}</div>
+                        {% endif %}
+                    </div>
+                    <div class="mb-3">
+                        <label for="{{ form.descripcion_trabajo.id_for_label }}" class="form-label">Descripción del Trabajo *</label>
+                        {{ form.descripcion_trabajo }}
+                        {% if form.descripcion_trabajo.errors %}
+                            <div class="text-danger small">{{ form.descripcion_trabajo.errors }}</div>
+                        {% endif %}
+                    </div>
+                    <div class="mb-3">
+                        <label for="{{ form.costo_estimado.id_for_label }}" class="form-label">Costo Estimado</label>
+                        {{ form.costo_estimado }}
+                        {% if form.costo_estimado.errors %}
+                            <div class="text-danger small">{{ form.costo_estimado.errors }}</div>
+                        {% endif %}
+                    </div>
+                    <div class="mb-3">
+                        <label for="{{ form.costo_mano_obra.id_for_label }}" class="form-label">Costo Mano de Obra</label>
+                        {{ form.costo_mano_obra }}
+                        {% if form.costo_mano_obra.errors %}
+                            <div class="text-danger small">{{ form.costo_mano_obra.errors }}</div>
+                        {% endif %}
+                    </div>
+                    <div class="mb-3">
+                        <label for="{{ form.costo_repuestos.id_for_label }}" class="form-label">Costo Repuestos</label>
+                        {{ form.costo_repuestos }}
+                        {% if form.costo_repuestos.errors %}
+                            <div class="text-danger small">{{ form.costo_repuestos.errors }}</div>
+                        {% endif %}
+                    </div>
+                    <div class="mb-3">
+                        <label for="{{ form.cuenta_presupuestaria.id_for_label }}" class="form-label">Cuenta Presupuestaria</label>
+                        {{ form.cuenta_presupuestaria }}
+                        {% if form.cuenta_presupuestaria.errors %}
+                            <div class="text-danger small">{{ form.cuenta_presupuestaria.errors }}</div>
+                        {% endif %}
+                    </div>
+                    <div class="mb-3">
+                        <label for="{{ form.orden_trabajo.id_for_label }}" class="form-label">Orden de Trabajo</label>
+                        {{ form.orden_trabajo }}
+                        {% if form.orden_trabajo.errors %}
+                            <div class="text-danger small">{{ form.orden_trabajo.errors }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            <div class="mt-3">
+                <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-check-circle"></i> Guardar Cambios
+                </button>
+                <a href="{% url 'listar_mantenimientos' %}" class="btn btn-secondary">
+                    <i class="bi bi-x-circle"></i> Cancelar
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+

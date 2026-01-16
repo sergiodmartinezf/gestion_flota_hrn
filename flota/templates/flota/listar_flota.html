@@ -1,74 +1,117 @@
 {% extends 'base.html' %}
-
-{% block title %}Flota - Gestión de Flota{% endblock %}
-
 {% block content %}
-<h2 class="mb-4"><i class="bi bi-car-front"></i> Flota de Vehículos</h2>
+<div class="container-fluid">
+    <h2 class="mb-4"><i class="bi bi-car-front"></i> Flota de Vehículos</h2>
 
-<div class="mb-3">
+    <!-- Botón para registrar nuevo vehículo -->
     {% if user.rol == 'Administrador' %}
-    <a href="{% url 'registrar_vehiculo' %}" class="btn btn-primary"><i class="bi bi-plus-circle"></i> Registrar Vehículo</a>
+    <div class="mb-3">
+        <a href="{% url 'registrar_vehiculo' %}" class="btn btn-success">
+            <i class="bi bi-plus-circle"></i> Nuevo Vehículo
+        </a>
+    </div>
     {% endif %}
-    <div class="float-end">
-        <form method="get" class="d-inline">
-            <select name="estado" class="form-select d-inline-block" style="width: auto;" onchange="this.form.submit()">
-                <option value="">Todos los estados</option>
-                <option value="Disponible" {% if estado_filter == 'Disponible' %}selected{% endif %}>Disponible</option>
-                <option value="En uso" {% if estado_filter == 'En uso' %}selected{% endif %}>En uso</option>
-                <option value="En mantenimiento" {% if estado_filter == 'En mantenimiento' %}selected{% endif %}>En mantenimiento</option>
-                <option value="Fuera de servicio" {% if estado_filter == 'Fuera de servicio' %}selected{% endif %}>Fuera de servicio</option>
-                <option value="Arrendado" {% if estado_filter == 'Arrendado' %}selected{% endif %}>Arrendado</option>
-            </select>
-            <select name="tipo_carroceria" class="form-select d-inline-block" style="width: auto;" onchange="this.form.submit()">
-                <option value="">Todos los tipos</option>
-                <option value="Ambulancia" {% if tipo_filter == 'Ambulancia' %}selected{% endif %}>Ambulancia</option>
-                <option value="Camioneta" {% if tipo_filter == 'Camioneta' %}selected{% endif %}>Camioneta</option>
-                <option value="Otro" {% if tipo_filter == 'Otro' %}selected{% endif %}>Otro</option>
-            </select>
-        </form>
+
+    <!-- Filtros -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <form method="get" class="row g-3">
+                <div class="col-md-3">
+                    <label for="estado" class="form-label">Estado:</label>
+                    <select name="estado" id="estado" class="form-select">
+                        <option value="">Todos los estados</option>
+                        <option value="Disponible" {% if estado_filter == 'Disponible' %}selected{% endif %}>Disponible</option>
+                        <option value="En uso" {% if estado_filter == 'En uso' %}selected{% endif %}>En uso</option>
+                        <option value="En mantenimiento" {% if estado_filter == 'En mantenimiento' %}selected{% endif %}>En mantenimiento</option>
+                        <option value="Fuera de servicio" {% if estado_filter == 'Fuera de servicio' %}selected{% endif %}>Fuera de servicio</option>
+                        <option value="Arrendado" {% if estado_filter == 'Arrendado' %}selected{% endif %}>Arrendado</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label for="tipo_carroceria" class="form-label">Tipo de Carrocería:</label>
+                    <select name="tipo_carroceria" id="tipo_carroceria" class="form-select">
+                        <option value="">Todos los tipos</option>
+                        <option value="Ambulancia" {% if tipo_filter == 'Ambulancia' %}selected{% endif %}>Ambulancia</option>
+                        <option value="Camioneta" {% if tipo_filter == 'Camioneta' %}selected{% endif %}>Camioneta</option>
+                        <option value="Otro" {% if tipo_filter == 'Otro' %}selected{% endif %}>Otro</option>
+                    </select>
+                </div>
+                <div class="col-md-4 d-flex align-items-end">
+                    <div class="btn-group">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-funnel"></i> Filtrar
+                        </button>
+                        {% if estado_filter or tipo_filter %}
+                        <a href="{% url 'listar_flota' %}" class="btn btn-secondary">
+                            <i class="bi bi-x-circle"></i> Limpiar
+                        </a>
+                        {% endif %}
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Tabla de flota -->
+    <div class="card">
+        <div class="card-body">
+            {% if vehiculos %}
+            <div class="table-responsive">
+                <table class="table table-hover table-striped">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>Patente</th>
+                            <th>Marca</th>
+                            <th>Modelo</th>
+                            <th>Tipo</th>
+                            <th>Estado</th>
+                            <th>Kilometraje</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for vehiculo in vehiculos %}
+                        <tr>
+                            <td><strong>{{ vehiculo.patente }}</strong></td>
+                            <td>{{ vehiculo.marca }}</td>
+                            <td>{{ vehiculo.modelo }}</td>
+                            <td>{{ vehiculo.get_tipo_carroceria_display }}</td>
+                            <td>
+                                {% if vehiculo.estado == 'Disponible' %}
+                                    <span class="badge bg-success">{{ vehiculo.estado }}</span>
+                                {% elif vehiculo.estado == 'En mantenimiento' %}
+                                    <span class="badge bg-warning">{{ vehiculo.estado }}</span>
+                                {% elif vehiculo.estado == 'Fuera de servicio' %}
+                                    <span class="badge bg-danger">{{ vehiculo.estado }}</span>
+                                {% else %}
+                                    <span class="badge bg-secondary">{{ vehiculo.estado }}</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ vehiculo.kilometraje_actual|floatformat:0 }} km</td>
+                            <td>
+                                <div class="btn-group btn-group-sm" role="group">
+                                    <a href="{% url 'ficha_vehiculo' vehiculo.patente %}" class="btn btn-info" title="Ver detalles">
+                                        <i class="bi bi-eye"></i>
+                                    </a>
+                                    {% if user.rol == 'Administrador' %}
+                                    <a href="{% url 'modificar_vehiculo' vehiculo.patente %}" class="btn btn-warning" title="Editar">
+                                        <i class="bi bi-pencil"></i>
+                                    </a>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="alert alert-info">
+                <i class="bi bi-info-circle"></i> No hay vehículos registrados.
+            </div>
+            {% endif %}
+        </div>
     </div>
 </div>
-
-<table class="table table-striped">
-    <thead>
-        <tr>
-            <th>Patente</th>
-            <th>Marca</th>
-            <th>Modelo</th>
-            <th>Tipo</th>
-            <th>Estado</th>
-            <th>Kilometraje</th>
-            <th>Acciones</th>
-        </tr>
-    </thead>
-    <tbody>
-        {% for vehiculo in vehiculos %}
-        <tr>
-            <td><strong>{{ vehiculo.patente }}</strong></td>
-            <td>{{ vehiculo.marca }}</td>
-            <td>{{ vehiculo.modelo }}</td>
-            <td>{{ vehiculo.get_tipo_carroceria_display }}</td>
-            <td>
-                {% if vehiculo.estado == 'Disponible' %}
-                    <span class="badge bg-success">{{ vehiculo.estado }}</span>
-                {% elif vehiculo.estado == 'En mantenimiento' %}
-                    <span class="badge bg-warning">{{ vehiculo.estado }}</span>
-                {% elif vehiculo.estado == 'Fuera de servicio' %}
-                    <span class="badge bg-danger">{{ vehiculo.estado }}</span>
-                {% else %}
-                    <span class="badge bg-secondary">{{ vehiculo.estado }}</span>
-                {% endif %}
-            </td>
-            <td>{{ vehiculo.kilometraje_actual|floatformat:0 }} km</td>
-            <td>
-                <a href="{% url 'ficha_vehiculo' vehiculo.patente %}" class="btn btn-sm btn-info"><i class="bi bi-eye"></i></a>
-                {% if user.rol == 'Administrador' %}
-                <a href="{% url 'modificar_vehiculo' vehiculo.patente %}" class="btn btn-sm btn-warning"><i class="bi bi-pencil"></i></a>
-                {% endif %}
-            </td>
-        </tr>
-        {% endfor %}
-    </tbody>
-</table>
 {% endblock %}
 

@@ -1,48 +1,126 @@
 {% extends 'base.html' %}
 
-{% block title %}Presupuestos - Gestión de Flota{% endblock %}
+{% block title %}Listar Presupuestos - Gestión de Flota{% endblock %}
 
 {% block content %}
-<h2 class="mb-4"><i class="bi bi-cash-stack"></i> Presupuestos</h2>
+<h2 class="mb-4"><i class="bi bi-cash-stack"></i> Presupuestos Anuales</h2>
 
-<div class="mb-3">
-    {% if user.rol == 'Administrador' %}
-    <a href="{% url 'registrar_presupuesto' %}" class="btn btn-primary"><i class="bi bi-plus-circle"></i> Registrar Presupuesto</a>
-    {% endif %}
-    <a href="{% url 'alertas_presupuesto' %}" class="btn btn-warning"><i class="bi bi-bell"></i> Ver Alertas</a>
+<div class="card mb-4">
+    <div class="card-body">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <a href="{% url 'registrar_presupuesto' %}" class="btn btn-primary">
+                    <i class="bi bi-plus-circle"></i> Nuevo Presupuesto
+                </a>
+                <a href="{% url 'alertas_presupuesto' %}" class="btn btn-warning">
+                    <i class="bi bi-exclamation-triangle"></i> Ver Alertas
+                </a>
+            </div>
+            <form method="get" class="d-flex">
+                <input type="number" name="anio" class="form-control me-2" placeholder="Filtrar por año" 
+                       value="{{ request.GET.anio }}" style="width: 150px;">
+                <select name="vehiculo" class="form-control me-2" style="width: 200px;">
+                    <option value="">Todos los vehículos</option>
+                    {% for v in vehiculos %}
+                        <option value="{{ v.patente }}" {% if request.GET.vehiculo == v.patente %}selected{% endif %}>
+                            {{ v.patente }}
+                        </option>
+                    {% endfor %}
+                </select>
+                <button type="submit" class="btn btn-outline-secondary">
+                    <i class="bi bi-funnel"></i> Filtrar
+                </button>
+            </form>
+        </div>
+    </div>
 </div>
 
-<table class="table table-striped">
-    <thead>
-        <tr>
-            <th>Vehículo</th>
-            <th>Año</th>
-            <th>Categoría</th>
-            <th>Monto Asignado</th>
-            <th>Monto Ejecutado</th>
-            <th>% Ejecutado</th>
-        </tr>
-    </thead>
-    <tbody>
-        {% for presupuesto in presupuestos %}
-        <tr>
-            <td>{{ presupuesto.vehiculo.patente }}</td>
-            <td>{{ presupuesto.anio }}</td>
-            <td>{{ presupuesto.categoria }}</td>
-            <td>${{ presupuesto.monto_asignado|floatformat:0 }}</td>
-            <td>${{ presupuesto.monto_ejecutado|floatformat:0 }}</td>
-            <td>
-                {% if presupuesto.porcentaje_ejecutado >= 80 %}
-                    <span class="badge bg-danger">{{ presupuesto.porcentaje_ejecutado|floatformat:1 }}%</span>
-                {% elif presupuesto.porcentaje_ejecutado >= 50 %}
-                    <span class="badge bg-warning">{{ presupuesto.porcentaje_ejecutado|floatformat:1 }}%</span>
-                {% else %}
-                    <span class="badge bg-success">{{ presupuesto.porcentaje_ejecutado|floatformat:1 }}%</span>
-                {% endif %}
-            </td>
-        </tr>
-        {% endfor %}
-    </tbody>
-</table>
+{% if presupuestos %}
+<div class="table-responsive">
+    <table class="table table-hover table-striped">
+        <thead class="table-dark">
+            <tr>
+                <th>Año</th>
+                <th>Vehículo</th>
+                <th>Cuenta SIGFE</th>
+                <th>Monto Asignado</th>
+                <th>Monto Ejecutado</th>
+                <th>Disponible</th>
+                <th>% Ejecutado</th>
+                <th>Acciones</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for p in presupuestos %}
+            <tr>
+                <td>{{ p.anio }}</td>
+                <td>
+                    {% if p.vehiculo %}
+                        <a href="{% url 'ficha_vehiculo' p.vehiculo.patente %}">
+                            {{ p.vehiculo.patente }}
+                        </a>
+                    {% else %}
+                        <span class="text-muted">Flota General</span>
+                    {% endif %}
+                </td>
+                <td>
+                    <small>{{ p.cuenta.codigo }}</small><br>
+                    <span class="small text-muted">{{ p.cuenta.nombre|truncatechars:30 }}</span>
+                </td>
+                <td class="text-end">${{ p.monto_asignado|floatformat:0 }}</td>
+                <td class="text-end">${{ p.monto_ejecutado|floatformat:0 }}</td>
+                <td class="text-end">
+                    ${{ p.disponible|floatformat:0 }}
+                </td>
+                <td>
+                    <div class="d-flex align-items-center">
+                        <div class="progress flex-grow-1" style="height: 25px;">
+                            <div class="progress-bar 
+                                {% if p.porcentaje_ejecutado < 50 %}bg-success text-dark
+                                {% elif p.porcentaje_ejecutado < 80 %}bg-warning text-dark
+                                {% elif p.porcentaje_ejecutado < 100 %}bg-danger text-white
+                                {% else %}bg-dark text-white{% endif %}" 
+                                role="progressbar" 
+                                style="width: {% if p.porcentaje_ejecutado > 100 %}100{% else %}{{ p.porcentaje_ejecutado }}{% endif %}%; font-weight: bold; display: flex; align-items: center; justify-content: center;"
+                                aria-valuenow="{{ p.porcentaje_ejecutado }}" 
+                                aria-valuemin="0" 
+                                aria-valuemax="100">
+                                {{ p.porcentaje_ejecutado|floatformat:1 }}%
+                            </div>
+                        </div>
+                    </div>
+                </td>
+                <td>
+                    {% if user.rol == 'Administrador' %}
+                    <a href="{% url 'modificar_presupuesto' p.id %}" class="btn btn-sm btn-warning" title="Editar">
+                        <i class="bi bi-pencil"></i>
+                    </a>
+                    <a href="{% url 'deshabilitar_presupuesto' p.id %}" class="btn btn-sm btn-danger" title="Deshabilitar">
+                        <i class="bi bi-x-circle"></i>
+                    </a>
+                    {% else %}
+                    <span class="text-muted">-</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+        <tfoot class="table-secondary">
+            <tr>
+                <th colspan="3" class="text-end">Totales:</th>
+                <th class="text-end">${{ total_asignado|floatformat:0 }}</th>
+                <th class="text-end">${{ total_ejecutado|floatformat:0 }}</th>
+                <th class="text-end">${{ total_disponible|floatformat:0 }}</th>
+                <th colspan="2"></th>
+            </tr>
+        </tfoot>
+    </table>
+</div>
+{% else %}
+<div class="alert alert-info">
+    <i class="bi bi-info-circle"></i> No hay presupuestos registrados.
+</div>
+{% endif %}
+
 {% endblock %}
 

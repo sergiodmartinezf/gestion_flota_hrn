@@ -3,50 +3,159 @@
 {% block title %}Registrar Arriendo - Gestión de Flota{% endblock %}
 
 {% block content %}
-<h2 class="mb-4"><i class="bi bi-file-earmark-text"></i> Registrar Arriendo</h2>
+<h2 class="mb-4"><i class="bi bi-truck"></i> Registrar Arriendo de Vehículo</h2>
+
+<div class="alert alert-info">
+    <i class="bi bi-info-circle"></i>
+    Registra un vehículo arrendado que reemplazará temporalmente a un vehículo propio en reparación.
+</div>
 
 <form method="post">
     {% csrf_token %}
+    
     <div class="row">
         <div class="col-md-6">
+            <h5 class="border-bottom pb-2">Vehículo Propio (Reemplazado)</h5>
             <div class="mb-3">
-                <label for="{{ form.vehiculo.id_for_label }}" class="form-label">Vehículo *</label>
-                {{ form.vehiculo }}
+                <label for="{{ form.vehiculo_reemplazado.id_for_label }}" class="form-label">Vehículo a reemplazar *</label>
+                {{ form.vehiculo_reemplazado }}
+                <div class="form-text">Selecciona el vehículo propio que está fuera de servicio.</div>
+                {% if form.vehiculo_reemplazado.errors %}
+                    <div class="text-danger small">{{ form.vehiculo_reemplazado.errors }}</div>
+                {% endif %}
             </div>
+            
             <div class="mb-3">
-                <label for="{{ form.proveedor.id_for_label }}" class="form-label">Proveedor *</label>
+                <label for="{{ form.motivo.id_for_label }}" class="form-label">Motivo del arriendo *</label>
+                {{ form.motivo }}
+                <div class="form-text">Ej: "Ambulancia HR-PG-25 en pana de motor - Estimado 15 días en taller"</div>
+                {% if form.motivo.errors %}
+                    <div class="text-danger small">{{ form.motivo.errors }}</div>
+                {% endif %}
+            </div>
+
+            <h5 class="border-bottom pb-2 mt-4">Proveedor</h5>
+            <div class="mb-3">
+                <label for="{{ form.proveedor.id_for_label }}" class="form-label">Proveedor (Arrendador) *</label>
                 {{ form.proveedor }}
+                <div class="form-text">Empresa que provee el vehículo arrendado (ej: Resmed).</div>
+                {% if form.proveedor.errors %}
+                    <div class="text-danger small">{{ form.proveedor.errors }}</div>
+                {% endif %}
             </div>
+
             <div class="mb-3">
-                <label for="{{ form.fecha_inicio.id_for_label }}" class="form-label">Fecha Inicio *</label>
-                {{ form.fecha_inicio }}
-            </div>
-            <div class="mb-3">
-                <label for="{{ form.fecha_fin.id_for_label }}" class="form-label">Fecha Fin</label>
-                {{ form.fecha_fin }}
+                <label for="{{ form.nro_orden_compra.id_for_label }}" class="form-label">N° Orden de Compra (opcional)</label>
+                {{ form.nro_orden_compra }}
+                {% if form.nro_orden_compra.errors %}
+                    <div class="text-danger small">{{ form.nro_orden_compra.errors }}</div>
+                {% endif %}
             </div>
         </div>
+        
         <div class="col-md-6">
+            <h5 class="border-bottom pb-2">Vehículo Arrendado</h5>
             <div class="mb-3">
-                <label for="{{ form.costo_diario.id_for_label }}" class="form-label">Costo Diario *</label>
+                <label for="{{ form.vehiculo_arrendado.id_for_label }}" class="form-label">Vehículo arrendado existente *</label>
+                {{ form.vehiculo_arrendado }}
+                <div class="form-text">Selecciona un vehículo arrendado ya registrado en el sistema.</div>
+                {% if form.vehiculo_arrendado.errors %}
+                    <div class="text-danger small">{{ form.vehiculo_arrendado.errors }}</div>
+                {% endif %}
+            </div>
+
+            <div class="mb-3">
+                <h6>O crear nuevo vehículo arrendado:</h6>
+            </div>
+
+            <div class="mb-3">
+                <label for="{{ form.nueva_patente.id_for_label }}" class="form-label">Nueva patente (opcional)</label>
+                {{ form.nueva_patente }}
+                <div class="form-text">Si el vehículo no está registrado, ingrese su patente aquí.</div>
+                {% if form.nueva_patente.errors %}
+                    <div class="text-danger small">{{ form.nueva_patente.errors }}</div>
+                {% endif %}
+            </div>
+
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="{{ form.nueva_marca.id_for_label }}" class="form-label">Marca (opcional)</label>
+                        {{ form.nueva_marca }}
+                        {% if form.nueva_marca.errors %}
+                            <div class="text-danger small">{{ form.nueva_marca.errors }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="{{ form.nueva_modelo.id_for_label }}" class="form-label">Modelo (opcional)</label>
+                        {{ form.nueva_modelo }}
+                        {% if form.nueva_modelo.errors %}
+                            <div class="text-danger small">{{ form.nueva_modelo.errors }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <h5 class="border-bottom pb-2 mt-4">Condiciones del Arriendo</h5>
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="{{ form.fecha_inicio.id_for_label }}" class="form-label">Fecha inicio *</label>
+                        {{ form.fecha_inicio }}
+                        {% if form.fecha_inicio.errors %}
+                            <div class="text-danger small">{{ form.fecha_inicio.errors }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="{{ form.fecha_fin.id_for_label }}" class="form-label">Fecha fin estimada</label>
+                        {{ form.fecha_fin }}
+                        <div class="form-text">Dejar en blanco si no se conoce.</div>
+                        {% if form.fecha_fin.errors %}
+                            <div class="text-danger small">{{ form.fecha_fin.errors }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <label for="{{ form.costo_diario.id_for_label }}" class="form-label">Costo diario (CLP) *</label>
                 {{ form.costo_diario }}
+                {% if form.costo_diario.errors %}
+                    <div class="text-danger small">{{ form.costo_diario.errors }}</div>
+                {% endif %}
             </div>
+
             <div class="mb-3">
-                <label for="{{ form.costo_total.id_for_label }}" class="form-label">Costo Total *</label>
-                {{ form.costo_total }}
-            </div>
-            <div class="mb-3">
-                <label for="{{ form.nro_orden_compra.id_for_label }}" class="form-label">N° Orden de Compra</label>
-                {{ form.nro_orden_compra }}
-            </div>
-            <div class="mb-3">
-                <label for="{{ form.estado.id_for_label }}" class="form-label">Estado *</label>
-                {{ form.estado }}
+                <label for="{{ form.cuenta_presupuestaria.id_for_label }}" class="form-label">Cuenta Presupuestaria</label>
+                {{ form.cuenta_presupuestaria }}
+                {% if form.cuenta_presupuestaria.errors %}
+                    <div class="text-danger small">{{ form.cuenta_presupuestaria.errors }}</div>
+                {% endif %}
             </div>
         </div>
     </div>
-    <button type="submit" class="btn btn-primary">Registrar</button>
-    <a href="{% url 'listar_arriendos' %}" class="btn btn-secondary">Cancelar</a>
+    
+    <!-- Mostrar errores no de campo -->
+    {% if form.non_field_errors %}
+        <div class="alert alert-danger mt-3">
+            <strong>Errores:</strong>
+            <ul>
+                {% for error in form.non_field_errors %}
+                    <li>{{ error }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+    {% endif %}
+    
+    <div class="mt-4">
+        <button type="submit" class="btn btn-primary">
+            <i class="bi bi-save"></i> Registrar Arriendo
+        </button>
+        <a href="{% url 'listar_arriendos' %}" class="btn btn-secondary">Cancelar</a>
+    </div>
 </form>
 {% endblock %}
-

@@ -5,9 +5,16 @@
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h2><i class="bi bi-shop"></i> Listado de Proveedores</h2>
-    <a href="{% url 'registrar_proveedor' %}" class="btn btn-primary">
-        <i class="bi bi-plus-circle"></i> Nuevo Proveedor
-    </a>
+    <div>
+        <a href="{% url 'registrar_proveedor' %}" class="btn btn-primary">
+            <i class="bi bi-plus-circle"></i> Nuevo Proveedor
+        </a>
+        <a href="?mostrar_deshabilitados={% if mostrar_deshabilitados %}false{% else %}true{% endif %}" 
+           class="btn btn-{% if mostrar_deshabilitados %}warning{% else %}secondary{% endif %}">
+            <i class="bi bi-{% if mostrar_deshabilitados %}eye-slash{% else %}eye{% endif %}"></i> 
+            {% if mostrar_deshabilitados %}Ocultar{% else %}Mostrar{% endif %} Deshabilitados
+        </a>
+    </div>
 </div>
 
 <div class="card shadow-sm">
@@ -20,29 +27,63 @@
                         <th>RUT</th>
                         <th>Teléfono</th>
                         <th>Email</th>
+                        <th>Estado</th>
+                        <th>Servicios</th>
                         <th>Acciones</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for proveedor in proveedores %}
-                    <tr>
-                        <td>{{ proveedor.nombre_fantasia }}</td>
+                    <tr class="{% if not proveedor.activo %}table-secondary{% endif %}">
+                        <td>
+                            {{ proveedor.nombre_fantasia }}
+                            {% if not proveedor.activo %}
+                            <span class="badge bg-danger ms-2">Inactivo</span>
+                            {% endif %}
+                        </td>
                         <td>{{ proveedor.rut_empresa }}</td>
                         <td>{{ proveedor.telefono|default:"-" }}</td>
                         <td>{{ proveedor.email_contacto|default:"-" }}</td>
                         <td>
-                            <a href="{% url 'modificar_proveedor' proveedor.id %}" class="btn btn-sm btn-warning" title="Editar">
-                                <i class="bi bi-pencil"></i>
-                            </a>
-                            <a href="{% url 'eliminar_proveedor' proveedor.id %}" class="btn btn-sm btn-danger" title="Eliminar">
-                                <i class="bi bi-trash"></i>
-                            </a>
+                            {% if proveedor.activo %}
+                            <span class="badge bg-success">Activo</span>
+                            {% else %}
+                            <span class="badge bg-danger">Inactivo</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if proveedor.es_taller %}
+                            <span class="badge bg-info">Taller</span>
+                            {% endif %}
+                            {% if proveedor.es_arrendador %}
+                            <span class="badge bg-primary">Arrendador</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="btn-group" role="group">
+                                <a href="{% url 'modificar_proveedor' proveedor.id %}" class="btn btn-sm btn-warning" title="Editar">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
+                                {% if proveedor.activo %}
+                                <a href="{% url 'deshabilitar_proveedor' proveedor.id %}" class="btn btn-sm btn-danger" title="Deshabilitar">
+                                    <i class="bi bi-x-circle"></i>
+                                </a>
+                                {% else %}
+                                <button type="button" class="btn btn-sm btn-success" title="Habilitar" onclick="habilitarProveedor({{ proveedor.id }}, '{{ proveedor.nombre_fantasia }}')">
+                                    <i class="bi bi-check-circle"></i>
+                                </button>
+                                {% endif %}
+                            </div>
                         </td>
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="5" class="text-center text-muted py-4">
+                        <td colspan="7" class="text-center text-muted py-4">
+                            {% if mostrar_deshabilitados %}
                             No hay proveedores registrados.
+                            {% else %}
+                            No hay proveedores activos registrados.
+                            {% endif %}
                         </td>
                     </tr>
                     {% endfor %}
@@ -51,4 +92,38 @@
         </div>
     </div>
 </div>
+
+<!-- Modal para habilitar proveedor -->
+<div class="modal fade" id="habilitarProveedorModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Habilitar Proveedor</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="habilitarProveedorForm" method="post" action="">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <p>¿Está seguro que desea habilitar al proveedor <strong id="nombreProveedor"></strong>?</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-success">Habilitar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+function habilitarProveedor(proveedorId, nombreProveedor) {
+    // Configurar el modal
+    document.getElementById('nombreProveedor').textContent = nombreProveedor;
+    document.getElementById('habilitarProveedorForm').action = `/proveedores/${proveedorId}/habilitar/`;
+    
+    // Mostrar el modal
+    const modal = new bootstrap.Modal(document.getElementById('habilitarProveedorModal'));
+    modal.show();
+}
+</script>
 {% endblock %}

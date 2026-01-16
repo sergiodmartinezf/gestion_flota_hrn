@@ -4,6 +4,10 @@ Django settings for gestion_flota project.
 
 from pathlib import Path
 import os
+from dotenv import load_dotenv
+
+# Cargar las variables del archivo .env
+load_dotenv()
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -114,7 +118,7 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/5.0/ref/settings/#static-files
 
 STATIC_URL = 'static/'
-STATICFILES_DIRS = [BASE_DIR / 'static']
+STATICFILES_DIRS = [BASE_DIR / 'flota/static']
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 
 MEDIA_URL = 'media/'
@@ -131,4 +135,7 @@ AUTH_USER_MODEL = 'flota.Usuario'
 LOGIN_URL = 'login'
 LOGIN_REDIRECT_URL = 'dashboard'
 LOGOUT_REDIRECT_URL = 'login'
+
+# Ticket de Mercado Público
+MERCADO_PUBLICO_TICKET = os.getenv('MERCADO_PUBLICO_TICKET')
 

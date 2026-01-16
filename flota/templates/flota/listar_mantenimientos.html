@@ -1,44 +1,135 @@
 {% extends 'base.html' %}
-
-{% block title %}Mantenimientos - Gestión de Flota{% endblock %}
-
+{% load static %}
 {% block content %}
-<h2 class="mb-4"><i class="bi bi-tools"></i> Mantenimientos</h2>
+<div class="container-fluid">
+    <h2 class="mb-4"><i class="bi bi-tools"></i> Mantenimientos</h2>
 
-<div class="mb-3">
-    {% if user.rol == 'Administrador' %}
-    <a href="{% url 'programar_mantenimiento_preventivo' %}" class="btn btn-primary"><i class="bi bi-plus-circle"></i> Programar Preventivo</a>
-    <a href="{% url 'registrar_mantenimiento_ejecutado' %}" class="btn btn-success"><i class="bi bi-check-circle"></i> Registrar Ejecutado</a>
-    {% endif %}
-    <form method="get" class="d-inline float-end">
-        <input type="text" name="patente" placeholder="Filtrar por patente" value="{{ patente_filter }}" class="form-control d-inline-block" style="width: auto;">
-        <button type="submit" class="btn btn-secondary">Filtrar</button>
-    </form>
+    <!-- Botones de acción -->
+    <div class="mb-3">
+        {% if user.rol == 'Administrador' %}
+        <div class="btn-group me-2">
+            <a href="{% url 'programar_mantenimiento_preventivo' %}" class="btn btn-success">
+                <i class="bi bi-plus-circle"></i> Programar Preventivo
+            </a>
+            <a href="{% url 'registrar_mantenimiento_correctivo' %}" class="btn btn-danger">
+                <i class="bi bi-tools"></i> Registrar Correctivo
+            </a>
+        </div>
+        {% endif %}
+        <a href="{% url 'calendario_mantenciones' %}" class="btn btn-info me-2">
+            <i class="bi bi-calendar-week"></i> Ver Calendario
+        </a>
+        {% if user.rol == 'Administrador' %}
+        <a href="?exportar=planilla&anio={% now 'Y' %}" class="btn btn-success">
+            <i class="bi bi-file-earmark-excel"></i> Exportar Planilla
+        </a>
+        {% endif %}
+    </div>
+
+    <!-- Filtros -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <form method="get" class="row g-3">
+                <div class="col-md-4">
+                    <label for="patente" class="form-label">Patente:</label>
+                    <input type="text" name="patente" id="patente" placeholder="Filtrar por patente" value="{{ patente_filter }}" class="form-control">
+                </div>
+                <div class="col-md-4 d-flex align-items-end">
+                    <div class="btn-group">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-funnel"></i> Filtrar
+                        </button>
+                        {% if patente_filter %}
+                        <a href="{% url 'listar_mantenimientos' %}" class="btn btn-secondary">
+                            <i class="bi bi-x-circle"></i> Limpiar
+                        </a>
+                        {% endif %}
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Tabla de mantenimientos -->
+    <div class="card">
+        <div class="card-body">
+            {% if mantenimientos %}
+            <div class="table-responsive">
+                <table class="table table-hover table-striped">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>Vehículo</th>
+                            <th>Tipo</th>
+                            <th>Fecha Ingreso</th>
+                            <th>Fecha Salida</th>
+                            <th>Estado</th>
+                            <th>Costo</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for mantenimiento in mantenimientos %}
+                        <tr>
+                            <td>
+                                <span class="badge bg-secondary">{{ mantenimiento.vehiculo.patente }}</span><br>
+                                <small>{{ mantenimiento.vehiculo.marca }} {{ mantenimiento.vehiculo.modelo }}</small>
+                            </td>
+                            <td>{{ mantenimiento.get_tipo_mantencion_display }}</td>
+                            <td>{{ mantenimiento.fecha_ingreso|date:"d/m/Y" }}</td>
+                            <td>{{ mantenimiento.fecha_salida|date:"d/m/Y"|default:"-" }}</td>
+                            <td>
+                                {% if user.rol == 'Administrador' %}
+                                <select class="form-select form-select-sm estado-mantenimiento"
+                                        data-id="{{ mantenimiento.id }}"
+                                        style="width: auto; display: inline-block;">
+                                    {% for estado_val, estado_label in mantenimiento.ESTADOS %}
+                                    <option value="{{ estado_val }}" {% if mantenimiento.estado == estado_val %}selected{% endif %}>
+                                        {{ estado_label }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                                {% else %}
+                                <span class="badge
+                                    {% if mantenimiento.estado == 'Finalizado' %}bg-success
+                                    {% elif mantenimiento.estado == 'Programado' %}bg-info
+                                    {% elif mantenimiento.estado == 'En taller' %}bg-warning
+                                    {% elif mantenimiento.estado == 'Esperando repuestos' %}bg-danger
+                                    {% else %}bg-secondary{% endif %}">
+                                    {{ mantenimiento.get_estado_display }}
+                                </span>
+                                {% endif %}
+                            </td>
+                            <td>${{ mantenimiento.costo_total_real|floatformat:0|default:"0" }}</td>
+                            <td>
+                                {% if user.rol == 'Administrador' %}
+                                <div class="btn-group btn-group-sm" role="group">
+                                    {% if mantenimiento.estado == 'Programado' or mantenimiento.estado == 'En taller' %}
+                                        <a href="{% url 'finalizar_mantenimiento' mantenimiento.id %}" class="btn btn-success" title="Finalizar Mantenimiento">
+                                            <i class="bi bi-check-lg"></i>
+                                        </a>
+                                    {% endif %}
+                                    <a href="{% url 'editar_mantenimiento' mantenimiento.id %}" class="btn btn-warning" title="Editar">
+                                        <i class="bi bi-pencil"></i>
+                                    </a>
+                                </div>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="alert alert-info">
+                <i class="bi bi-info-circle"></i> No hay mantenimientos registrados.
+            </div>
+            {% endif %}
+        </div>
+    </div>
 </div>
+{% endblock %}
 
-<table class="table table-striped">
-    <thead>
-        <tr>
-            <th>Vehículo</th>
-            <th>Tipo</th>
-            <th>Fecha Ingreso</th>
-            <th>Fecha Salida</th>
-            <th>Estado</th>
-            <th>Costo</th>
-        </tr>
-    </thead>
-    <tbody>
-        {% for mantenimiento in mantenimientos %}
-        <tr>
-            <td>{{ mantenimiento.vehiculo.patente }}</td>
-            <td>{{ mantenimiento.get_tipo_mantencion_display }}</td>
-            <td>{{ mantenimiento.fecha_ingreso|date:"d/m/Y" }}</td>
-            <td>{{ mantenimiento.fecha_salida|date:"d/m/Y"|default:"-" }}</td>
-            <td>{{ mantenimiento.get_estado_display }}</td>
-            <td>${{ mantenimiento.costo_total|floatformat:0 }}</td>
-        </tr>
-        {% endfor %}
-    </tbody>
-</table>
+{% block extra_js %}
+<script src="{% static 'js/listar_mantenimientos.js' %}"></script>
 {% endblock %}
 

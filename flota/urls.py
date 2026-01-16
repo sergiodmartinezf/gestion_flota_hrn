@@ -43,21 +43,29 @@ urlpatterns = [
     
     # Mantenimientos (RF_18-RF_20)
     path('mantenimientos/programar/', views.programar_mantenimiento_preventivo, name='programar_mantenimiento_preventivo'),
-    path('mantenimientos/registrar/', views.registrar_mantenimiento_ejecutado, name='registrar_mantenimiento_ejecutado'),
+    path('mantenimientos/registrar-correctivo/', views.registrar_mantenimiento_correctivo, name='registrar_mantenimiento_correctivo'),
+    path('mantenimientos/<int:id>/finalizar/', views.finalizar_mantenimiento, name='finalizar_mantenimiento'),
+    path('mantenimientos/<int:id>/cambiar-estado/', views.cambiar_estado_mantenimiento, name='cambiar_estado_mantenimiento'),
     path('mantenimientos/', views.listar_mantenimientos, name='listar_mantenimientos'),
     
     # Presupuestos (RF_21-RF_22)
     path('presupuestos/registrar/', views.registrar_presupuesto, name='registrar_presupuesto'),
     path('presupuestos/', views.listar_presupuestos, name='listar_presupuestos'),
+    path('presupuestos/<int:id>/modificar/', views.modificar_presupuesto, name='modificar_presupuesto'),
+    path('presupuestos/<int:id>/deshabilitar/', views.deshabilitar_presupuesto, name='deshabilitar_presupuesto'),
     path('presupuestos/alertas/', views.alertas_presupuesto, name='alertas_presupuesto'),
     
     # Calendario (RF_23)
     path('calendario/', views.calendario_mantenciones, name='calendario_mantenciones'),
+    path('api/mantenimientos/', views.api_mantenimientos, name='api_mantenimientos'),
+    path('mantenimientos/<int:id>/editar/', views.editar_mantenimiento, name='editar_mantenimiento'),
+    path('mantenimientos/<int:id>/eliminar/', views.eliminar_mantenimiento, name='eliminar_mantenimiento'),
     
     # Reportes (RF_24-RF_25, RF_28)
     path('reportes/costos/', views.reporte_costos, name='reporte_costos'),
     path('reportes/disponibilidad/', views.reporte_disponibilidad, name='reporte_disponibilidad'),
     path('reportes/historial/<str:patente>/', views.reporte_historial_unidad, name='reporte_historial_unidad'),
+    path('reportes/variacion-presupuestaria/', views.reporte_variacion_presupuestaria, name='reporte_variacion_presupuestaria'),
     
     # Arriendos (RF_26)
     path('arriendos/registrar/', views.registrar_arriendo, name='registrar_arriendo'),
@@ -67,13 +75,22 @@ urlpatterns = [
     path('proveedores/', views.listar_proveedores, name='listar_proveedores'),
     path('proveedores/registrar/', views.registrar_proveedor, name='registrar_proveedor'),
     path('proveedores/<int:id>/modificar/', views.modificar_proveedor, name='modificar_proveedor'),
-    path('proveedores/<int:id>/eliminar/', views.eliminar_proveedor, name='eliminar_proveedor'),
+    path('proveedores/<int:id>/habilitar/', views.habilitar_proveedor, name='habilitar_proveedor'), 
+    path('proveedores/<int:id>/deshabilitar/', views.deshabilitar_proveedor, name='deshabilitar_proveedor'),
 
     # Órdenes de Compra (RF_29-RF_33)
+    path('ordenes-compra/importar/', views.importar_orden_compra, name='importar_oc'),
     path('ordenes-compra/registrar/', views.registrar_orden_compra, name='registrar_orden_compra'),
     path('ordenes-compra/', views.listar_ordenes_compra, name='listar_ordenes_compra'),
     path('ordenes-compra/<int:id>/', views.detalle_orden_compra, name='detalle_orden_compra'),
     path('ordenes-compra/<int:id>/modificar/', views.modificar_orden_compra, name='modificar_orden_compra'),
     path('ordenes-compra/<int:id>/eliminar/', views.eliminar_orden_compra, name='eliminar_orden_compra'),
+
+    # Órdenes de Trabajo
+    path('ordenes-trabajo/registrar/', views.registrar_orden_trabajo, name='registrar_orden_trabajo'),
+    path('ordenes-trabajo/', views.listar_ordenes_trabajo, name='listar_ordenes_trabajo'),
+    path('ordenes-trabajo/<int:id>/', views.detalle_orden_trabajo, name='detalle_orden_trabajo'),
+    path('ordenes-trabajo/<int:id>/modificar/', views.modificar_orden_trabajo, name='modificar_orden_trabajo'),
+    path('ordenes-trabajo/<int:id>/eliminar/', views.eliminar_orden_trabajo, name='eliminar_orden_trabajo'),
 ]
 

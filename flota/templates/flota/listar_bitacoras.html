@@ -1,39 +1,90 @@
 {% extends 'base.html' %}
-
-{% block title %}Bitácoras - Gestión de Flota{% endblock %}
-
 {% block content %}
-<h2 class="mb-4"><i class="bi bi-journal-text"></i> Bitácoras</h2>
+<div class="container-fluid">
+    <h2 class="mb-4"><i class="bi bi-journal-text"></i> Bitácoras</h2>
 
-<div class="mb-3">
-    <a href="{% url 'registrar_bitacora' %}" class="btn btn-primary"><i class="bi bi-plus-circle"></i> Registrar Bitácora</a>
+    <!-- Botón para registrar nueva bitácora -->
+    {% if user.rol == 'Conductor' %}
+    <div class="mb-3">
+        <a href="{% url 'registrar_bitacora' %}" class="btn btn-success">
+            <i class="bi bi-plus-circle"></i> Nueva Bitácora
+        </a>
+    </div>
+    {% endif %}
+
+    <!-- Filtros -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <form method="get" class="row g-3">
+                <div class="col-md-4">
+                    <label for="vehiculo" class="form-label">Vehículo:</label>
+                    <select name="vehiculo" id="vehiculo" class="form-select">
+                        <option value="">Todos los vehículos</option>
+                        {% for vehiculo in vehiculos %}
+                        <option value="{{ vehiculo.patente }}" {% if vehiculo_filtro == vehiculo.patente %}selected{% endif %}>
+                            {{ vehiculo.patente }} - {{ vehiculo.marca }} {{ vehiculo.modelo }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-4 d-flex align-items-end">
+                    <div class="btn-group">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-funnel"></i> Filtrar
+                        </button>
+                        {% if vehiculo_filtro %}
+                        <a href="{% url 'listar_bitacoras' %}" class="btn btn-secondary">
+                            <i class="bi bi-x-circle"></i> Limpiar
+                        </a>
+                        {% endif %}
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Tabla de bitácoras -->
+    <div class="card">
+        <div class="card-body">
+            {% if bitacoras %}
+            <div class="table-responsive">
+                <table class="table table-hover table-striped">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>Fecha</th>
+                            <th>Vehículo</th>
+                            <th>Conductor</th>
+                            <th>Turno</th>
+                            <th>Km Inicio</th>
+                            <th>Km Fin</th>
+                            <th>Km Recorridos</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for bitacora in bitacoras %}
+                        <tr>
+                            <td>{{ bitacora.fecha|date:"d/m/Y" }}</td>
+                            <td>
+                                <span class="badge bg-secondary">{{ bitacora.vehiculo.patente }}</span><br>
+                                <small>{{ bitacora.vehiculo.marca }} {{ bitacora.vehiculo.modelo }}</small>
+                            </td>
+                            <td>{{ bitacora.conductor.nombre_completo }}</td>
+                            <td>{{ bitacora.get_turno_display }}</td>
+                            <td>{{ bitacora.km_inicio }}</td>
+                            <td>{{ bitacora.km_fin }}</td>
+                            <td>{{ bitacora.km_recorridos }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="alert alert-info">
+                <i class="bi bi-info-circle"></i> No hay bitácoras registradas.
+            </div>
+            {% endif %}
+        </div>
+    </div>
 </div>
-
-<table class="table table-striped">
-    <thead>
-        <tr>
-            <th>Fecha</th>
-            <th>Vehículo</th>
-            <th>Conductor</th>
-            <th>Turno</th>
-            <th>Km Inicio</th>
-            <th>Km Fin</th>
-            <th>Km Recorridos</th>
-        </tr>
-    </thead>
-    <tbody>
-        {% for bitacora in bitacoras %}
-        <tr>
-            <td>{{ bitacora.fecha|date:"d/m/Y" }}</td>
-            <td>{{ bitacora.vehiculo.patente }}</td>
-            <td>{{ bitacora.conductor.nombre_completo }}</td>
-            <td>{{ bitacora.get_turno_display }}</td>
-            <td>{{ bitacora.km_inicio }}</td>
-            <td>{{ bitacora.km_fin }}</td>
-            <td>{{ bitacora.km_recorridos }}</td>
-        </tr>
-        {% endfor %}
-    </tbody>
-</table>
 {% endblock %}
 

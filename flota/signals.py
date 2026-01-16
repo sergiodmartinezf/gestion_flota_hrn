@@ -1,69 +1,119 @@
-from django.db.models.signals import post_save
+from django.db.models.signals import post_save, post_delete
 from django.dispatch import receiver
-from .models import Vehiculo, HojaRuta, AlertaMantencion, Mantenimiento, Presupuesto
+from django.db.models import Sum
+from decimal import Decimal
+from .models import Mantenimiento, Presupuesto, CargaCombustible, Arriendo
 
-
-@receiver(post_save, sender=HojaRuta)
-def verificar_umbral_mantencion(sender, instance, **kwargs):
+def recalcular_monto_ejecutado(presupuesto):
     """
-    Crea una alerta automática cuando el kilometraje del vehículo
-    se acerca o alcanza el umbral de mantenimiento.
+    Recalcula el total gastado para un presupuesto específico sumando
+    Mantenimientos, Combustible y Arriendos asociados.
     """
-    vehiculo = instance.vehiculo
-    
-    # Verificar si el kilometraje actual está cerca del umbral
-    km_restantes = vehiculo.umbral_mantencion - (vehiculo.kilometraje_actual % vehiculo.umbral_mantencion)
-    
-    # Crear alerta si faltan menos de 1000 km para el mantenimiento
-    if km_restantes <= 1000 and km_restantes > 0:
-        # Verificar si ya existe una alerta vigente para este vehículo
-        alerta_existente = AlertaMantencion.objects.filter(
-            vehiculo=vehiculo,
-            vigente=True,
-            valor_umbral__gte=vehiculo.kilometraje_actual - 1000
-        ).first()
-        
-        if not alerta_existente:
-            AlertaMantencion.objects.create(
-                vehiculo=vehiculo,
-                descripcion=f'El vehículo {vehiculo.patente} requiere mantenimiento preventivo. Faltan aproximadamente {km_restantes} km.',
-                valor_umbral=vehiculo.kilometraje_actual,
-            )
-    
-    # Crear alerta si ya se pasó el umbral
-    elif vehiculo.kilometraje_actual >= vehiculo.umbral_mantencion:
-        alerta_existente = AlertaMantencion.objects.filter(
-            vehiculo=vehiculo,
-            vigente=True,
-            valor_umbral__gte=vehiculo.umbral_mantencion
-        ).first()
-        
-        if not alerta_existente:
-            AlertaMantencion.objects.create(
-                vehiculo=vehiculo,
-                descripcion=f'El vehículo {vehiculo.patente} ha superado el umbral de mantenimiento ({vehiculo.umbral_mantencion} km). Se requiere mantenimiento urgente.',
-                valor_umbral=vehiculo.kilometraje_actual,
-            )
+    anio = presupuesto.anio
+    cuenta = presupuesto.cuenta
+    vehiculo = presupuesto.vehiculo
+    total = Decimal(0)
 
+    # 1. Sumar Mantenimientos (Preventivos y Correctivos asociados a esta cuenta)
+    filtros_mant = {
+        'cuenta_presupuestaria': cuenta,
+        'fecha_ingreso__year': anio,
+        'estado__in': ['Finalizado', 'Pagada'] # Solo sumar si ya se gastó
+    }
+    if vehiculo:
+        filtros_mant['vehiculo'] = vehiculo
+    
+    # Si es presupuesto preventivo, filtrar solo mantenimientos preventivos
+    # Si es operativo, incluimos correctivos
+    if presupuesto.tipo_presupuesto == 'Preventivo':
+        filtros_mant['tipo_mantencion'] = 'Preventivo'
+    
+    gastos_mant = Mantenimiento.objects.filter(**filtros_mant).aggregate(total=Sum('costo_total_real'))['total'] or 0
+    total += gastos_mant
+
+    # 2. Sumar Combustible (Solo si el presupuesto es Operativo/Combustible)
+    filtros_comb = {
+        'cuenta_presupuestaria': cuenta,
+        'fecha__year': anio
+    }
+    if vehiculo:
+        filtros_comb['patente_vehiculo'] = vehiculo
+        
+    gastos_comb = CargaCombustible.objects.filter(**filtros_comb).aggregate(total=Sum('costo_total'))['total'] or 0
+    total += gastos_comb
+
+    # 3. Sumar Arriendos (Solo si el presupuesto es Operativo/Arriendos)
+    filtros_arriendo = {
+        'cuenta_presupuestaria': cuenta,
+        'fecha_inicio__year': anio
+    }
+    # Nota: Los arriendos suelen ser globales o por vehículo reemplazado, ajustar según lógica
+    
+    gastos_arriendo = Arriendo.objects.filter(**filtros_arriendo).aggregate(total=Sum('costo_total'))['total'] or 0
+    total += gastos_arriendo
+
+    # Actualizar el presupuesto
+    presupuesto.monto_ejecutado = total
+    presupuesto.save(update_fields=['monto_ejecutado'])
+
+# --- TRIGGERS / SEÑALES ---
 
 @receiver(post_save, sender=Mantenimiento)
-def actualizar_ejecucion_presupuesto(sender, instance, created, **kwargs):
-    if instance.cuenta_presupuestaria:
-        # Buscar y actualizar presupuesto
-        presupuesto = Presupuesto.objects.filter(
-            cuenta=instance.cuenta_presupuestaria,
-            vehiculo=instance.vehiculo,
-            anio=instance.fecha_ingreso.year
-        ).first()
-        
-        if presupuesto:
-            # Recalcular monto ejecutado sumando todos los mantenimientos
-            total_ejecutado = Mantenimiento.objects.filter(
-                cuenta_presupuestaria=instance.cuenta_presupuestaria,
-                vehiculo=instance.vehiculo,
-                fecha_ingreso__year=instance.fecha_ingreso.year
-            ).aggregate(total=models.Sum('costo_total_real'))['total'] or 0
-            
-            presupuesto.monto_ejecutado = total_ejecutado
-            presupuesto.save()
+@receiver(post_delete, sender=Mantenimiento)
+def actualizar_presupuesto_mantenimiento(sender, instance, **kwargs):
+    """
+    Cuando se guarda/borra un mantenimiento, buscar el presupuesto asociado y recalcular.
+    """
+    if not instance.cuenta_presupuestaria:
+        return
 
+    # Buscar presupuesto compatible (mismo año, misma cuenta, mismo vehículo si aplica)
+    anio = instance.fecha_ingreso.year
+    
+    # Intentar buscar presupuesto específico del vehículo
+    presupuestos = Presupuesto.objects.filter(
+        cuenta=instance.cuenta_presupuestaria,
+        anio=anio,
+        vehiculo=instance.vehiculo
+    )
+    
+    # Si no hay específico, buscar general (si aplica lógica de bolsa común)
+    if not presupuestos.exists():
+        presupuestos = Presupuesto.objects.filter(
+            cuenta=instance.cuenta_presupuestaria,
+            anio=anio,
+            vehiculo__isnull=True
+        )
+
+    for p in presupuestos:
+        recalcular_monto_ejecutado(p)
+
+@receiver(post_save, sender=CargaCombustible)
+@receiver(post_delete, sender=CargaCombustible)
+def actualizar_presupuesto_combustible(sender, instance, **kwargs):
+    if instance.cuenta_presupuestaria:
+        anio = instance.fecha.year
+        # Buscar presupuestos que coincidan
+        presupuestos = Presupuesto.objects.filter(
+            cuenta=instance.cuenta_presupuestaria,
+            anio=anio
+        )
+        for p in presupuestos:
+            # Filtrar si el presupuesto es del vehículo o general
+            if p.vehiculo == instance.patente_vehiculo or p.vehiculo is None:
+                recalcular_monto_ejecutado(p)
+
+@receiver(post_save, sender=Arriendo)
+@receiver(post_delete, sender=Arriendo)
+def actualizar_presupuesto_arriendo(sender, instance, **kwargs):
+    if instance.cuenta_presupuestaria and instance.fecha_inicio:
+        anio = instance.fecha_inicio.year
+        presupuestos = Presupuesto.objects.filter(
+            cuenta=instance.cuenta_presupuestaria,
+            anio=anio,
+            vehiculo__isnull=True # Arriendos suelen ir a presupuesto general
+        )
+        for p in presupuestos:
+            recalcular_monto_ejecutado(p)
+
+            

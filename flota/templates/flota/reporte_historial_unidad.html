@@ -23,6 +23,7 @@
 </form>
 
 <h4>Mantenimientos</h4>
+{% if mantenimientos %}
 <table class="table table-striped mb-4">
     <thead>
         <tr>
@@ -38,13 +39,19 @@
             <td>{{ mantenimiento.fecha_ingreso|date:"d/m/Y" }}</td>
             <td>{{ mantenimiento.get_tipo_mantencion_display }}</td>
             <td>{{ mantenimiento.get_estado_display }}</td>
-            <td>${{ mantenimiento.costo_total|floatformat:0 }}</td>
+            <td>${{ mantenimiento.costo_total_real|floatformat:0|default:"0" }}</td>
         </tr>
         {% endfor %}
     </tbody>
 </table>
+{% else %}
+<div class="alert alert-info mb-4">
+    <i class="bi bi-info-circle"></i> No se han registrado mantenimientos para este vehículo en el período seleccionado.
+</div>
+{% endif %}
 
 <h4>Cargas de Combustible</h4>
+{% if cargas_combustible %}
 <table class="table table-striped mb-4">
     <thead>
         <tr>
@@ -58,15 +65,21 @@
         {% for carga in cargas_combustible %}
         <tr>
             <td>{{ carga.fecha|date:"d/m/Y" }}</td>
-            <td>{{ carga.litros }}</td>
+            <td>{{ carga.litros|floatformat:2 }}</td>
             <td>{{ carga.kilometraje_al_cargar }}</td>
             <td>${{ carga.costo_total|floatformat:0 }}</td>
         </tr>
         {% endfor %}
     </tbody>
 </table>
+{% else %}
+<div class="alert alert-info mb-4">
+    <i class="bi bi-info-circle"></i> No se han registrado cargas de combustible para este vehículo en el período seleccionado.
+</div>
+{% endif %}
 
 <h4>Hojas de Ruta</h4>
+{% if hojas_ruta %}
 <table class="table table-striped mb-4">
     <thead>
         <tr>
@@ -89,8 +102,14 @@
         {% endfor %}
     </tbody>
 </table>
+{% else %}
+<div class="alert alert-info mb-4">
+    <i class="bi bi-info-circle"></i> No se han registrado hojas de ruta para este vehículo en el período seleccionado.
+</div>
+{% endif %}
 
 <h4>Incidentes</h4>
+{% if incidentes %}
 <table class="table table-striped">
     <thead>
         <tr>
@@ -109,6 +128,11 @@
         {% endfor %}
     </tbody>
 </table>
+{% else %}
+<div class="alert alert-info">
+    <i class="bi bi-info-circle"></i> No se han registrado incidentes para este vehículo.
+</div>
+{% endif %}
 
 <a href="{% url 'ficha_vehiculo' vehiculo.patente %}" class="btn btn-secondary">Volver</a>
 {% endblock %}
