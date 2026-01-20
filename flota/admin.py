@@ -36,9 +36,9 @@ class CuentaPresupuestariaAdmin(admin.ModelAdmin):
 
 @admin.register(OrdenCompra)
 class OrdenCompraAdmin(admin.ModelAdmin):
-    list_display = ('nro_oc', 'proveedor', 'fecha_emision', 'monto_total', 'estado', 'folio_sigfe')
+    list_display = ('nro_oc', 'proveedor', 'vehiculo', 'fecha_emision', 'monto_total', 'estado', 'folio_sigfe')
     list_filter = ('estado', 'fecha_emision')
-    search_fields = ('nro_oc', 'proveedor__nombre_fantasia', 'id_licitacion')
+    search_fields = ('nro_oc', 'proveedor__nombre_fantasia', 'vehiculo__patente', 'id_licitacion')
     date_hierarchy = 'fecha_emision'
 
 @admin.register(Vehiculo)
@@ -76,9 +76,9 @@ class ArriendoAdmin(admin.ModelAdmin):
 
 @admin.register(HojaRuta)
 class HojaRutaAdmin(admin.ModelAdmin):
-    list_display = ('id', 'vehiculo', 'fecha', 'conductor', 'turno', 'km_recorridos')
+    list_display = ('id', 'vehiculo', 'fecha', 'conductor', 'turno', 'medico', 'km_recorridos')
     list_filter = ('fecha', 'turno')
-    search_fields = ('vehiculo__patente', 'conductor__nombre', 'conductor__apellido')
+    search_fields = ('vehiculo__patente', 'conductor__nombre', 'conductor__apellido', 'medico')
 
 @admin.register(Viaje)
 class ViajeAdmin(admin.ModelAdmin):

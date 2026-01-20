@@ -55,7 +55,7 @@
                         {% endif %}
                         <li><a href="{% url 'listar_ordenes_compra' %}"><i class="bi bi-cart-check"></i> Órdenes de Compra</a></li>
                         <li><a href="{% url 'listar_ordenes_trabajo' %}"><i class="bi bi-wrench"></i> Órdenes de Trabajo</a></li>
-                        <li><a href="{% url 'alertas_mantenimiento' %}"><i class="bi bi-bell"></i> Alertas</a></li>
+                        <li><a href="{% url 'alertas_mantenimiento' %}"><i class="bi bi-bell"></i> Alertas {% if user.is_authenticated %}<span id="alertas-badge" class="badge bg-danger" style="display: none;"></span>{% endif %}</a></li>
                         <li><a href="{% url 'calendario_mantenciones' %}"><i class="bi bi-calendar"></i> Calendario</a></li>
                         <li><a href="{% url 'reporte_costos' %}"><i class="bi bi-graph-up"></i> Reportes</a></li>
                         {% endif %}
@@ -91,6 +91,33 @@
     <script src="{% static 'js/bootstrap.bundle.min.js' %}"></script>
     <script src="{% static 'js/formateador_rut.js' %}"></script>
     <script src="{% static 'js/formatear_fechas.js' %}"></script>
+
+    <!-- GRÁFICOS -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    {% if user.is_authenticated %}
+    <script>
+    // Cargar número de alertas activas
+    document.addEventListener('DOMContentLoaded', function() {
+        fetch('{% url "api_alertas_count" %}', {
+            method: 'GET',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            const alertasBadge = document.getElementById('alertas-badge');
+            if (alertasBadge && data.count > 0) {
+                alertasBadge.style.display = 'inline';
+                alertasBadge.textContent = data.count;
+            }
+        })
+        .catch(error => console.log('Error cargando alertas:', error));
+    });
+    </script>
+    {% endif %}
+
     {% block extra_js %}{% endblock %}
 </body>
 </html>

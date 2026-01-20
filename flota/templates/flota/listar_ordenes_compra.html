@@ -1,87 +1,107 @@
 {% extends 'base.html' %}
 
 {% block content %}
+<div class="container-fluid">
+    <h2 class="mb-4"><i class="bi bi-cart-check"></i> Órdenes de Compra</h2>
 
-<h2>Órdenes de Compra</h2>
-
-<form method="get" class="mb-4">
-    <div class="row">
-        <div class="col-md-4">
-            <label for="estado">Estado:</label>
-            <select name="estado" id="estado" class="form-control">
-                <option value="">Todos</option>
-                <option value="Emitida" {% if estado_filter == 'Emitida' %}selected{% endif %}>Emitida</option>
-                <option value="Aceptada" {% if estado_filter == 'Aceptada' %}selected{% endif %}>Aceptada</option>
-                <option value="Recepcionada" {% if estado_filter == 'Recepcionada' %}selected{% endif %}>Recepcionada</option>
-                <option value="Pagada" {% if estado_filter == 'Pagada' %}selected{% endif %}>Pagada</option>
-                <option value="Anulada" {% if estado_filter == 'Anulada' %}selected{% endif %}>Anulada</option>
-            </select>
-        </div>
-        <div class="col-md-4">
-            <label for="proveedor">Proveedor:</label>
-            <select name="proveedor" id="proveedor" class="form-control">
-                <option value="">Todos</option>
-                {% for proveedor in proveedores %}
-                <option value="{{ proveedor.id }}" {% if proveedor_filter == proveedor.id|stringformat:"i" %}selected{% endif %}>
-                    {{ proveedor.nombre_fantasia }}
-                </option>
-                {% endfor %}
-            </select>
-        </div>
-        <div class="col-md-4">
-            <label>&nbsp;</label>
-            <div>
-                <button type="submit" class="btn btn-primary">Filtrar</button>
-                <a href="{% url 'listar_ordenes_compra' %}" class="btn btn-secondary">Limpiar</a>
-            </div>
+    <!-- Filtros -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <form method="get" class="row g-3">
+                <div class="col-md-4">
+                    <label for="estado" class="form-label">Estado:</label>
+                    <select name="estado" id="estado" class="form-select">
+                        <option value="">Todos</option>
+                        <option value="Emitida" {% if estado_filter == 'Emitida' %}selected{% endif %}>Emitida</option>
+                        <option value="Aceptada" {% if estado_filter == 'Aceptada' %}selected{% endif %}>Aceptada</option>
+                        <option value="Recepcionada" {% if estado_filter == 'Recepcionada' %}selected{% endif %}>Recepcionada</option>
+                        <option value="Pagada" {% if estado_filter == 'Pagada' %}selected{% endif %}>Pagada</option>
+                        <option value="Anulada" {% if estado_filter == 'Anulada' %}selected{% endif %}>Anulada</option>
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label for="proveedor" class="form-label">Proveedor:</label>
+                    <select name="proveedor" id="proveedor" class="form-select">
+                        <option value="">Todos</option>
+                        {% for proveedor in proveedores %}
+                        <option value="{{ proveedor.id }}" {% if proveedor_filter == proveedor.id|stringformat:"i" %}selected{% endif %}>
+                            {{ proveedor.nombre_fantasia }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-4 d-flex align-items-end">
+                    <div class="btn-group">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-funnel"></i> Filtrar
+                        </button>
+                        <a href="{% url 'listar_ordenes_compra' %}" class="btn btn-secondary">
+                            <i class="bi bi-x-circle"></i> Limpiar
+                        </a>
+                    </div>
+                </div>
+            </form>
         </div>
     </div>
-</form>
 
-<!-- Botón para registrar nueva OC -->
-<a href="{% url 'importar_oc' %}" class="btn btn-success mb-3">
-    <i class="bi bi-plus-circle"></i> Nueva Orden de Compra
-</a>
+    <!-- Botón para registrar nueva OC -->
+    <div class="mb-3">
+        <a href="{% url 'importar_oc' %}" class="btn btn-success">
+            <i class="bi bi-plus-circle"></i> Nueva Orden de Compra
+        </a>
+    </div>
 
-<!-- Tabla de órdenes de compra -->
-<table class="table table-striped">
-    <thead>
-        <tr>
-            <th>N° OC</th>
-            <th>Fecha</th>
-            <th>Proveedor</th>
-            <th>Monto Total</th>
-            <th>Estado</th>
-            <th>Acciones</th>
-        </tr>
-    </thead>
-    <tbody>
-        {% for orden in ordenes %}
-        <tr>
-            <td>{{ orden.nro_oc }}</td>
-            <td>{{ orden.fecha_emision }}</td>
-            <td>{{ orden.proveedor.nombre_fantasia }}</td>
-            <td>${{ orden.monto_total|floatformat:2 }}</td>
-            <td><span class="badge bg-info">{{ orden.estado }}</span></td>
-            <td>
-                <a href="{% url 'detalle_orden_compra' orden.id %}" class="btn btn-sm btn-info" title="Ver detalles">
-                    <i class="bi bi-eye"></i>
-                </a>
-                {% if user.rol == 'Administrador' %}
-                <a href="{% url 'modificar_orden_compra' orden.id %}" class="btn btn-sm btn-warning" title="Editar">
-                    <i class="bi bi-pencil"></i>
-                </a>
-                <a href="{% url 'eliminar_orden_compra' orden.id %}" class="btn btn-sm btn-danger" title="Eliminar">
-                    <i class="bi bi-trash"></i>
-                </a>
-                {% endif %}
-            </td>
-        </tr>
-        {% empty %}
-        <tr>
-            <td colspan="6" class="text-center">No hay órdenes de compra registradas</td>
-        </tr>
-        {% endfor %}
-    </tbody>
-</table>
+    <!-- Tabla de órdenes de compra -->
+    <div class="card">
+        <div class="card-body">
+            {% if ordenes %}
+            <div class="table-responsive">
+                <table class="table table-hover table-striped">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>N° OC</th>
+                            <th>Fecha</th>
+                            <th>Proveedor</th>
+                            <th>Monto Total</th>
+                            <th>Estado</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for orden in ordenes %}
+                        <tr>
+                            <td><strong>{{ orden.nro_oc }}</strong></td>
+                            <td>{{ orden.fecha_emision|date:"d/m/Y" }}</td>
+                            <td>{{ orden.proveedor.nombre_fantasia }}</td>
+                            <td class="text-end">${{ orden.monto_total|floatformat:0 }}</td>
+                            <td><span class="badge bg-info">{{ orden.estado }}</span></td>
+                            <td>
+                                <a href="{% url 'detalle_orden_compra' orden.id %}" class="btn btn-sm btn-info me-1"
+                                   title="Ver detalles">
+                                    <i class="bi bi-eye"></i>
+                                </a>
+                                {% if user.rol == 'Administrador' %}
+                                <a href="{% url 'modificar_orden_compra' orden.id %}" class="btn btn-sm btn-warning me-1"
+                                   title="Editar">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
+                                <a href="{% url 'eliminar_orden_compra' orden.id %}" class="btn btn-sm btn-danger"
+                                   title="Eliminar">
+                                    <i class="bi bi-trash"></i>
+                                </a>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="alert alert-info">
+                <i class="bi bi-info-circle"></i> No hay órdenes de compra registradas.
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
 {% endblock %}

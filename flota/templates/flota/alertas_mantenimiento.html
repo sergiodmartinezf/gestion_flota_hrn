@@ -3,7 +3,19 @@
 {% block title %}Alertas de Mantenimiento - Gestión de Flota{% endblock %}
 
 {% block content %}
-<h2 class="mb-4"><i class="bi bi-bell"></i> Alertas de Mantenimiento</h2>
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2><i class="bi bi-bell"></i> Alertas de Mantenimiento</h2>
+        {% if alertas %}
+        <form method="post" style="display: inline;">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="marcar_revisadas">
+            <button type="submit" class="btn btn-success" onclick="return confirm('¿Marcar todas las alertas como revisadas?')">
+                <i class="bi bi-check-all"></i> Marcar Todas como Revisadas
+            </button>
+        </form>
+        {% endif %}
+    </div>
 
 {% if alertas %}
 <div class="alert alert-warning">

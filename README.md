@@ -1,6 +1,6 @@
 # Sistema de Gestión de Flota - Hospital Río Negro
 
-Sistema web integral desarrollado en Django para la gestión completa de la flota vehicular del Hospital Río Negro. El sistema permite administrar desde la adquisición hasta el mantenimiento de vehículos, incluyendo control presupuestario, bitácoras de viaje, gestión de combustible, reportes de incidentes y seguimiento de mantenimientos preventivos y correctivos.
+Sistema web integral desarrollado en Django para la gestión completa de la flota vehicular del Hospital Río Negro. El sistema permite administrar desde la adquisición hasta el mantenimiento de vehículos, incluyendo control presupuestario, hojas de ruta con registro de personal médico, bitácoras de viaje, gestión de combustible, reportes de incidentes y seguimiento de mantenimientos preventivos y correctivos.
 
 ## Características Principales
 
@@ -23,15 +23,18 @@ Sistema web integral desarrollado en Django para la gestión completa de la flot
 
 ### 💰 Gestión Financiera
 - **Control Presupuestario**: Seguimiento de presupuestos anuales por cuenta SIGFE
-- **Órdenes de Compra**: Integración con sistema Mercado Público
+- **Órdenes de Compra**: Integración con sistema Mercado Público y registro manual
+- **Órdenes de Trabajo**: Gestión de órdenes de trabajo vinculadas a mantenimientos
 - **Trazabilidad**: Vinculación completa desde presupuesto hasta ejecución
 - **Reportes de Costos**: Análisis detallado de gastos por vehículo y período
 
 ### 🚗 Operativa Diaria
-- **Bitácoras de Viaje**: Registro de turnos, destinos y kilometraje recorrido
+- **Hojas de Ruta**: Registro completo de turnos con personal médico (médico, enfermero, TENS, camillero), kilometraje de inicio y fin
+- **Bitácoras de Viaje**: Registro detallado de viajes asociados a cada hoja de ruta con destinos, pacientes y tipo de servicio
 - **Control de Combustible**: Seguimiento de cargas, rendimiento y costos
 - **Reportes de Incidentes**: Sistema de fallas reportadas por conductores
-- **Viajes por Servicio**: Clasificación por tipo (traslados, urgencias, rondas médicas)
+- **Viajes por Servicio**: Clasificación por tipo (traslados, urgencias, rondas médicas, administrativos)
+- **Exportación de Datos**: Exportación consolidada de viajes a formato Excel para análisis externos
 
 ### 🏢 Gestión de Proveedores
 - **Proveedores Multi-tipo**: Talleres mecánicos y arrendadores de vehículos
@@ -55,7 +58,7 @@ Sistema web integral desarrollado en Django para la gestión completa de la flot
 - **Base de Datos**: PostgreSQL
 - **Frontend**: HTML5, CSS3, JavaScript
 - **UI Framework**: Bootstrap 5
-- **Librerías**: Pillow (manejo de imágenes), OpenPyXL (exportación Excel)
+- **Librerías**: Pillow (manejo de imágenes), xlwt (exportación Excel)
 - **Autenticación**: Sistema personalizado con RUT chileno
 
 ## Instalación
@@ -107,7 +110,7 @@ python manage.py createsuperuser
 python manage.py runserver
 ```
 
-8. Acceder al sistema en: http://127.0.0.1:8000/
+10. Acceder al sistema en: http://127.0.0.1:8000/
 
 ## Estructura del Proyecto
 
@@ -120,10 +123,24 @@ proyecto/
 │   ├── asgi.py                  # Configuración ASGI
 │   └── wsgi.py                  # Configuración WSGI
 ├── flota/                       # Aplicación principal
-│   ├── models.py                # Modelos de datos (15 entidades)
-│   ├── views.py                 # Lógica de negocio (1611 líneas)
-│   ├── urls.py                  # Definición de rutas (97 rutas)
-│   ├── forms.py                 # Formularios del sistema (532 líneas)
+│   ├── models.py                # Modelos de datos (13 entidades)
+│   ├── views/                   # Lógica de negocio organizada modularmente
+│   │   ├── __init__.py         # Exportación centralizada de vistas
+│   │   ├── autenticacion.py    # Vistas de login/logout
+│   │   ├── usuarios.py         # Gestión de usuarios
+│   │   ├── vehiculos.py        # Gestión de vehículos
+│   │   ├── viajes.py           # Hojas de ruta, viajes, combustible e incidentes
+│   │   ├── mantenimiento.py    # Mantenimientos preventivos y correctivos
+│   │   ├── presupuesto.py      # Gestión presupuestaria
+│   │   ├── reportes.py         # Reportes y análisis
+│   │   ├── arriendos.py        # Gestión de arriendos
+│   │   ├── proveedores.py      # Gestión de proveedores
+│   │   ├── ordenes.py          # Órdenes de compra y trabajo
+│   │   ├── dashboard.py        # Dashboard ejecutivo
+│   │   ├── api.py              # Endpoints API REST
+│   │   └── utilidades.py       # Funciones auxiliares
+│   ├── urls.py                  # Definición de rutas
+│   ├── forms.py                 # Formularios del sistema
 │   ├── admin.py                 # Configuración Django Admin
 │   ├── apps.py                  # Configuración de la aplicación
 │   ├── signals.py               # Señales y lógica automática
@@ -132,12 +149,11 @@ proyecto/
 │   │   └── commands/
 │   │       └── crear_datos_iniciales.py
 │   ├── migrations/              # Migraciones de base de datos
-│   │   └── 0001_initial.py
-│   ├── static/flota/            # Archivos estáticos
+│   ├── static/                  # Archivos estáticos
 │   │   ├── css/                # Estilos personalizados + Bootstrap
-│   │   ├── js/                 # Scripts JavaScript (12 archivos)
+│   │   ├── js/                 # Scripts JavaScript
 │   │   └── images/             # Recursos gráficos
-│   └── templates/flota/         # Plantillas HTML (54 templates)
+│   └── templates/flota/         # Plantillas HTML
 ├── media/                       # Archivos subidos por usuarios
 │   └── ordenes_compra/          # PDFs de órdenes de compra
 ├── manage.py                    # Script de gestión Django
@@ -149,7 +165,22 @@ proyecto/
 
 ## Base de Datos
 
-El sistema utiliza PostgreSQL. La base de datos incluye las siguientes tablas:
+El sistema utiliza PostgreSQL. La base de datos incluye las siguientes entidades principales:
+
+- **Usuario**: Gestión de usuarios del sistema con autenticación por RUT
+- **Proveedor**: Proveedores de servicios (talleres mecánicos y arrendadores)
+- **CuentaPresupuestaria**: Cuentas SIGFE para clasificación presupuestaria
+- **Vehiculo**: Información completa de cada vehículo de la flota
+- **Presupuesto**: Presupuestos anuales por cuenta SIGFE
+- **OrdenCompra**: Órdenes de compra vinculadas a presupuestos
+- **OrdenTrabajo**: Órdenes de trabajo para mantenimientos
+- **Mantenimiento**: Mantenimientos preventivos y correctivos
+- **Arriendo**: Arriendos temporales de vehículos
+- **HojaRuta**: Hojas de ruta diarias con personal y kilometraje
+- **Viaje**: Viajes individuales asociados a hojas de ruta
+- **CargaCombustible**: Registro de cargas de combustible
+- **FallaReportada**: Incidentes y fallas reportadas por conductores
+- **AlertaMantencion**: Alertas automáticas de mantenimiento
 
 ## Requisitos del Sistema
 
@@ -159,7 +190,9 @@ El sistema utiliza PostgreSQL. La base de datos incluye las siguientes tablas:
 - **PostgreSQL**: 12+
 - **Pip**: Para gestión de dependencias
 
-- **Administrador**: Acceso completo al sistema, puede gestionar usuarios, vehículos, mantenimientos, presupuestos y arriendos. Puede visualizar bitácoras, cargas de combustible e incidentes pero no registrar nuevos.
-- **Conductor**: Puede registrar bitácoras, cargas de combustible e incidentes, además de visualizar los registros existentes.
-- **Visualizador**: Solo lectura, puede ver información pero no modificar
+### Roles y Permisos
+
+- **Administrador**: Acceso completo al sistema, puede gestionar usuarios, vehículos, mantenimientos, presupuestos, arriendos y proveedores. Puede modificar hojas de ruta registradas por conductores y exportar datos consolidados.
+- **Conductor**: Puede registrar hojas de ruta, viajes, cargas de combustible e incidentes. Puede visualizar sus propios registros y la información general de la flota.
+- **Visualizador**: Solo lectura, puede ver información pero no modificar ni registrar datos.
 

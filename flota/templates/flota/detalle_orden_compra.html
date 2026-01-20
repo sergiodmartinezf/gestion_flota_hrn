@@ -28,6 +28,12 @@
                 <p><strong>Impuesto (IVA):</strong> ${{ orden.impuesto|floatformat:2 }}</p>
                 <p><strong>Monto Total:</strong> ${{ orden.monto_total|floatformat:2 }}</p>
                 <p><strong>Cuenta Presupuestaria:</strong> {{ orden.cuenta_presupuestaria|default:"No asignada" }}</p>
+                {% if orden.vehiculo %}
+                <p><strong>Vehículo Asociado:</strong>
+                    <span class="badge bg-secondary">{{ orden.vehiculo.patente }}</span><br>
+                    <small>{{ orden.vehiculo.marca }} {{ orden.vehiculo.modelo }}</small>
+                </p>
+                {% endif %}
             </div>
         </div>
         

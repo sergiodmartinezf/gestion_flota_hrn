@@ -3,22 +3,27 @@
 {% block title %}Usuarios - Gestión de Flota{% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h2><i class="bi bi-people"></i> Gestión de Usuarios</h2>
-    <div>
-        <a href="{% url 'registrar_usuario' %}" class="btn btn-primary">
-            <i class="bi bi-plus-circle"></i> Registrar Usuario
+<div class="container-fluid">
+    <h2 class="mb-4"><i class="bi bi-people"></i> Gestión de Usuarios</h2>
+
+    <!-- Botones de acción -->
+    <div class="mb-3">
+        <a href="{% url 'registrar_usuario' %}" class="btn btn-success me-2">
+            <i class="bi bi-plus-circle"></i> Nuevo Usuario
         </a>
-        <a href="?mostrar_deshabilitados={% if mostrar_deshabilitados %}false{% else %}true{% endif %}" 
-           class="btn btn-{% if mostrar_deshabilitados %}warning{% else %}secondary{% endif %}">
-            <i class="bi bi-{% if mostrar_deshabilitados %}eye-slash{% else %}eye{% endif %}"></i> 
+        <a href="?mostrar_deshabilitados={% if mostrar_deshabilitados %}false{% else %}true{% endif %}"
+           class="btn {% if mostrar_deshabilitados %}btn-secondary{% else %}btn-outline-secondary{% endif %}">
+            <i class="bi {% if mostrar_deshabilitados %}bi-eye-slash{% else %}bi-eye{% endif %}"></i>
             {% if mostrar_deshabilitados %}Ocultar{% else %}Mostrar{% endif %} Deshabilitados
         </a>
     </div>
-</div>
 
-<table class="table table-striped">
-    <thead>
+    <!-- Tabla de usuarios -->
+    <div class="card">
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover table-striped">
+    <thead class="table-dark">
         <tr>
             <th>RUT</th>
             <th>Nombre Completo</th>
@@ -43,14 +48,22 @@
                 {% endif %}
             </td>
             <td>
-                <a href="{% url 'modificar_usuario' usuario.rut %}" class="btn btn-sm btn-warning"><i class="bi bi-pencil"></i></a>
+                <a href="{% url 'modificar_usuario' usuario.rut %}" class="btn btn-sm btn-warning me-1" title="Editar">
+                    <i class="bi bi-pencil"></i>
+                </a>
                 {% if usuario.activo %}
-                <a href="{% url 'deshabilitar_usuario' usuario.rut %}" class="btn btn-sm btn-danger"><i class="bi bi-x-circle"></i></a>
+                <a href="{% url 'deshabilitar_usuario' usuario.rut %}" class="btn btn-sm btn-danger" title="Deshabilitar">
+                    <i class="bi bi-x-circle"></i>
+                </a>
                 {% endif %}
             </td>
         </tr>
         {% endfor %}
-    </tbody>
-</table>
+                </tbody>
+            </table>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
