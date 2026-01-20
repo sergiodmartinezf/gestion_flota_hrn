@@ -181,24 +181,33 @@ class ProveedorForm(forms.ModelForm):
 class HojaRutaForm(forms.ModelForm):
     class Meta:
         model = HojaRuta
-        fields = ['fecha', 'turno', 'vehiculo', 'km_inicio', 'km_fin', 
-                  'litros_inicio', 'litros_fin', 'observaciones']
-        
+        fields = ['fecha', 'turno', 'vehiculo', 'medico', 'enfermero', 'tens', 'camillero',
+                  'km_inicio', 'km_fin', 'observaciones'] # Litros eliminados
+
         widgets = {
             'fecha': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}),
             'turno': forms.Select(attrs={'class': 'form-control'}),
             'vehiculo': forms.Select(attrs={'class': 'form-control'}),
+            'medico': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Nombre del Médico'}),
+            'enfermero': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Nombre Enfermero/a'}),
+            'tens': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Nombre TENS'}),
+            'camillero': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Nombre Camillero'}),
             'km_inicio': forms.NumberInput(attrs={'class': 'form-control'}),
             'km_fin': forms.NumberInput(attrs={'class': 'form-control'}),
-            'litros_inicio': forms.NumberInput(attrs={'class': 'form-control'}),
-            'litros_fin': forms.NumberInput(attrs={'class': 'form-control'}),
             'observaciones': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
         }
-    
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         if self.instance.pk and self.instance.fecha:
             self.fields['fecha'].widget.attrs['value'] = self.instance.fecha.strftime('%Y-%m-%d')
+
+        # Filtrar vehículos disponibles (REQ: No mostrar en mantenimiento)
+        # Nota: En "registrar" filtramos, en "editar" (si existe instance) mostramos todos para no romper el form
+        if not self.instance.pk:
+            self.fields['vehiculo'].queryset = Vehiculo.objects.filter(
+                estado__in=['Disponible', 'En uso']
+            ).order_by('patente')
 
 class ViajeForm(forms.ModelForm):
     class Meta:
@@ -243,8 +252,12 @@ class CargaCombustibleForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         if self.instance.pk and self.instance.fecha:
             self.fields['fecha'].widget.attrs['value'] = self.instance.fecha.strftime('%Y-%m-%d')
-        # Hacer el campo proveedor opcional
         self.fields['proveedor'].required = False
+
+        # REQ: Filtrar vehículos que no esten en mantenimiento ni de baja
+        self.fields['patente_vehiculo'].queryset = Vehiculo.objects.filter(
+            estado__in=['Disponible', 'En uso']
+        ).order_by('patente')
 
 
 class MantenimientoForm(forms.ModelForm):
@@ -274,6 +287,13 @@ class MantenimientoForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+
+        # Si es un nuevo mantenimiento, verificar presupuesto
+        if not self.instance.pk:
+            # Mostrar advertencia si no hay presupuesto
+            self.fields['vehiculo'].widget.attrs['onchange'] = 'verificarPresupuesto(this.value)'
+            self.fields['cuenta_presupuestaria'].widget.attrs['onchange'] = 'verificarPresupuesto()'
+
         # Formatear fechas para input type="date" (YYYY-MM-DD)
         if self.instance.pk:
             if self.instance.fecha_ingreso:
@@ -309,9 +329,15 @@ class MantenimientoForm(forms.ModelForm):
                 except (ValueError, TypeError):
                     pass
 
-    # Agregar método clean para validar la relación vehículo-orden
     def clean(self):
         cleaned_data = super().clean()
+        vehiculo = cleaned_data.get('vehiculo')
+        cuenta_presupuestaria = cleaned_data.get('cuenta_presupuestaria')
+        fecha_ingreso = cleaned_data.get('fecha_ingreso')
+        costo_estimado = cleaned_data.get('costo_estimado', 0)
+        costo_total_real = cleaned_data.get('costo_total_real', 0)
+        
+        # Validar que o bien se seleccione un vehículo arrendado existente, o se proporcione uno nuevo
         vehiculo = cleaned_data.get('vehiculo')
         orden_trabajo = cleaned_data.get('orden_trabajo')
         
@@ -320,6 +346,42 @@ class MantenimientoForm(forms.ModelForm):
                 f'La Orden de Trabajo {orden_trabajo.nro_ot} corresponde al vehículo '
                 f'{orden_trabajo.vehiculo.patente}, no a {vehiculo.patente}.'
             )
+        
+        # Validar presupuesto si se está creando un nuevo mantenimiento
+        if not self.instance.pk and vehiculo and cuenta_presupuestaria and fecha_ingreso:
+            anio = fecha_ingreso.year
+            
+            # Buscar presupuesto específico del vehículo
+            presupuesto = Presupuesto.objects.filter(
+                cuenta=cuenta_presupuestaria,
+                vehiculo=vehiculo,
+                anio=anio,
+                activo=True
+            ).first()
+            
+            # Si no hay específico, buscar global
+            if not presupuesto:
+                presupuesto = Presupuesto.objects.filter(
+                    cuenta=cuenta_presupuestaria,
+                    vehiculo__isnull=True,
+                    anio=anio,
+                    activo=True
+                ).first()
+            
+            if not presupuesto:
+                raise forms.ValidationError(
+                    f"No hay presupuesto asignado para la cuenta {cuenta_presupuestaria.codigo} "
+                    f"en el año {anio}. Debe crear un presupuesto antes de registrar mantenimientos."
+                )
+            
+            # Verificar costo estimado contra presupuesto disponible
+            monto_a_validar = costo_total_real if costo_total_real > 0 else costo_estimado
+            
+            if monto_a_validar > 0 and presupuesto.disponible < monto_a_validar:
+                raise forms.ValidationError(
+                    f"Presupuesto insuficiente. Disponible: ${presupuesto.disponible:.0f}, "
+                    f"Requerido: ${monto_a_validar:.0f}"
+                )
         
         return cleaned_data
 
@@ -357,6 +419,47 @@ class ProgramarMantenimientoForm(forms.ModelForm):
             if self.instance.fecha_programada:
                 self.fields['fecha_programada'].widget.attrs['value'] = self.instance.fecha_programada.strftime('%Y-%m-%d')
 
+    def clean(self):
+        cleaned_data = super().clean()
+        vehiculo = cleaned_data.get('vehiculo')
+        cuenta_presupuestaria = cleaned_data.get('cuenta_presupuestaria')
+        fecha_ingreso = cleaned_data.get('fecha_ingreso')
+        costo_estimado = cleaned_data.get('costo_estimado', 0)
+        
+        # Validar presupuesto
+        if vehiculo and cuenta_presupuestaria and fecha_ingreso:
+            anio = fecha_ingreso.year
+            
+            # Buscar presupuesto
+            presupuesto = Presupuesto.objects.filter(
+                cuenta=cuenta_presupuestaria,
+                vehiculo=vehiculo,
+                anio=anio,
+                activo=True
+            ).first()
+            
+            if not presupuesto:
+                presupuesto = Presupuesto.objects.filter(
+                    cuenta=cuenta_presupuestaria,
+                    vehiculo__isnull=True,
+                    anio=anio,
+                    activo=True
+                ).first()
+            
+            if not presupuesto:
+                raise forms.ValidationError(
+                    f"No hay presupuesto asignado para la cuenta {cuenta_presupuestaria.codigo} "
+                    f"en el año {anio}. Debe crear un presupuesto antes de programar mantenimientos."
+                )
+            
+            # Verificar costo estimado contra presupuesto disponible
+            if costo_estimado > 0 and presupuesto.disponible < costo_estimado:
+                raise forms.ValidationError(
+                    f"Presupuesto insuficiente. Disponible: ${presupuesto.disponible:.0f}, "
+                    f"Requerido: ${costo_estimado:.0f}"
+                )
+        
+        return cleaned_data
 
 class FinalizarMantenimientoForm(forms.ModelForm):
     class Meta:
@@ -408,11 +511,16 @@ class FallaReportadaForm(forms.ModelForm):
     
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        # Establecer valor por defecto para nivel_urgencia si no existe
         if not self.instance.pk:
             self.fields['nivel_urgencia'].initial = 'Media'
         if self.instance.pk and self.instance.fecha_reporte:
             self.fields['fecha_reporte'].widget.attrs['value'] = self.instance.fecha_reporte.strftime('%Y-%m-%d')
+
+        # REQ: Filtrar vehículos activos para reportar fallas nuevas
+        if not self.instance.pk:
+            self.fields['vehiculo'].queryset = Vehiculo.objects.filter(
+                estado__in=['Disponible', 'En uso']
+            ).order_by('patente')
 
 
 class PresupuestoForm(forms.ModelForm):

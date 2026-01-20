@@ -60,20 +60,18 @@
                             {% endif %}
                         </td>
                         <td>
-                            <div class="btn-group" role="group">
-                                <a href="{% url 'modificar_proveedor' proveedor.id %}" class="btn btn-sm btn-warning" title="Editar">
-                                    <i class="bi bi-pencil"></i>
-                                </a>
-                                {% if proveedor.activo %}
-                                <a href="{% url 'deshabilitar_proveedor' proveedor.id %}" class="btn btn-sm btn-danger" title="Deshabilitar">
-                                    <i class="bi bi-x-circle"></i>
-                                </a>
-                                {% else %}
-                                <button type="button" class="btn btn-sm btn-success" title="Habilitar" onclick="habilitarProveedor({{ proveedor.id }}, '{{ proveedor.nombre_fantasia }}')">
-                                    <i class="bi bi-check-circle"></i>
-                                </button>
-                                {% endif %}
-                            </div>
+                            <a href="{% url 'modificar_proveedor' proveedor.id %}" class="btn btn-sm btn-warning me-1" title="Editar">
+                                <i class="bi bi-pencil"></i>
+                            </a>
+                            {% if proveedor.activo %}
+                            <a href="{% url 'deshabilitar_proveedor' proveedor.id %}" class="btn btn-sm btn-danger" title="Deshabilitar">
+                                <i class="bi bi-x-circle"></i>
+                            </a>
+                            {% else %}
+                            <button type="button" class="btn btn-sm btn-success" title="Habilitar" onclick="habilitarProveedor({{ proveedor.id }}, '{{ proveedor.nombre_fantasia }}')">
+                                <i class="bi bi-check-circle"></i>
+                            </button>
+                            {% endif %}
                         </td>
                     </tr>
                     {% empty %}

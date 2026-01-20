@@ -55,9 +55,11 @@
                             <th>Vehículo</th>
                             <th>Conductor</th>
                             <th>Turno</th>
+                            <th>Personal Médico</th>
                             <th>Km Inicio</th>
                             <th>Km Fin</th>
                             <th>Km Recorridos</th>
+                            <th>Acciones</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -70,9 +72,29 @@
                             </td>
                             <td>{{ bitacora.conductor.nombre_completo }}</td>
                             <td>{{ bitacora.get_turno_display }}</td>
+                            <td>
+                                <small>
+                                    {% if bitacora.medico %}Méd: {{ bitacora.medico }}{% endif %}<br>
+                                    {% if bitacora.enfermero %}Enf: {{ bitacora.enfermero }}{% endif %}<br>
+                                    {% if bitacora.tens %}TENS: {{ bitacora.tens }}{% endif %}<br>
+                                    {% if bitacora.camillero %}Cam: {{ bitacora.camillero }}{% endif %}
+                                </small>
+                            </td>
                             <td>{{ bitacora.km_inicio }}</td>
                             <td>{{ bitacora.km_fin }}</td>
                             <td>{{ bitacora.km_recorridos }}</td>
+                            <td>
+                                <a href="{% url 'detalle_bitacora' bitacora.id %}" class="btn btn-sm btn-info me-1"
+                                   title="Ver detalles">
+                                    <i class="bi bi-eye"></i>
+                                </a>
+                                {% if user.rol == 'Administrador' %}
+                                <a href="{% url 'modificar_bitacora' bitacora.id %}" class="btn btn-sm btn-warning"
+                                   title="Modificar">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
+                                {% endif %}
+                            </td>
                         </tr>
                         {% endfor %}
                     </tbody>

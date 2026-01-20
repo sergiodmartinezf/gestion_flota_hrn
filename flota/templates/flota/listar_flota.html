@@ -89,16 +89,14 @@
                             </td>
                             <td>{{ vehiculo.kilometraje_actual|floatformat:0 }} km</td>
                             <td>
-                                <div class="btn-group btn-group-sm" role="group">
-                                    <a href="{% url 'ficha_vehiculo' vehiculo.patente %}" class="btn btn-info" title="Ver detalles">
-                                        <i class="bi bi-eye"></i>
-                                    </a>
-                                    {% if user.rol == 'Administrador' %}
-                                    <a href="{% url 'modificar_vehiculo' vehiculo.patente %}" class="btn btn-warning" title="Editar">
-                                        <i class="bi bi-pencil"></i>
-                                    </a>
-                                    {% endif %}
-                                </div>
+                                <a href="{% url 'ficha_vehiculo' vehiculo.patente %}" class="btn btn-sm btn-info me-1" title="Ver detalles">
+                                    <i class="bi bi-eye"></i>
+                                </a>
+                                {% if user.rol == 'Administrador' %}
+                                <a href="{% url 'modificar_vehiculo' vehiculo.patente %}" class="btn btn-sm btn-warning" title="Editar">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
+                                {% endif %}
                             </td>
                         </tr>
                         {% endfor %}

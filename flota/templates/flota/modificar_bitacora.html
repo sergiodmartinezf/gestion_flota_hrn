@@ -2,10 +2,10 @@
 
 {% load static %}
 
-{% block title %}Registrar Bitácora - Gestión de Flota{% endblock %}
+{% block title %}Modificar Bitácora - Gestión de Flota{% endblock %}
 
 {% block content %}
-<h2 class="mb-4"><i class="bi bi-journal-text"></i> Registrar Bitácora</h2>
+<h2 class="mb-4"><i class="bi bi-journal-text"></i> Modificar Bitácora #{{ hoja.id }}</h2>
 
 <form method="post">
     {% csrf_token %}
@@ -54,41 +54,37 @@
                 {{ form.observaciones }}
             </div>
         </div>
-        </div>
-        <div class="mt-3">
-            <button type="submit" class="btn btn-primary"><i class="bi bi-check-circle"></i> Registrar</button>
-            <a href="{% url 'listar_bitacoras' %}" class="btn btn-secondary"><i class="bi bi-x-circle"></i> Cancelar</a>
-        </div>
-        </form>
     </div>
-</div>
+    <div class="mt-3">
+        <button type="submit" class="btn btn-primary"><i class="bi bi-check-circle"></i> Guardar Cambios</button>
+        <a href="{% url 'detalle_bitacora' hoja.id %}" class="btn btn-secondary"><i class="bi bi-arrow-left"></i> Volver</a>
+    </div>
+</form>
 {% endblock %}
-
 
 {% block extra_js %}
 <script src="{% static 'js/validaciones.js' %}"></script>
-<script src="{% static 'js/registrar_bitacora.js' %}"></script>
 <script>
-// Validación del formulario de bitácora
+// Validación del formulario de modificación de bitácora
 document.addEventListener('DOMContentLoaded', function() {
     const form = document.querySelector('form');
     if (form) {
         form.addEventListener('submit', function(e) {
             const errores = [];
-            
+
             errores.push(...validarSeleccion(document.getElementById('id_vehiculo')?.value, 'vehículo', true));
             errores.push(...validarFecha(document.getElementById('id_fecha')?.value, 'fecha', true));
             errores.push(...validarSeleccion(document.getElementById('id_turno')?.value, 'turno', true));
             errores.push(...validarEnteroPositivo(document.getElementById('id_km_inicio')?.value, 'kilometraje inicio', 0, 9999999, true));
             errores.push(...validarEnteroPositivo(document.getElementById('id_km_fin')?.value, 'kilometraje fin', 0, 9999999, true));
-            
+
             // Validar que km_fin >= km_inicio
             const kmInicio = parseInt(document.getElementById('id_km_inicio')?.value || 0);
             const kmFin = parseInt(document.getElementById('id_km_fin')?.value || 0);
             if (kmFin < kmInicio) {
                 errores.push('El kilometraje fin debe ser mayor o igual al kilometraje inicio');
             }
-            
+
             if (errores.length > 0) {
                 e.preventDefault();
                 mostrarErroresValidacion(errores, 'Errores en el Formulario');

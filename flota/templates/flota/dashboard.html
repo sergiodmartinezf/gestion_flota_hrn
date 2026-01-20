@@ -43,13 +43,65 @@
 <div class="row">
     <div class="col-md-6">
         <div class="card">
-            <div class="card-header">
+            <div class="card-header d-flex justify-content-between align-items-center">
                 <h5><i class="bi bi-bell"></i> Alertas Activas</h5>
+                {% if alertas_activas %}
+                <span class="badge bg-danger">{{ alertas_activas|length }}</span>
+                {% endif %}
             </div>
             <div class="card-body">
-                <p><strong>Alertas de Mantenimiento:</strong> {{ alertas_vigentes }}</p>
-                <p><strong>Presupuestos por Vencer:</strong> {{ presupuestos_alerta }}</p>
-                <a href="{% url 'alertas_mantenimiento' %}" class="btn btn-sm btn-warning">Ver Alertas</a>
+                {% if alertas_activas %}
+                <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                    <strong><i class="bi bi-exclamation-triangle-fill"></i> ¡ATENCIÓN!</strong>
+                    Hay {{ alertas_activas|length }} alerta(s) de mantenimiento activa(s):
+                </div>
+
+                <div class="list-group mb-3">
+                    {% for alerta in alertas_activas %}
+                    <div class="list-group-item list-group-item-warning">
+                        <div class="d-flex w-100 justify-content-between">
+                            <h6 class="mb-1">
+                                <i class="bi bi-car-front"></i> {{ alerta.vehiculo.patente }}
+                            </h6>
+                            <small>{{ alerta.generado_en|date:"d/m H:i" }}</small>
+                        </div>
+                        <p class="mb-1">{{ alerta.descripcion }}</p>
+                        <small class="text-muted">Umbral: {{ alerta.valor_umbral }} km</small>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="text-center text-success">
+                    <i class="bi bi-check-circle-fill" style="font-size: 3rem;"></i>
+                    <p class="mt-2">No hay alertas de mantenimiento activas</p>
+                </div>
+                {% endif %}
+
+                <div class="row text-center">
+                    <div class="col-6">
+                        <div class="border rounded p-2">
+                            <strong>{{ alertas_vigentes }}</strong><br>
+                            <small>Alertas Totales</small>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="border rounded p-2">
+                            <strong>{{ presupuestos_alerta }}</strong><br>
+                            <small>Presupuestos en Riesgo</small>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mt-3">
+                    <a href="{% url 'alertas_mantenimiento' %}" class="btn btn-warning btn-sm me-2">
+                        <i class="bi bi-eye"></i> Ver Todas las Alertas
+                    </a>
+                    {% if alertas_activas %}
+                    <button type="button" class="btn btn-outline-danger btn-sm" onclick="marcarComoRevisadas()">
+                        <i class="bi bi-check-all"></i> Marcar como Revisadas
+                    </button>
+                    {% endif %}
+                </div>
             </div>
         </div>
     </div>
@@ -108,3 +160,35 @@
 </div>
 {% endblock %}
 
+{% block extra_js %}
+<script>
+function marcarComoRevisadas() {
+    if (confirm('¿Está seguro de marcar todas las alertas como revisadas?')) {
+        // Crear un formulario temporal para enviar POST
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = '{% url "alertas_mantenimiento" %}';
+
+        // Agregar token CSRF
+        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]');
+        if (csrfToken) {
+            const csrfInput = document.createElement('input');
+            csrfInput.type = 'hidden';
+            csrfInput.name = 'csrfmiddlewaretoken';
+            csrfInput.value = csrfToken.value;
+            form.appendChild(csrfInput);
+        }
+
+        // Agregar action
+        const actionInput = document.createElement('input');
+        actionInput.type = 'hidden';
+        actionInput.name = 'action';
+        actionInput.value = 'marcar_revisadas';
+        form.appendChild(actionInput);
+
+        document.body.appendChild(form);
+        form.submit();
+    }
+}
+</script>
+{% endblock %}

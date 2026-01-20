@@ -145,6 +145,7 @@ class OrdenCompra(models.Model):
     archivo_adjunto = models.FileField(upload_to='ordenes_compra/', null=True, blank=True, verbose_name="PDF Orden de Compra")
     
     proveedor = models.ForeignKey(Proveedor, on_delete=models.PROTECT, related_name='ordenes_compra')
+    vehiculo = models.ForeignKey('Vehiculo', on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Vehículo Asociado", help_text="Vehículo identificado en la importación")
     cuenta_presupuestaria = models.ForeignKey(CuentaPresupuestaria, on_delete=models.PROTECT, related_name='ordenes_compra', null=True, blank=True)
     presupuesto = models.ForeignKey('Presupuesto', on_delete=models.PROTECT, related_name='ordenes_compra', null=True, blank=True, verbose_name="Presupuesto asociado")
     
@@ -308,6 +309,26 @@ class Presupuesto(models.Model):
         if self.monto_asignado > 0:
             return (self.monto_ejecutado / self.monto_asignado) * 100
         return 0
+    
+    def tiene_saldo_suficiente(self, monto_requerido):
+        """Verifica si el presupuesto tiene saldo suficiente para un monto"""
+        return self.disponible >= monto_requerido
+    
+    def consumir_presupuesto(self, monto):
+        """Consume un monto del presupuesto (incrementa monto_ejecutado)"""
+        if self.disponible >= monto:
+            self.monto_ejecutado += monto
+            self.save(update_fields=['monto_ejecutado'])
+            return True
+        return False
+    
+    def liberar_presupuesto(self, monto):
+        """Libera un monto del presupuesto (disminuye monto_ejecutado)"""
+        if self.monto_ejecutado >= monto:
+            self.monto_ejecutado -= monto
+            self.save(update_fields=['monto_ejecutado'])
+            return True
+        return False
 
 
 # --- OPERACIONES Y MANTENIMIENTO ---
@@ -385,24 +406,43 @@ class Mantenimiento(models.Model):
         verbose_name_plural = 'Mantenimientos'
     
     def save(self, *args, **kwargs):
+        is_new = self.pk is None
+        
         # Auto-calcular total real si no se provee
         if self.costo_mano_obra or self.costo_repuestos:
             self.costo_total_real = self.costo_mano_obra + self.costo_repuestos
-        # Validar presupuesto disponible si hay cuenta
-        if self.cuenta_presupuestaria and self.vehiculo:
+        
+        # Guardar primero para obtener PK si es nuevo
+        super().save(*args, **kwargs)
+        
+        # Gestionar presupuesto si hay cuenta presupuestaria
+        if self.cuenta_presupuestaria and self.vehiculo and self.estado == 'Finalizado':
             try:
                 presupuesto = Presupuesto.objects.get(
                     cuenta=self.cuenta_presupuestaria,
                     vehiculo=self.vehiculo,
-                    anio=self.fecha_ingreso.year
+                    anio=self.fecha_ingreso.year,
+                    activo=True
                 )
-                if presupuesto.disponible < self.costo_total_real:
-                    # Puedes lanzar una advertencia o guardar igual
+                
+                # Solo consumir presupuesto si el mantenimiento está finalizado
+                if self.costo_total_real > 0:
+                    # El signal se encargará de actualizar el monto ejecutado
+                    # Asegurarse de que no se duplique
                     pass
+                    
             except Presupuesto.DoesNotExist:
-                pass
-        
-        super().save(*args, **kwargs)
+                # Intentar con presupuesto global si no hay específico
+                try:
+                    presupuesto = Presupuesto.objects.get(
+                        cuenta=self.cuenta_presupuestaria,
+                        vehiculo__isnull=True,
+                        anio=self.fecha_ingreso.year,
+                        activo=True
+                    )
+                except Presupuesto.DoesNotExist:
+                    # No hay presupuesto asignado
+                    pass
 
     def __str__(self):
         return f"{self.tipo_mantencion} {self.vehiculo.patente} - {self.fecha_ingreso}"
@@ -514,18 +554,27 @@ class HojaRuta(models.Model):
         ('08-20', 'Turno 08:00 a 20:00'),
         ('20-08', 'Turno 20:00 a 08:00'),
         ('09-20', 'Turno 09:00 a 20:00 (fin de semana/feriado)'),
+        ('20-09', 'Turno 20:00 a 09:00 (fin de semana/feriado)'),
     ]
     
     id = models.AutoField(primary_key=True)
     fecha = models.DateField()
     turno = models.CharField(max_length=20, choices=TURNOS)
+
+    # REQ: Campos de personal médico (Digitalización)
+    medico = models.CharField(max_length=150, blank=True, verbose_name="Médico")
+    enfermero = models.CharField(max_length=150, blank=True, verbose_name="Enfermero/a")
+    tens = models.CharField(max_length=150, blank=True, verbose_name="TENS")
+    camillero = models.CharField(max_length=150, blank=True, verbose_name="Camillero")
+
+    # REQ: Kilometraje obligatorio (se valida en form, aqui min value)
     km_inicio = models.IntegerField(validators=[MinValueValidator(0)])
     km_fin = models.IntegerField(validators=[MinValueValidator(0)])
-    
-    # Control de combustible en bitácora (informativo, el financiero va en CargaCombustible)
-    litros_inicio = models.DecimalField(max_digits=8, decimal_places=2, validators=[MinValueValidator(Decimal('0'))])
-    litros_fin = models.DecimalField(max_digits=8, decimal_places=2, validators=[MinValueValidator(Decimal('0'))])
-    
+
+    # REQ: Eliminar campos de litros de inicio y fin (ELIMINADOS)
+    # litros_inicio = ... (ELIMINADO)
+    # litros_fin = ... (ELIMINADO)
+
     observaciones = models.TextField(blank=True)
     creado_en = models.DateTimeField(auto_now_add=True)
     

@@ -102,16 +102,14 @@
                             <td>${{ mantenimiento.costo_total_real|floatformat:0|default:"0" }}</td>
                             <td>
                                 {% if user.rol == 'Administrador' %}
-                                <div class="btn-group btn-group-sm" role="group">
-                                    {% if mantenimiento.estado == 'Programado' or mantenimiento.estado == 'En taller' %}
-                                        <a href="{% url 'finalizar_mantenimiento' mantenimiento.id %}" class="btn btn-success" title="Finalizar Mantenimiento">
-                                            <i class="bi bi-check-lg"></i>
-                                        </a>
-                                    {% endif %}
-                                    <a href="{% url 'editar_mantenimiento' mantenimiento.id %}" class="btn btn-warning" title="Editar">
-                                        <i class="bi bi-pencil"></i>
+                                {% if mantenimiento.estado == 'Programado' or mantenimiento.estado == 'En taller' %}
+                                    <a href="{% url 'finalizar_mantenimiento' mantenimiento.id %}" class="btn btn-sm btn-success me-1" title="Finalizar Mantenimiento">
+                                        <i class="bi bi-check-lg"></i>
                                     </a>
-                                </div>
+                                {% endif %}
+                                <a href="{% url 'editar_mantenimiento' mantenimiento.id %}" class="btn btn-sm btn-warning" title="Editar">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
                                 {% endif %}
                             </td>
                         </tr>

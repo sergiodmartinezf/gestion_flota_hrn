@@ -84,20 +84,18 @@
                                 {% endif %}
                             </td>
                             <td>
-                                <div class="btn-group btn-group-sm" role="group">
-                                    <a href="{% url 'detalle_orden_trabajo' orden.id %}" class="btn btn-info" 
-                                       title="Ver detalles">
-                                        <i class="bi bi-eye"></i>
-                                    </a>
-                                    <a href="{% url 'modificar_orden_trabajo' orden.id %}" class="btn btn-warning" 
-                                       title="Editar">
-                                        <i class="bi bi-pencil"></i>
-                                    </a>
-                                    <a href="{% url 'eliminar_orden_trabajo' orden.id %}" class="btn btn-danger" 
-                                       title="Eliminar">
-                                        <i class="bi bi-trash"></i>
-                                    </a>
-                                </div>
+                                <a href="{% url 'detalle_orden_trabajo' orden.id %}" class="btn btn-sm btn-info me-1"
+                                   title="Ver detalles">
+                                    <i class="bi bi-eye"></i>
+                                </a>
+                                <a href="{% url 'modificar_orden_trabajo' orden.id %}" class="btn btn-sm btn-warning me-1"
+                                   title="Editar">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
+                                <a href="{% url 'eliminar_orden_trabajo' orden.id %}" class="btn btn-sm btn-danger"
+                                   title="Eliminar">
+                                    <i class="bi bi-trash"></i>
+                                </a>
                             </td>
                         </tr>
                         {% endfor %}

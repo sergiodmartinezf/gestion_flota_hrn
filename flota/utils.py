@@ -9,6 +9,42 @@ from openpyxl.utils import get_column_letter
 from django.http import HttpResponse
 from datetime import datetime
 
+
+def crear_estilos_excel():
+    """
+    Crea y retorna un diccionario de estilos para Excel.
+    """
+    # Estilo para títulos
+    estilo_titulo = Font(name='Arial', size=14, bold=True)
+    
+    # Estilo para encabezados
+    estilo_encabezado_font = Font(name='Arial', size=12, bold=True, color='FFFFFF')
+    estilo_encabezado_fill = PatternFill(start_color='366092', end_color='366092', fill_type='solid')
+    
+    # Estilo para centrado
+    centrado = Alignment(horizontal='center', vertical='center')
+    
+    # Estilo para alineación derecha
+    derecha = Alignment(horizontal='right', vertical='center')
+    
+    # Borde
+    borde = Border(
+        left=Side(style='thin'),
+        right=Side(style='thin'),
+        top=Side(style='thin'),
+        bottom=Side(style='thin')
+    )
+    
+    return {
+        'titulo': estilo_titulo,
+        'encabezado_font': estilo_encabezado_font,
+        'encabezado_fill': estilo_encabezado_fill,
+        'centrado': centrado,
+        'derecha': derecha,
+        'borde': borde,
+    }
+
+
 def consultar_oc_mercado_publico(codigo_oc):
     """
     Consulta la API de Mercado Público y retorna un diccionario con datos limpios
@@ -17,37 +53,29 @@ def consultar_oc_mercado_publico(codigo_oc):
         ticket = getattr(settings, 'MERCADO_PUBLICO_TICKET', None)
 
         if not ticket or ticket == 'BLABLABLA':
-            return {'error': 'Ticket no configurado o inválido.'}
+            return {'error': 'Ticket no configurado.'}
         
-        # Usar HTTPS
         url = f"https://api.mercadopublico.cl/servicios/v1/publico/ordenesdecompra.json?codigo={codigo_oc}&ticket={ticket}"
         
-        print(f"Consultando API: {url}")
-        
-        # Agregar headers para evitar bloqueos
         headers = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
             'Accept': 'application/json',
-            'Accept-Language': 'es-CL,es;q=0.9',
         }
         
-        # Aumentar timeout y verificar SSL
         response = requests.get(url, headers=headers, timeout=30, verify=True)
         response.raise_for_status()
         
         data = response.json()
         
-        # Depuración: ver qué devuelve
-        print(f"Cantidad de resultados: {data.get('Cantidad', 0)}")
-        
         if data.get('Cantidad', 0) == 0:
-            return {'error': f'No se encontró la orden de compra {codigo_oc} en Mercado Público.'}
+            return {'error': f'No se encontró la orden de compra {codigo_oc}.'}
 
         if 'Listado' not in data or not data['Listado']:
             return {'error': 'La API no devolvió datos en el formato esperado.'}
 
         oc_data = data['Listado'][0]
 
+        # Extraer items
         items_str = ""
         if 'Listado' in oc_data.get('Items', {}):
             items = []
@@ -62,40 +90,93 @@ def consultar_oc_mercado_publico(codigo_oc):
             
             items_str = "\n".join(items)
 
-        # Extraer datos con valores por defecto
+        # Datos básicos
         info_limpia = {
             'codigo': oc_data.get('Codigo', codigo_oc),
             'estado': oc_data.get('Estado', 'Emitida'),
             'fecha_emision': oc_data.get('Fechas', {}).get('FechaCreacion', '').split('T')[0],
-            'descripcion': oc_data.get('Descripcion', oc_data.get('Nombre', f'Orden de compra {codigo_oc}'))[:200],
+            'descripcion': oc_data.get('Descripcion', oc_data.get('Nombre', f'Orden de compra {codigo_oc}'))[:500],
             'monto_neto': oc_data.get('TotalNeto', 0),
             'monto_total': oc_data.get('Total', 0),
             'impuestos': oc_data.get('Impuestos', 0),
             'proveedor_rut': oc_data.get('Proveedor', {}).get('RutSucursal', ''),
             'proveedor_nombre': oc_data.get('Proveedor', {}).get('Nombre', 'Proveedor Desconocido'),
-            'proveedor_contacto_nombre': oc_data.get('Proveedor', {}).get('NombreContacto', ''),
-            'proveedor_contacto_cargo': oc_data.get('Proveedor', {}).get('CargoContacto', ''),
             'id_licitacion': oc_data.get('CodigoLicitacion', ''),
             'items_str': items_str
         }
         
-        # Validar que tenemos datos mínimos
-        if not info_limpia['proveedor_rut'] or not info_limpia['fecha_emision']:
-            return {'error': 'La API devolvió datos incompletos.'}
+        # ========== EXTRACCIÓN DE DATOS CLAVE ==========
+        texto_completo = f"{info_limpia['descripcion']} {items_str}".upper()
+        
+        # 1. Buscar CÓDIGO PRESUPUESTARIO (22.06.002.002)
+        import re
+        codigo_match = re.search(r'(\d{2}\.\d{2}\.\d{3}\.\d{3})', texto_completo)
+        if codigo_match:
+            info_limpia['codigo_presupuestario'] = codigo_match.group(1)
+        else:
+            # Intentar con formato 22-06-002
+            codigo_match = re.search(r'(\d{2}-\d{2}-\d{3})', texto_completo)
+            if codigo_match:
+                info_limpia['codigo_presupuestario'] = codigo_match.group(1).replace('-', '.')
+            else:
+                info_limpia['codigo_presupuestario'] = None
+
+        # 2. Buscar PATENTES con patrones mejorados
+        patentes_encontradas = []
+
+        # Nuevos patrones para capturar formatos específicos
+        patrones_patentes = [
+            r'\b(HR\.PG-25)\b',  # Patente específica de este caso
+            r'\b([A-Z]{2}\.[A-Z]{2}-\d{2})\b',  # Formato XX.XX-XX (HR.PG-25)
+            r'\b([A-Z]{2}-[A-Z]{2}-\d{2})\b',   # Formato XX-XX-XX (LX-FG-16)
+            r'\b([A-Z]{2}\.[A-Z]{2}\d{2})\b',   # Formato XX.XXXX (HR.PG25)
+            r'\b([A-Z]{4}\d{2})\b',             # Formato XXXXNN (HRPG25)
+            r'\b([A-Z]{2}\d{4})\b',             # Formato XXNNNN
+            r'Patente Vehículo\s+([A-Z0-9\.\-]+)',  # Buscar específicamente después de "Patente Vehículo"
+        ]
+
+        for patron in patrones_patentes:
+            matches = re.findall(patron, texto_completo, re.IGNORECASE)
+            if matches:
+                print(f"Patrón '{patron}' encontró: {matches}")
+                patentes_encontradas.extend(matches)
+
+        # También buscar en todo el texto sin patrones específicos
+        # Buscar cualquier cosa que parezca patente chilena
+        if not patentes_encontradas:
+            # Patrón general para patentes chilenas
+            patron_general = r'\b([A-Z]{2}[\.\-]?[A-Z]{2}[\.\-]?\d{2,3})\b'
+            matches_general = re.findall(patron_general, texto_completo, re.IGNORECASE)
+            if matches_general:
+                print(f"Patrón general encontró: {matches_general}")
+                patentes_encontradas.extend(matches_general)
+
+        # Limpiar y normalizar
+        patentes_limpias = []
+        for patente in set(patentes_encontradas):
+            # Convertir a mayúsculas
+            patente = patente.upper()
+            
+            # Si ya tiene formato con punto y guión (HR.PG-25), mantenerlo
+            if re.match(r'^[A-Z]{2}\.[A-Z]{2}-\d{2}$', patente):
+                patentes_limpias.append(patente)
+            # Si tiene formato con guión (LX-FG-16), mantenerlo
+            elif re.match(r'^[A-Z]{2}-[A-Z]{2}-\d{2}$', patente):
+                patentes_limpias.append(patente)
+            # Si tiene formato compacto (HRPG25), formatearlo
+            elif re.match(r'^[A-Z]{4}\d{2}$', patente):
+                patente_formateada = f"{patente[:2]}.{patente[2:4]}-{patente[4:]}"
+                patentes_limpias.append(patente_formateada)
+            else:
+                # Mantener cualquier otro formato
+                patentes_limpias.append(patente)
+
+        info_limpia['patentes_posibles'] = patentes_limpias
         
         return info_limpia
 
-    except requests.exceptions.SSLError as e:
-        return {'error': f'Error SSL al conectar con Mercado Público. Posible problema de certificados: {str(e)}'}
-    except requests.exceptions.Timeout:
-        return {'error': 'Tiempo de espera agotado al conectar con Mercado Público.'}
-    except requests.exceptions.ConnectionError as e:
-        return {'error': f'Error de conexión con Mercado Público. Verifica tu conexión a internet: {str(e)}'}
-    except requests.exceptions.HTTPError as e:
-        return {'error': f'Error HTTP {e.response.status_code}: {str(e)}'}
     except Exception as e:
-        return {'error': f'Error inesperado: {str(e)}'}
-
+        return {'error': f'Error: {str(e)}'}
 
 def exportar_reporte_excel(titulo, datos, columnas, nombre_archivo=None):
     """

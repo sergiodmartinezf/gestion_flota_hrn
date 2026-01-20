@@ -8,8 +8,10 @@ from django.utils import timezone
 from datetime import datetime, timedelta
 from decimal import Decimal
 import json
+import re
 from django.views.decorators.http import require_POST
 from .utils import consultar_oc_mercado_publico, exportar_reporte_excel, exportar_planilla_mantenimientos_excel
+import xlwt
 
 from .models import (
     Usuario, Vehiculo, Proveedor, OrdenCompra, OrdenTrabajo, Presupuesto, Arriendo, 
@@ -320,6 +322,15 @@ def gastos_mantenimientos(request):
 # RF_14: Visualizar alertas de mantenimiento
 @login_required
 def alertas_mantenimiento(request):
+    if request.method == 'POST' and request.POST.get('action') == 'marcar_revisadas':
+        # Marcar todas las alertas como no vigentes
+        AlertaMantencion.objects.filter(vigente=True).update(
+            vigente=False,
+            resuelta_en=timezone.now()
+        )
+        messages.success(request, 'Todas las alertas han sido marcadas como revisadas.')
+        return redirect('alertas_mantenimiento')
+
     alertas = AlertaMantencion.objects.filter(vigente=True).order_by('-generado_en')
     return render(request, 'flota/alertas_mantenimiento.html', {'alertas': alertas})
 
@@ -334,25 +345,41 @@ def registrar_bitacora(request):
             hoja_ruta = form.save(commit=False)
             hoja_ruta.conductor = request.user
             hoja_ruta.save()
-            
-            # Actualizar kilometraje del vehículo
+
             vehiculo = hoja_ruta.vehiculo
+
+            # Actualizar kilometraje del vehículo
             if vehiculo.kilometraje_actual < hoja_ruta.km_fin:
                 vehiculo.kilometraje_actual = hoja_ruta.km_fin
+
+                # REQ: Alerta de kilometraje para próximo mantenimiento
+                if vehiculo.umbral_mantencion > 0:
+                    km_faltantes = vehiculo.kilometraje_para_mantencion
+                    if km_faltantes <= 500: # Umbral de aviso: 500 km antes
+                        # Crear alerta/notificación
+                        AlertaMantencion.objects.get_or_create(
+                            vehiculo=vehiculo,
+                            vigente=True,
+                            defaults={
+                                'descripcion': f'Alerta de proximidad: Faltan {km_faltantes} km para mantenimiento preventivo.',
+                                'valor_umbral': vehiculo.umbral_mantencion
+                            }
+                        )
+                        # REQ: Notificación visual inmediata
+                        messages.warning(request, f'⚠️ ATENCIÓN: Al vehículo {vehiculo.patente} le quedan solo {km_faltantes} km para su mantenimiento.')
+
                 vehiculo.save()
+
             elif hoja_ruta.km_fin < vehiculo.kilometraje_actual:
-                # Validar que el kilometraje no retroceda
-                messages.warning(request, f'El kilometraje final ({hoja_ruta.km_fin} km) es menor al actual ({vehiculo.kilometraje_actual} km). Verifique los datos.')
+                messages.warning(request, f'El kilometraje final ({hoja_ruta.km_fin}) es menor al actual ({vehiculo.kilometraje_actual}). Verifique.')
                 return render(request, 'flota/registrar_bitacora.html', {'form': form})
-            
+
             messages.success(request, 'Bitácora registrada exitosamente.')
             return redirect('listar_bitacoras')
     else:
         form = HojaRutaForm()
-        form.fields['vehiculo'].queryset = Vehiculo.objects.filter(
-            estado__in=['Disponible', 'En uso']
-        ).order_by('patente')
-    
+        # El filtrado de vehículos ya está en el __init__ del form
+
     return render(request, 'flota/registrar_bitacora.html', {'form': form})
 
 # API para obtener el kilometraje de los vehículos
@@ -363,6 +390,13 @@ def api_vehiculos_kilometraje(request):
     for vehiculo in vehiculos:
         data[str(vehiculo.patente)] = vehiculo.kilometraje_actual
     return JsonResponse(data)
+
+
+@login_required
+def api_alertas_count(request):
+    """API para obtener el conteo de alertas activas"""
+    count = AlertaMantencion.objects.filter(vigente=True).count()
+    return JsonResponse({'count': count})
 
 
 @login_required
@@ -387,6 +421,40 @@ def listar_bitacoras(request):
         'bitacoras': bitacoras,
         'vehiculos': vehiculos,
         'vehiculo_filtro': vehiculo_filtro
+    })
+
+
+# --- NUEVA VISTA MODIFICAR BITÁCORA (REQ: Admin edita info de conductor) ---
+@login_required
+@user_passes_test(es_administrador)
+def modificar_bitacora(request, id):
+    hoja = get_object_or_404(HojaRuta, id=id)
+    if request.method == 'POST':
+        form = HojaRutaForm(request.POST, instance=hoja)
+        if form.is_valid():
+            form.save()
+            # Nota: Si se corrige el KM fin, se debería evaluar si actualizar el KM del vehículo
+            # pero es complejo si hay hojas posteriores. Por seguridad, solo editamos el registro.
+            messages.success(request, f'Hoja de ruta {hoja.id} corregida exitosamente.')
+            return redirect('detalle_bitacora', id=hoja.id)
+    else:
+        form = HojaRutaForm(instance=hoja)
+
+    return render(request, 'flota/modificar_bitacora.html', {'form': form, 'hoja': hoja})
+
+
+# --- NUEVA VISTA DETALLE BITÁCORA (REQ: Ficha detallada) ---
+@login_required
+def detalle_bitacora(request, id):
+    hoja = get_object_or_404(HojaRuta, id=id)
+    viajes = hoja.viajes.all()
+    # Calcular totales
+    total_km_viajes = viajes.aggregate(Sum('km_recorridos_viaje'))['km_recorridos_viaje__sum'] or 0
+
+    return render(request, 'flota/detalle_bitacora.html', {
+        'hoja': hoja,
+        'viajes': viajes,
+        'total_km_viajes': total_km_viajes
     })
 
 
@@ -525,7 +593,43 @@ def programar_mantenimiento_preventivo(request):
             # Costos reales parten en 0
             mantenimiento.costo_mano_obra = 0
             mantenimiento.costo_repuestos = 0
-
+            
+            # Validar presupuesto antes de guardar
+            if mantenimiento.cuenta_presupuestaria and mantenimiento.vehiculo:
+                anio = mantenimiento.fecha_ingreso.year
+                
+                # Buscar presupuesto
+                presupuesto = Presupuesto.objects.filter(
+                    cuenta=mantenimiento.cuenta_presupuestaria,
+                    vehiculo=mantenimiento.vehiculo,
+                    anio=anio,
+                    activo=True
+                ).first()
+                
+                if not presupuesto:
+                    presupuesto = Presupuesto.objects.filter(
+                        cuenta=mantenimiento.cuenta_presupuestaria,
+                        vehiculo__isnull=True,
+                        anio=anio,
+                        activo=True
+                    ).first()
+                
+                if not presupuesto:
+                    messages.error(request, 
+                        f"No hay presupuesto asignado para la cuenta {mantenimiento.cuenta_presupuestaria.codigo} "
+                        f"en el año {anio}. Debe crear un presupuesto primero."
+                    )
+                    return render(request, 'flota/programar_mantenimiento_preventivo.html', {'form': form})
+                
+                # Verificar si hay saldo suficiente para el costo estimado
+                if mantenimiento.costo_estimado and mantenimiento.costo_estimado > 0:
+                    if presupuesto.disponible < mantenimiento.costo_estimado:
+                        messages.error(request, 
+                            f"Presupuesto insuficiente. Disponible: ${presupuesto.disponible:.0f}, "
+                            f"Requerido: ${mantenimiento.costo_estimado:.0f}"
+                        )
+                        return render(request, 'flota/programar_mantenimiento_preventivo.html', {'form': form})
+            
             mantenimiento.save()
             
             # Se actualiza el estado del vehículo
@@ -562,15 +666,40 @@ def registrar_mantenimiento_correctivo(request):
                 if mantenimiento.costo_mano_obra or mantenimiento.costo_repuestos:
                     mantenimiento.costo_total_real = (mantenimiento.costo_mano_obra or 0) + (mantenimiento.costo_repuestos or 0)
                 
+                # Validar presupuesto antes de guardar
+                if mantenimiento.cuenta_presupuestaria and mantenimiento.vehiculo:
+                    anio = mantenimiento.fecha_ingreso.year
+                    
+                    # Buscar presupuesto
+                    presupuesto = Presupuesto.objects.filter(
+                        cuenta=mantenimiento.cuenta_presupuestaria,
+                        vehiculo=mantenimiento.vehiculo,
+                        anio=anio,
+                        activo=True
+                    ).first()
+                    
+                    if not presupuesto:
+                        presupuesto = Presupuesto.objects.filter(
+                            cuenta=mantenimiento.cuenta_presupuestaria,
+                            vehiculo__isnull=True,
+                            anio=anio,
+                            activo=True
+                        ).first()
+                    
+                    if not presupuesto:
+                        messages.error(request, 
+                            f"No hay presupuesto asignado para la cuenta {mantenimiento.cuenta_presupuestaria.codigo} "
+                            f"en el año {anio}. Debe crear un presupuesto primero."
+                        )
+                        # Re-renderizar el formulario con los datos
+                        return render(request, 'flota/registrar_mantenimiento_correctivo.html', {'form': form})
+                
                 mantenimiento.save()
                 
                 # Actualizar estado del vehículo
                 vehiculo = mantenimiento.vehiculo
                 vehiculo.estado = 'En mantenimiento'
                 vehiculo.save()
-                
-                # El signal actualizará el presupuesto automáticamente si es necesario
-                # (aunque el signal solo actualiza para preventivos, los correctivos no deberían descontar del presupuesto preventivo)
                 
                 messages.success(request, 'Mantenimiento correctivo registrado exitosamente.')
                 return redirect('listar_mantenimientos')
@@ -707,30 +836,36 @@ def deshabilitar_presupuesto(request, id):
 
 @login_required
 def listar_presupuestos(request):
-    presupuestos = Presupuesto.objects.filter(activo=True).order_by('-anio', 'vehiculo')
-    
+    # REQ: Manejo de visualización de deshabilitados
+    mostrar_deshabilitados = request.GET.get('mostrar_deshabilitados', 'false') == 'true'
+
+    if mostrar_deshabilitados:
+        presupuestos = Presupuesto.objects.all().order_by('-anio', 'vehiculo')
+    else:
+        presupuestos = Presupuesto.objects.filter(activo=True).order_by('-anio', 'vehiculo')
+
     # Filtros
     anio_filter = request.GET.get('anio')
     vehiculo_filter = request.GET.get('vehiculo')
-    
+
     if anio_filter:
         presupuestos = presupuestos.filter(anio=anio_filter)
     if vehiculo_filter:
         presupuestos = presupuestos.filter(vehiculo__patente=vehiculo_filter)
-    
+
     # Calcular totales
     total_asignado = presupuestos.aggregate(
         total=Sum('monto_asignado')
     )['total'] or Decimal('0')
-    
+
     total_ejecutado = presupuestos.aggregate(
         total=Sum('monto_ejecutado')
     )['total'] or Decimal('0')
-    
+
     total_disponible = total_asignado - total_ejecutado
-    
+
     vehiculos = Vehiculo.objects.all().order_by('patente')
-    
+
     return render(request, 'flota/listar_presupuestos.html', {
         'presupuestos': presupuestos,
         'vehiculos': vehiculos,
@@ -739,6 +874,8 @@ def listar_presupuestos(request):
         'total_asignado': total_asignado,
         'total_ejecutado': total_ejecutado,
         'total_disponible': total_disponible,
+        # Pasar variable al template
+        'mostrar_deshabilitados': mostrar_deshabilitados,
     })
 
 
@@ -920,8 +1057,6 @@ def editar_mantenimiento(request, id):
         'mantenimiento': mantenimiento
     })
 
-# flota/views.py
-
 @login_required
 @user_passes_test(es_administrador)
 def finalizar_mantenimiento(request, id):
@@ -933,28 +1068,65 @@ def finalizar_mantenimiento(request, id):
             mant = form.save(commit=False)
             
             # Calcular costo total real
+            costo_anterior = mant.costo_total_real
             mant.costo_total_real = (mant.costo_mano_obra or 0) + (mant.costo_repuestos or 0)
-            
-            # Cambiar estado a finalizado
             mant.estado = 'Finalizado'
-
-            mant.save()
-
-            # VERIFICACIÓN DE VARIACIÓN
+            
+            # REQ: Actualizar ejecución presupuestaria
             if mant.cuenta_presupuestaria and mant.vehiculo:
                 presupuesto = Presupuesto.objects.filter(
-                    cuenta=mant.cuenta_presupuestaria, 
-                    vehiculo=mant.vehiculo, 
-                    anio=mant.fecha_ingreso.year
+                    cuenta=mant.cuenta_presupuestaria,
+                    vehiculo=mant.vehiculo,
+                    anio=mant.fecha_ingreso.year,
+                    activo=True
                 ).first()
-                
-                if presupuesto and presupuesto.monto_asignado > 0:
-                    variacion = (presupuesto.monto_ejecutado - presupuesto.monto_asignado)
-                    porcentaje = (variacion / presupuesto.monto_asignado) * 100
-                    
-                    if porcentaje > 10:
-                        messages.warning(request, f"⚠️ ALERTA: El presupuesto para {mant.vehiculo} se ha excedido en un {porcentaje:.1f}% (Tope permitido 10%).")
 
+                if not presupuesto:
+                    # Buscar global
+                    presupuesto = Presupuesto.objects.filter(
+                        cuenta=mant.cuenta_presupuestaria,
+                        vehiculo__isnull=True,
+                        anio=mant.fecha_ingreso.year,
+                        activo=True
+                    ).first()
+
+                if presupuesto:
+                    # Verificar que haya saldo suficiente
+                    if presupuesto.disponible < mant.costo_total_real:
+                        messages.error(request, 
+                            f"Presupuesto insuficiente. Disponible: ${presupuesto.disponible:.0f}, "
+                            f"Requerido: ${mant.costo_total_real:.0f}. No se puede finalizar el mantenimiento."
+                        )
+                        return render(request, 'flota/finalizar_mantenimiento.html', {
+                            'form': form, 
+                            'mantenimiento': mantenimiento
+                        })
+                else:
+                    messages.error(request, 
+                        f"No hay presupuesto asignado para la cuenta {mant.cuenta_presupuestaria.codigo} "
+                        f"en el año {mant.fecha_ingreso.year}. No se puede finalizar el mantenimiento."
+                    )
+                    return render(request, 'flota/finalizar_mantenimiento.html', {
+                        'form': form, 
+                        'mantenimiento': mantenimiento
+                    })
+
+            try:
+                mant.save()
+            except ValueError as e:
+                # Capturar error de presupuesto insuficiente
+                messages.error(request, str(e))
+                return render(request, 'flota/finalizar_mantenimiento.html', {
+                    'form': form, 
+                    'mantenimiento': mantenimiento
+                })
+
+            # Liberar vehículo
+            vehiculo = mant.vehiculo
+            vehiculo.estado = 'Disponible'
+            vehiculo.save()
+
+            messages.success(request, 'Mantenimiento finalizado y presupuesto actualizado.')
             return redirect('listar_mantenimientos')
 
     else:
@@ -1299,6 +1471,17 @@ def dashboard(request):
         estado='Programado'
     ).order_by('fecha_ingreso')[:5]
     
+    # Crear alerta de prueba si no hay ninguna (DEBUG)
+    if not AlertaMantencion.objects.filter(vigente=True).exists():
+        vehiculo_prueba = Vehiculo.objects.first()
+        if vehiculo_prueba:
+            AlertaMantencion.objects.create(
+                vehiculo=vehiculo_prueba,
+                descripcion="Alerta de prueba: Mantenimiento requerido próximamente.",
+                valor_umbral=10000,
+                vigente=True
+            )
+
     # Alertas activas
     alertas_activas = AlertaMantencion.objects.filter(vigente=True).order_by('-generado_en')[:5]
     
@@ -1460,24 +1643,51 @@ def importar_orden_compra(request):
                 if created_prov:
                     messages.info(request, f"Se ha creado el proveedor {proveedor.nombre_fantasia} automáticamente.")
 
-                # 3. Crear Orden de Compra
+                # INTENTO DE DETECCIÓN DE PATENTE EN DESCRIPCIÓN (REQ)
+                descripcion = datos.get('descripcion', '').upper()
+                vehiculo_asociado = None
+
+                # Regex simple para patentes chilenas (vieja XX1234 o nueva BB-CC-12)
+                patente_match = re.search(r'[A-Z]{2,4}-?[\d]{2,4}', descripcion)
+                if patente_match:
+                    posible_patente = patente_match.group(0).replace('-', '')
+                    # Buscar si existe en DB
+                    vehiculo_asociado = Vehiculo.objects.filter(patente__icontains=posible_patente).first()
+
+                # INTENTO DE DETECCIÓN DE TIPO (REQ: Distinción preventivo/correctivo)
+                tipo_mantencion_sugerido = 'Preventivo' # Default
+                if 'REPARACION' in descripcion or 'CORRECTIVA' in descripcion or 'FALLA' in descripcion:
+                    tipo_mantencion_sugerido = 'Correctivo'
+
+                # Crear OC con todos los campos disponibles
                 oc, created_oc = OrdenCompra.objects.get_or_create(
                     nro_oc=datos['codigo'],
                     defaults={
                         'descripcion': datos['descripcion'],
+                        'vehiculo': vehiculo_asociado, # REQ: Vehículo asociado
                         'fecha_emision': datos['fecha_emision'],
                         'monto_neto': datos.get('monto_neto', 0),
                         'monto_total': datos.get('monto_total', 0),
                         'impuesto': datos.get('impuestos', 0),
                         'id_licitacion': datos.get('id_licitacion', ''),
+                        'folio_sigfe': '',  # La API no proporciona este campo
                         'estado': datos['estado'],
                         'proveedor': proveedor,
                         'tipo_adquisicion': 'Licitación Pública',  # Valor por defecto
+                        # Campos opcionales se dejan como null/blank
+                        'cuenta_presupuestaria': None,
+                        'presupuesto': None,
+                        'archivo_adjunto': None,
                     }
                 )
 
+                msg_extra = ""
+                if vehiculo_asociado:
+                    msg_extra = f" Se asoció automáticamente al vehículo {vehiculo_asociado.patente}."
+
+                messages.success(request, f"OC Importada.{msg_extra}")
+
                 if created_oc:
-                    messages.success(request, f"Orden de Compra {oc.nro_oc} importada exitosamente.")
                     return redirect('detalle_orden_compra', id=oc.id)
                 else:
                     messages.warning(request, f"La Orden de Compra {oc.nro_oc} ya existía en el sistema.")
@@ -1653,3 +1863,105 @@ def eliminar_orden_trabajo(request, id):
         return redirect('listar_ordenes_trabajo')
     
     return render(request, 'flota/eliminar_orden_trabajo.html', {'orden': orden})
+
+
+# --- NUEVA VISTA EXPORTAR VIAJES (REQ: Exportar datos consolidados) ---
+@login_required
+def exportar_consolidado_viajes(request):
+    response = HttpResponse(content_type='application/ms-excel')
+    response['Content-Disposition'] = f'attachment; filename="consolidado_traslados_{timezone.now().date()}.xls"'
+
+    wb = xlwt.Workbook(encoding='utf-8')
+    ws = wb.add_sheet('Traslados')
+
+    # Encabezados
+    headers = ['Fecha', 'Vehículo', 'Conductor', 'Turno', 'Hora Salida', 'Hora Llegada',
+               'Destino', 'Paciente', 'RUT Paciente', 'Tipo Servicio', 'Kms Viaje']
+
+    for col_num, header in enumerate(headers):
+        ws.write(0, col_num, header, xlwt.easyxf('font: bold on'))
+
+    # Datos
+    viajes = Viaje.objects.select_related('hoja_ruta', 'hoja_ruta__vehiculo', 'hoja_ruta__conductor').all().order_by('-hoja_ruta__fecha')
+
+    for row_num, viaje in enumerate(viajes, 1):
+        ws.write(row_num, 0, viaje.hoja_ruta.fecha.strftime('%d-%m-%Y'))
+        ws.write(row_num, 1, viaje.hoja_ruta.vehiculo.patente)
+        ws.write(row_num, 2, viaje.hoja_ruta.conductor.nombre_completo)
+        ws.write(row_num, 3, viaje.hoja_ruta.turno)
+        ws.write(row_num, 4, viaje.hora_salida.strftime('%H:%M'))
+        ws.write(row_num, 5, viaje.hora_llegada.strftime('%H:%M') if viaje.hora_llegada else '-')
+        ws.write(row_num, 6, viaje.destino)
+        ws.write(row_num, 7, viaje.nombre_paciente)
+        ws.write(row_num, 8, viaje.rut_paciente)
+        ws.write(row_num, 9, viaje.tipo_servicio)
+        ws.write(row_num, 10, viaje.km_recorridos_viaje)
+
+    wb.save(response)
+    return response
+
+
+# Función helper para verificar presupuesto
+def verificar_presupuesto_vehiculo(vehiculo, cuenta_presupuestaria, anio, monto_requerido=0):
+    """
+    Verifica si un vehículo tiene presupuesto asignado.
+    Retorna (tiene_presupuesto, mensaje, presupuesto_obj)
+    """
+    # Buscar presupuesto específico del vehículo
+    presupuesto = Presupuesto.objects.filter(
+        cuenta=cuenta_presupuestaria,
+        vehiculo=vehiculo,
+        anio=anio,
+        activo=True
+    ).first()
+    
+    # Si no hay específico, buscar global
+    if not presupuesto:
+        presupuesto = Presupuesto.objects.filter(
+            cuenta=cuenta_presupuestaria,
+            vehiculo__isnull=True,
+            anio=anio,
+            activo=True
+        ).first()
+    
+    if not presupuesto:
+        return False, f"No hay presupuesto asignado para la cuenta {cuenta_presupuestaria.codigo} en el año {anio}.", None
+    
+    if monto_requerido > 0 and presupuesto.disponible < monto_requerido:
+        return False, f"Presupuesto insuficiente. Disponible: ${presupuesto.disponible:.0f}, Requerido: ${monto_requerido:.0f}", presupuesto
+    
+    return True, f"Presupuesto disponible: ${presupuesto.disponible:.0f}", presupuesto
+
+# API para verificar presupuesto desde JavaScript
+@login_required
+def api_verificar_presupuesto(request):
+    """API para verificar presupuesto desde el frontend"""
+    vehiculo_id = request.GET.get('vehiculo')
+    cuenta_id = request.GET.get('cuenta')
+    anio = request.GET.get('anio', timezone.now().year)
+    monto = request.GET.get('monto', 0)
+    
+    try:
+        monto = Decimal(monto)
+        vehiculo = Vehiculo.objects.get(patente=vehiculo_id)
+        cuenta = CuentaPresupuestaria.objects.get(id=cuenta_id)
+        
+        tiene_presupuesto, mensaje, presupuesto = verificar_presupuesto_vehiculo(
+            vehiculo, cuenta, int(anio), monto
+        )
+        
+        return JsonResponse({
+            'tiene_presupuesto': tiene_presupuesto,
+            'mensaje': mensaje,
+            'disponible': float(presupuesto.disponible) if presupuesto else 0,
+            'porcentaje_ejecutado': float(presupuesto.porcentaje_ejecutado) if presupuesto else 0
+        })
+    except Exception as e:
+        return JsonResponse({
+            'tiene_presupuesto': False,
+            'mensaje': f'Error: {str(e)}',
+            'disponible': 0,
+            'porcentaje_ejecutado': 0
+        })
+
+        
