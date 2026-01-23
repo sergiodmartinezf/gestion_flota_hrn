@@ -105,39 +105,29 @@
         <div class="card-body">
             {% if viajes %}
                 <div class="table-responsive">
-                    <table class="table table-hover table-striped">
-                        <thead class="table-light">
+                    <table class="table">
+                        <thead>
                             <tr>
                                 <th>Hora Salida</th>
-                                <th>Hora Llegada</th>
                                 <th>Destino</th>
-                                <th>Paciente</th>
-                                <th>RUT Paciente</th>
-                                <th>Tipo Servicio</th>
-                                <th>Km Viaje</th>
+                                <th>KM Inicio</th> <!-- NUEVO -->
+                                <th>KM Fin</th>    <!-- NUEVO -->
+                                <th>KM Recorridos</th> <!-- MODIFICADO -->
+                                ...
                             </tr>
                         </thead>
                         <tbody>
                             {% for viaje in viajes %}
                             <tr>
                                 <td>{{ viaje.hora_salida|time:"H:i" }}</td>
-                                <td>{{ viaje.hora_llegada|time:"H:i"|default:"-" }}</td>
                                 <td>{{ viaje.destino }}</td>
-                                <td>{{ viaje.nombre_paciente|default:"-" }}</td>
-                                <td>{{ viaje.rut_paciente|default:"-" }}</td>
-                                <td>
-                                    <span class="badge bg-secondary">{{ viaje.get_tipo_servicio_display }}</span>
-                                </td>
-                                <td>{{ viaje.km_recorridos_viaje }} km</td>
+                                <td>{{ viaje.km_inicio_viaje }}</td> <!-- NUEVO -->
+                                <td>{{ viaje.km_fin_viaje }}</td>    <!-- NUEVO -->
+                                <td>{{ viaje.km_recorridos_calculados }} km</td> <!-- CAMBIADO -->
+                                ...
                             </tr>
                             {% endfor %}
                         </tbody>
-                        <tfoot class="table-light">
-                            <tr>
-                                <th colspan="6" class="text-end">Total Kilómetros de Viajes:</th>
-                                <th>{{ total_km_viajes }} km</th>
-                            </tr>
-                        </tfoot>
                     </table>
                 </div>
             {% else %}

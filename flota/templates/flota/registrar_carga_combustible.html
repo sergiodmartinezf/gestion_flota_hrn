@@ -3,58 +3,341 @@
 
 {% block title %}Registrar Carga de Combustible - Gestión de Flota{% endblock %}
 
-{% block extra_js %}
-<script src="{% static 'js/validaciones.js' %}"></script>
-<script src="{% static 'js/registrar_carga_combustible.js' %}"></script>
+{% block extra_css %}
+<style>
+    /* ESTILOS PARA FORMULARIO PASO A PASO DE COMBUSTIBLE */
+    .combustible-paso {
+        display: none;
+        animation: fadeIn 0.5s ease-in-out;
+        padding: 20px;
+        background: #f8f9fa;
+        border-radius: 8px;
+        margin-bottom: 20px;
+        border-left: 4px solid #fd7e14;
+    }
+    
+    .combustible-paso.activo {
+        display: block;
+    }
+    
+    /* Barra de progreso específica para combustible */
+    .combustible-progreso-container {
+        margin-bottom: 2rem;
+    }
+    
+    .combustible-progreso-bar {
+        width: 100%;
+        height: 8px;
+        background-color: #e9ecef;
+        border-radius: 4px;
+        overflow: hidden;
+        margin-bottom: 8px;
+    }
+    
+    .combustible-progreso-fill {
+        height: 100%;
+        background-color: #fd7e14;
+        border-radius: 4px;
+        transition: width 0.3s ease;
+        width: 0%;
+    }
+    
+    .combustible-progreso-texto {
+        text-align: center;
+        font-size: 0.9rem;
+        color: #6c757d;
+        font-weight: 500;
+    }
+    
+    /* Estructura de los pasos */
+    .combustible-paso-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1.5rem;
+        padding-bottom: 0.75rem;
+        border-bottom: 1px solid #dee2e6;
+    }
+    
+    .combustible-paso-titulo {
+        font-size: 1.25rem;
+        font-weight: 500;
+        color: #212529;
+    }
+    
+    .combustible-paso-titulo i {
+        margin-right: 10px;
+        color: #fd7e14;
+    }
+    
+    .combustible-paso-indicador {
+        background-color: #6c757d;
+        color: white;
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-size: 0.875rem;
+        font-weight: 500;
+    }
+    
+    /* Botones de navegación específicos para combustible */
+    .combustible-nav-pasos {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-top: 2rem;
+        padding-top: 1.5rem;
+        border-top: 1px solid #dee2e6;
+        position: sticky;
+        bottom: 0;
+        background: #f8f9fa;
+        padding: 1rem;
+        border-radius: 8px;
+    }
+    
+    /* Estilos de error */
+    .error-container {
+        min-height: 24px;
+        position: relative;
+        margin-top: 4px;
+    }
+    
+    .error-mensaje {
+        color: #dc3545;
+        font-size: 0.875em;
+        opacity: 0;
+        visibility: hidden;
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        transition: opacity 0.2s ease;
+        background: #fff;
+        padding: 2px 4px;
+        border-radius: 3px;
+        border: 1px solid #f8d7da;
+        margin: 0;
+    }
+    
+    .error-mensaje.mostrar {
+        opacity: 1;
+        visibility: visible;
+    }
+    
+    .campo-invalido {
+        border-color: #dc3545 !important;
+        background-color: #fff8f8 !important;
+    }
+    
+    /* Animación */
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    
+    /* Estilo para información de vehículo */
+    .info-vehiculo {
+        background-color: #e8f4fd;
+        padding: 10px;
+        border-radius: 5px;
+        margin-top: 10px;
+        font-size: 0.9rem;
+    }
+    
+    .info-vehiculo strong {
+        color: #0d6efd;
+    }
+</style>
 {% endblock %}
 
 {% block content %}
 <h2 class="mb-4"><i class="bi bi-fuel-pump"></i> Registrar Carga de Combustible</h2>
 
-<div class="card">
-    <div class="card-body">
-        <form method="post">
-    {% csrf_token %}
-    <div class="row">
-        <div class="col-md-6">
-            <div class="mb-3">
-                <label for="{{ form.fecha.id_for_label }}" class="form-label">Fecha *</label>
-                {{ form.fecha }}
-            </div>
-            <div class="mb-3">
-                <label for="{{ form.patente_vehiculo.id_for_label }}" class="form-label">Vehículo *</label>
-                {{ form.patente_vehiculo }}
-            </div>
-            <div class="mb-3">
-                <label for="{{ form.kilometraje_al_cargar.id_for_label }}" class="form-label">Kilometraje al Cargar *</label>
-                {{ form.kilometraje_al_cargar }}
-            </div>
-            <div class="mb-3">
-                <label for="{{ form.litros.id_for_label }}" class="form-label">Litros Cargados *</label>
-                {{ form.litros }}
-            </div>
-        </div>
-        <div class="col-md-6">
-            <div class="mb-3">
-                <label for="{{ form.costo_total.id_for_label }}" class="form-label">Monto *</label>
-                {{ form.costo_total }}
-            </div>
-            <div class="mb-3">
-                <label for="{{ form.nro_boleta.id_for_label }}" class="form-label">N° Boleta</label>
-                {{ form.nro_boleta }}
-            </div><!--
-            <div class="mb-3">
-                <label for="{{ form.proveedor.id_for_label }}" class="form-label">Proveedor *</label>
-                {{ form.proveedor }}
-            </div>-->
-        </div>
-        </div>
-        <div class="mt-3">
-            <button type="submit" class="btn btn-primary"><i class="bi bi-check-circle"></i> Registrar</button>
-            <a href="{% url 'listar_cargas_combustible' %}" class="btn btn-secondary"><i class="bi bi-x-circle"></i> Cancelar</a>
-        </div>
-        </form>
-    </div>
+<div class="alert alert-info">
+    <i class="bi bi-info-circle"></i> Complete el formulario paso a paso. Los campos marcados con * son obligatorios.
 </div>
+
+<!-- Barra de progreso -->
+<div class="combustible-progreso-container">
+    <div class="combustible-progreso-bar">
+        <div class="combustible-progreso-fill" id="combustible-progreso-fill"></div>
+    </div>
+    <div class="combustible-progreso-texto" id="combustible-progreso-texto">Paso 1 de 4</div>
+</div>
+
+<form method="post" id="form-combustible-pasos" novalidate>
+    {% csrf_token %}
+    
+    <!-- Paso 1: Fecha y Vehículo -->
+    <div class="combustible-paso activo" id="combustible-paso-1">
+        <div class="combustible-paso-header">
+            <div class="combustible-paso-titulo"><i class="bi bi-calendar"></i> Fecha y Vehículo</div>
+            <div class="combustible-paso-indicador">Paso 1</div>
+        </div>
+        
+        <div class="mb-3">
+            <label for="id_fecha" class="form-label">Fecha de la carga *</label>
+            <input type="date" name="fecha" id="id_fecha" class="form-control" required
+                   value="{% if form.fecha.value %}{{ form.fecha.value }}{% else %}{% now 'Y-m-d' %}{% endif %}">
+            <div class="error-container">
+                <div class="error-mensaje" id="error-fecha">Debe seleccionar una fecha</div>
+            </div>
+        </div>
+        
+        <div class="mb-3">
+            <label for="id_patente_vehiculo" class="form-label">Vehículo *</label>
+            <select name="patente_vehiculo" id="id_patente_vehiculo" class="form-control" required>
+                <option value="">Seleccione un vehículo</option>
+                {% for vehiculo in form.patente_vehiculo.field.queryset %}
+                    <option value="{{ vehiculo.pk }}" 
+                            data-km-actual="{{ vehiculo.kilometraje_actual }}"
+                            data-marca="{{ vehiculo.marca }}"
+                            data-modelo="{{ vehiculo.modelo }}"
+                            {% if form.patente_vehiculo.value == vehiculo.pk|stringformat:"s" %}selected{% endif %}>
+                        {{ vehiculo.patente }} - {{ vehiculo.marca }} {{ vehiculo.modelo }}
+                    </option>
+                {% endfor %}
+            </select>
+            <div class="error-container">
+                <div class="error-mensaje" id="error-patente_vehiculo">Debe seleccionar un vehículo</div>
+            </div>
+            
+            <div id="info-vehiculo" class="info-vehiculo" style="display: none;">
+                <strong>KM Actual:</strong> <span id="km-actual-vehiculo">0</span> km
+            </div>
+        </div>
+    </div>
+
+    <!-- Paso 2: Kilometraje y Litros -->
+    <div class="combustible-paso" id="combustible-paso-2">
+        <div class="combustible-paso-header">
+            <div class="combustible-paso-titulo"><i class="bi bi-speedometer2"></i> Kilometraje y Combustible</div>
+            <div class="combustible-paso-indicador">Paso 2</div>
+        </div>
+        
+        <div class="mb-3">
+            <label for="id_kilometraje_al_cargar" class="form-label">Kilometraje al cargar *</label>
+            <input type="number" name="kilometraje_al_cargar" id="id_kilometraje_al_cargar" 
+                   class="form-control" min="0" step="1" required
+                   value="{% if form.kilometraje_al_cargar.value %}{{ form.kilometraje_al_cargar.value }}{% endif %}">
+            <div class="error-container">
+                <div class="error-mensaje" id="error-kilometraje_al_cargar">Debe ingresar el kilometraje</div>
+            </div>
+            <small class="text-muted">Kilometraje del vehículo en el momento de la carga</small>
+        </div>
+        
+        <div class="mb-3">
+            <label for="id_litros" class="form-label">Litros cargados *</label>
+            <input type="number" name="litros" id="id_litros" 
+                   class="form-control" min="0.1" step="0.1" required
+                   value="{% if form.litros.value %}{{ form.litros.value }}{% endif %}">
+            <div class="error-container">
+                <div class="error-mensaje" id="error-litros">Debe ingresar los litros cargados</div>
+            </div>
+            <small class="text-muted">Cantidad de combustible en litros (ej: 45.5)</small>
+        </div>
+    </div>
+
+    <!-- Paso 3: Costo y Documentación -->
+    <div class="combustible-paso" id="combustible-paso-3">
+        <div class="combustible-paso-header">
+            <div class="combustible-paso-titulo"><i class="bi bi-cash-coin"></i> Costo y Documentación</div>
+            <div class="combustible-paso-indicador">Paso 3</div>
+        </div>
+        
+        <div class="mb-3">
+            <label for="id_costo_total" class="form-label">Monto total *</label>
+            <div class="input-group">
+                <span class="input-group-text">$</span>
+                <input type="number" name="costo_total" id="id_costo_total" 
+                       class="form-control" min="0" step="1" required
+                       value="{% if form.costo_total.value %}{{ form.costo_total.value }}{% endif %}">
+            </div>
+            <div class="error-container">
+                <div class="error-mensaje" id="error-costo_total">Debe ingresar el monto total</div>
+            </div>
+            <small class="text-muted">Costo total de la carga (sin puntos, ej: 45000)</small>
+        </div>
+        
+        <div class="mb-3">
+            <label for="id_nro_boleta" class="form-label">Número de boleta (opcional)</label>
+            <input type="text" name="nro_boleta" id="id_nro_boleta" class="form-control"
+                   value="{% if form.nro_boleta.value %}{{ form.nro_boleta.value }}{% endif %}">
+            <small class="text-muted">Número de la boleta o factura</small>
+        </div>
+        
+    </div>
+
+    <!-- Paso 4: Resumen -->
+    <div class="combustible-paso" id="combustible-paso-4">
+        <div class="combustible-paso-header">
+            <div class="combustible-paso-titulo"><i class="bi bi-check-circle"></i> Resumen</div>
+            <div class="combustible-paso-indicador">Paso 4</div>
+        </div>
+        
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">Revise los datos de la carga:</h5>
+                <div id="combustible-resumen-datos">
+                    <!-- Los datos se llenarán con JavaScript -->
+                </div>
+            </div>
+        </div>
+        
+        <div class="alert alert-warning mt-3">
+            <i class="bi bi-exclamation-triangle"></i> Verifique que toda la información sea correcta antes de enviar.
+        </div>
+    </div>
+
+    <!-- Campos ocultos para conductor y cuenta presupuestaria -->
+    {% if form.conductor %}
+    <input type="hidden" name="conductor" id="id_conductor" value="{{ request.user.pk }}">
+    {% endif %}
+    
+    {% if form.cuenta_presupuestaria %}
+    <select name="cuenta_presupuestaria" id="id_cuenta_presupuestaria" style="display: none;">
+        {% for cuenta in form.cuenta_presupuestaria.field.queryset %}
+            <option value="{{ cuenta.pk }}">{{ cuenta.codigo }}</option>
+        {% endfor %}
+    </select>
+    {% endif %}
+
+    <!-- Navegación -->
+    <div class="combustible-nav-pasos">
+        <button type="button" id="btn-combustible-anterior" class="btn btn-secondary" disabled>
+            <i class="bi bi-arrow-left"></i> Anterior
+        </button>
+        <button type="button" id="btn-combustible-siguiente" class="btn btn-primary">
+            Siguiente <i class="bi bi-arrow-right"></i>
+        </button>
+        <button type="submit" id="btn-combustible-enviar" class="btn btn-success" style="display: none;">
+            <i class="bi bi-check-lg"></i> Registrar Carga
+        </button>
+        <a href="{% url 'listar_cargas_combustible' %}" class="btn btn-outline-secondary">
+            <i class="bi bi-x-circle"></i> Cancelar
+        </a>
+    </div>
+    
+    <!-- Campos ocultos para envío del formulario -->
+    <div style="display: none;">
+        <input type="date" name="fecha" id="combustible_hidden_fecha">
+        <select name="patente_vehiculo" id="combustible_hidden_patente_vehiculo">
+            {% for vehiculo in form.patente_vehiculo.field.queryset %}
+                <option value="{{ vehiculo.pk }}">{{ vehiculo.patente }}</option>
+            {% endfor %}
+        </select>
+        <input type="number" name="kilometraje_al_cargar" id="combustible_hidden_kilometraje_al_cargar">
+        <input type="number" name="litros" id="combustible_hidden_litros">
+        <input type="number" name="costo_total" id="combustible_hidden_costo_total">
+        <input type="text" name="nro_boleta" id="combustible_hidden_nro_boleta">
+
+        {% if form.conductor %}
+        <input type="hidden" name="conductor" id="combustible_hidden_conductor" value="{{ request.user.pk }}">
+        {% endif %}
+    </div>
+</form>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/registrar_carga_combustible.js' %}"></script>
 {% endblock %}
 

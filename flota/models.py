@@ -610,7 +610,15 @@ class Viaje(models.Model):
     rut_paciente = models.CharField(max_length=12, blank=True)
     nombre_paciente = models.CharField(max_length=150, blank=True)
     tipo_servicio = models.CharField(max_length=30, choices=TIPOS_SERVICIO, default='Traslado Paciente')
-    km_recorridos_viaje = models.IntegerField(default=0, validators=[MinValueValidator(0)])
+    #km_recorridos_viaje = models.IntegerField(default=0, validators=[MinValueValidator(0)])
+    km_inicio_viaje = models.IntegerField(
+        validators=[MinValueValidator(0)], 
+        verbose_name="KM al inicio del viaje"
+    )
+    km_fin_viaje = models.IntegerField(
+        validators=[MinValueValidator(0)], 
+        verbose_name="KM al final del viaje"
+    )
     
     hoja_ruta = models.ForeignKey(HojaRuta, on_delete=models.CASCADE, related_name='viajes')
     
@@ -621,6 +629,11 @@ class Viaje(models.Model):
     
     def __str__(self):
         return f"Viaje {self.hoja_ruta.vehiculo.patente} - {self.destino}"
+
+    @property
+    def km_recorridos_calculados(self):
+        """Calcula automáticamente los KM recorridos en este viaje"""
+        return max(0, self.km_fin_viaje - self.km_inicio_viaje)
 
 
 class CargaCombustible(models.Model):
@@ -637,7 +650,6 @@ class CargaCombustible(models.Model):
     
     patente_vehiculo = models.ForeignKey(Vehiculo, on_delete=models.PROTECT, related_name='cargas_combustible')
     conductor = models.ForeignKey(Usuario, on_delete=models.PROTECT, related_name='cargas_combustible', null=True, blank=True)
-    proveedor = models.ForeignKey(Proveedor, on_delete=models.SET_NULL, related_name='cargas_combustible', null=True, blank=True)
     
     cuenta_presupuestaria = models.ForeignKey(CuentaPresupuestaria, on_delete=models.SET_NULL, null=True, blank=True)
     

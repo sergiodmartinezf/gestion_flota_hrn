@@ -39,7 +39,8 @@ from .viajes import (
     listar_cargas_combustible,
     registrar_incidente,
     listar_incidentes,
-    exportar_consolidado_viajes
+    exportar_consolidado_viajes,
+    agregar_viaje
 )
 
 # Importar vistas de mantenimiento

@@ -1,0 +1,441 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Agregar Viaje - Gestión de Flota{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* ESTILOS PARA FORMULARIO PASO A PASO DE VIAJE */
+    .viaje-paso {
+        display: none;
+        animation: fadeIn 0.5s ease-in-out;
+        padding: 20px;
+        background: #f8f9fa;
+        border-radius: 8px;
+        margin-bottom: 20px;
+        border-left: 4px solid #198754;
+    }
+    
+    .viaje-paso.activo {
+        display: block;
+    }
+    
+    /* Barra de progreso específica para viaje */
+    .viaje-progreso-container {
+        margin-bottom: 2rem;
+    }
+    
+    .viaje-progreso-bar {
+        width: 100%;
+        height: 8px;
+        background-color: #e9ecef;
+        border-radius: 4px;
+        overflow: hidden;
+        margin-bottom: 8px;
+    }
+    
+    .viaje-progreso-fill {
+        height: 100%;
+        background-color: #198754;
+        border-radius: 4px;
+        transition: width 0.3s ease;
+        width: 0%;
+    }
+    
+    .viaje-progreso-texto {
+        text-align: center;
+        font-size: 0.9rem;
+        color: #6c757d;
+        font-weight: 500;
+    }
+    
+    /* Estructura de los pasos */
+    .viaje-paso-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1.5rem;
+        padding-bottom: 0.75rem;
+        border-bottom: 1px solid #dee2e6;
+    }
+    
+    .viaje-paso-titulo {
+        font-size: 1.25rem;
+        font-weight: 500;
+        color: #212529;
+    }
+    
+    .viaje-paso-titulo i {
+        margin-right: 10px;
+        color: #198754;
+    }
+    
+    .viaje-paso-indicador {
+        background-color: #6c757d;
+        color: white;
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-size: 0.875rem;
+        font-weight: 500;
+    }
+    
+    /* Botones de navegación específicos para viaje */
+    .viaje-nav-pasos {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-top: 2rem;
+        padding-top: 1.5rem;
+        border-top: 1px solid #dee2e6;
+        position: sticky;
+        bottom: 0;
+        background: #f8f9fa;
+        padding: 1rem;
+        border-radius: 8px;
+    }
+    
+    /* Estilo para la información de la hoja de ruta */
+    .hoja-info-card {
+        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+        border-left: 4px solid #0d6efd;
+    }
+    
+    /* Estilo para viajes existentes */
+    .viaje-item {
+        border-left: 3px solid #198754;
+        padding-left: 10px;
+        margin-bottom: 10px;
+    }
+    
+    /* Estilos de error */
+    .error-container {
+        min-height: 24px;
+        position: relative;
+        margin-top: 4px;
+    }
+    
+    .error-mensaje {
+        color: #dc3545;
+        font-size: 0.875em;
+        opacity: 0;
+        visibility: hidden;
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        transition: opacity 0.2s ease;
+        background: #fff;
+        padding: 2px 4px;
+        border-radius: 3px;
+        border: 1px solid #f8d7da;
+        margin: 0;
+    }
+    
+    .error-mensaje.mostrar {
+        opacity: 1;
+        visibility: visible;
+    }
+    
+    .campo-invalido {
+        border-color: #dc3545 !important;
+        background-color: #fff8f8 !important;
+    }
+    
+    /* Animación */
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <h2 class="mb-4"><i class="bi bi-plus-circle"></i> Agregar Viaje a Hoja de Ruta</h2>
+    
+    <!-- Información de la hoja de ruta -->
+    <div class="card hoja-info-card mb-4">
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-3">
+                    <strong>Vehículo:</strong> {{ hoja_ruta.vehiculo.patente }}
+                </div>
+                <div class="col-md-3">
+                    <strong>Fecha:</strong> {{ hoja_ruta.fecha|date:"d/m/Y" }}
+                </div>
+                <div class="col-md-3">
+                    <strong>Turno:</strong> {{ hoja_ruta.get_turno_display }}
+                </div>
+                <div class="col-md-3">
+                    <strong>Conductor:</strong> {{ hoja_ruta.conductor.nombre_completo }}
+                </div>
+            </div>
+            <div class="row mt-2">
+                <div class="col-md-6">
+                    <strong>KM Inicio Hoja:</strong> {{ hoja_ruta.km_inicio }} km
+                </div>
+                <div class="col-md-6">
+                    <strong>Total KM Viajes:</strong> {{ total_km_viajes }} km
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Formulario paso a paso -->
+        <div class="col-lg-8">
+            <div class="alert alert-info">
+                <i class="bi bi-info-circle"></i> Complete el formulario paso a paso para registrar un nuevo viaje. Los campos marcados con * son obligatorios.
+            </div>
+
+            <!-- Barra de progreso -->
+            <div class="viaje-progreso-container">
+                <div class="viaje-progreso-bar">
+                    <div class="viaje-progreso-fill" id="viaje-progreso-fill"></div>
+                </div>
+                <div class="viaje-progreso-texto" id="viaje-progreso-texto">Paso 1 de 6</div>
+            </div>
+
+            <form method="post" id="form-viaje-pasos" novalidate data-hoja-ruta-id="{{ hoja_ruta.id }}">
+                {% csrf_token %}
+                
+                <!-- Paso 1: Hora de salida -->
+                <div class="viaje-paso activo" id="viaje-paso-1">
+                    <div class="viaje-paso-header">
+                        <div class="viaje-paso-titulo"><i class="bi bi-clock"></i> Hora de Salida</div>
+                        <div class="viaje-paso-indicador">Paso 1</div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="id_hora_salida" class="form-label">Hora de Salida *</label>
+                        <input type="time" name="hora_salida" id="id_hora_salida" class="form-control" required
+                               value="{% if form.hora_salida.value %}{{ form.hora_salida.value }}{% endif %}">
+                        <div class="error-container">
+                            <div class="error-mensaje" id="error-hora_salida">Debe ingresar la hora de salida</div>
+                        </div>
+                        <small class="text-muted">Hora aproximada en que el vehículo sale del establecimiento</small>
+                    </div>
+                </div>
+
+                <!-- Paso 2: Hora de llegada (opcional) -->
+                <div class="viaje-paso" id="viaje-paso-2">
+                    <div class="viaje-paso-header">
+                        <div class="viaje-paso-titulo"><i class="bi bi-clock-history"></i> Hora de Llegada</div>
+                        <div class="viaje-paso-indicador">Paso 2</div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="id_hora_llegada" class="form-label">Hora de Llegada (opcional)</label>
+                        <input type="time" name="hora_llegada" id="id_hora_llegada" class="form-control"
+                               value="{% if form.hora_llegada.value %}{{ form.hora_llegada.value }}{% endif %}">
+                        <small class="text-muted">Deje en blanco si aún no ha regresado</small>
+                    </div>
+                </div>
+
+                <!-- Paso 3: Destino -->
+                <div class="viaje-paso" id="viaje-paso-3">
+                    <div class="viaje-paso-header">
+                        <div class="viaje-paso-titulo"><i class="bi bi-geo-alt"></i> Destino</div>
+                        <div class="viaje-paso-indicador">Paso 3</div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="id_destino" class="form-label">Destino *</label>
+                        <input type="text" name="destino" id="id_destino" class="form-control" 
+                               placeholder="Ej: Hospital Base Osorno, Clínica, Domicilio particular" required
+                               value="{% if form.destino.value %}{{ form.destino.value }}{% endif %}">
+                        <div class="error-container">
+                            <div class="error-mensaje" id="error-destino">Debe ingresar un destino</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Paso 4: Datos del paciente (opcional) -->
+                <div class="viaje-paso" id="viaje-paso-4">
+                    <div class="viaje-paso-header">
+                        <div class="viaje-paso-titulo"><i class="bi bi-person"></i> Datos del Paciente</div>
+                        <div class="viaje-paso-indicador">Paso 4</div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="id_rut_paciente" class="form-label">RUT Paciente (opcional)</label>
+                        <input type="text" name="rut_paciente" id="id_rut_paciente" class="form-control" 
+                               placeholder="12345678-9" value="{% if form.rut_paciente.value %}{{ form.rut_paciente.value }}{% endif %}">
+                    </div>
+                    <div class="mb-3">
+                        <label for="id_nombre_paciente" class="form-label">Nombre Paciente (opcional)</label>
+                        <input type="text" name="nombre_paciente" id="id_nombre_paciente" class="form-control" 
+                               placeholder="Nombre completo del paciente" value="{% if form.nombre_paciente.value %}{{ form.nombre_paciente.value }}{% endif %}">
+                    </div>
+                </div>
+
+                <!-- Paso 5: Tipo de servicio y kilometraje -->
+                <div class="viaje-paso" id="viaje-paso-5">
+                    <div class="viaje-paso-header">
+                        <div class="viaje-paso-titulo"><i class="bi bi-truck"></i> Servicio y Kilometraje</div>
+                        <div class="viaje-paso-indicador">Paso 5</div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="id_tipo_servicio" class="form-label">Tipo de Servicio *</label>
+                        <select name="tipo_servicio" id="id_tipo_servicio" class="form-control" required>
+                            {% for value, label in form.tipo_servicio.field.choices %}
+                                <option value="{{ value }}" {% if form.tipo_servicio.value == value %}selected{% endif %}>
+                                    {{ label }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                        <div class="error-container">
+                            <div class="error-mensaje" id="error-tipo_servicio">Debe seleccionar un tipo de servicio</div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="id_km_inicio_viaje" class="form-label">KM al salir *</label>
+                            <input type="number" name="km_inicio_viaje" id="id_km_inicio_viaje" 
+                                   class="form-control" min="0" step="1" required
+                                   value="{% if form.km_inicio_viaje.value %}{{ form.km_inicio_viaje.value }}{% else %}{{ form.km_inicio_viaje.field.initial }}{% endif %}">
+                            <div class="error-container">
+                                <div class="error-mensaje" id="error-km_inicio_viaje">Debe ingresar el KM inicial</div>
+                            </div>
+                            <small class="text-muted">Se autocompleta con el KM anterior</small>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="id_km_fin_viaje" class="form-label">KM al llegar *</label>
+                            <input type="number" name="km_fin_viaje" id="id_km_fin_viaje" 
+                                   class="form-control" min="0" step="1" required
+                                   value="{% if form.km_fin_viaje.value %}{{ form.km_fin_viaje.value }}{% endif %}">
+                            <div class="error-container">
+                                <div class="error-mensaje" id="error-km_fin_viaje">Debe ingresar el KM final</div>
+                            </div>
+                            <small class="text-muted d-block mt-1">
+                                KM Recorridos: <span id="km-recorridos-calculados">0</span> km
+                            </small>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Paso 6: Resumen -->
+                <div class="viaje-paso" id="viaje-paso-6">
+                    <div class="viaje-paso-header">
+                        <div class="viaje-paso-titulo"><i class="bi bi-check-circle"></i> Resumen del Viaje</div>
+                        <div class="viaje-paso-indicador">Paso 6</div>
+                    </div>
+                    <div class="card">
+                        <div class="card-body">
+                            <h5 class="card-title">Revise los datos del viaje:</h5>
+                            <div id="viaje-resumen-datos">
+                                <!-- Los datos se llenarán con JavaScript -->
+                            </div>
+                        </div>
+                    </div>
+                    <div class="alert alert-warning mt-3">
+                        <i class="bi bi-exclamation-triangle"></i> Verifique que toda la información sea correcta antes de enviar.
+                    </div>
+                </div>
+
+                <!-- Navegación -->
+                <div class="viaje-nav-pasos">
+                    <button type="button" id="btn-viaje-anterior" class="btn btn-secondary" disabled>
+                        <i class="bi bi-arrow-left"></i> Anterior
+                    </button>
+                    <button type="button" id="btn-viaje-siguiente" class="btn btn-primary">
+                        Siguiente <i class="bi bi-arrow-right"></i>
+                    </button>
+                    <button type="submit" id="btn-viaje-enviar" class="btn btn-success" style="display: none;">
+                        <i class="bi bi-check-lg"></i> Agregar Viaje
+                    </button>
+                    <a href="{% url 'detalle_bitacora' id=hoja_ruta.id %}" class="btn btn-outline-secondary">
+                        <i class="bi bi-x-circle"></i> Cancelar
+                    </a>
+                </div>
+                
+                <!-- Campos ocultos para envío del formulario -->
+                <div style="display: none;">
+                    <input type="time" name="hora_salida" id="viaje_hidden_hora_salida">
+                    <input type="time" name="hora_llegada" id="viaje_hidden_hora_llegada">
+                    <input type="text" name="destino" id="viaje_hidden_destino">
+                    <input type="text" name="rut_paciente" id="viaje_hidden_rut_paciente">
+                    <input type="text" name="nombre_paciente" id="viaje_hidden_nombre_paciente">
+                    <select name="tipo_servicio" id="viaje_hidden_tipo_servicio">
+                        {% for value, label in form.tipo_servicio.field.choices %}
+                            <option value="{{ value }}">{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                    <input type="number" name="km_inicio_viaje" id="viaje_hidden_km_inicio_viaje">
+                    <input type="number" name="km_fin_viaje" id="viaje_hidden_km_fin_viaje">
+                </div>
+            </form>
+        </div>
+
+        <!-- Panel lateral: Viajes existentes -->
+        <div class="col-lg-4">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <i class="bi bi-list-ul"></i> Viajes Registrados ({{ viajes_existentes|length }})
+                </div>
+                <div class="card-body">
+                    {% if viajes_existentes %}
+                        <div class="list-group">
+                            {% for viaje in viajes_existentes %}
+                                <div class="list-group-item viaje-item">
+                                    <div class="d-flex w-100 justify-content-between">
+                                        <h6 class="mb-1">{{ viaje.destino|truncatechars:30 }}</h6>
+                                        <small>{{ viaje.hora_salida|time:"H:i" }}</small>
+                                    </div>
+                                    <p class="mb-1">
+                                        <small>
+                                            <strong>Paciente:</strong> {{ viaje.nombre_paciente|default:"N/A" }}<br>
+                                            <strong>Tipo:</strong> {{ viaje.tipo_servicio }}<br>
+                                            <strong>KM:</strong> {{ viaje.km_recorridos_viaje }} km
+                                            {% if viaje.hora_llegada %}
+                                            <br><strong>Llegada:</strong> {{ viaje.hora_llegada|time:"H:i" }}
+                                            {% endif %}
+                                        </small>
+                                    </p>
+                                </div>
+                            {% endfor %}
+                        </div>
+                        <div class="mt-3 text-center">
+                            <strong>Total KM Recorridos: {{ total_km_viajes }} km</strong>
+                        </div>
+                    {% else %}
+                        <p class="text-muted text-center">No hay viajes registrados aún.</p>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <!-- Información útil -->
+            <div class="card mt-3">
+                <div class="card-header bg-info text-white">
+                    <i class="bi bi-lightbulb"></i> Recomendaciones
+                </div>
+                <div class="card-body">
+                    <ul class="list-unstyled">
+                        <li><i class="bi bi-check-circle text-success"></i> Registre la hora de salida real</li>
+                        <li><i class="bi bi-check-circle text-success"></i> Ingrese el destino con claridad</li>
+                        <li><i class="bi bi-check-circle text-success"></i> Verifique el kilometraje antes y después</li>
+                        <li><i class="bi bi-check-circle text-success"></i> Complete datos del paciente cuando aplique</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if request.GET.hoja_guardada %}
+<div class="alert alert-success mt-4">
+    <h5><i class="bi bi-check-circle-fill"></i> Hoja de Ruta Guardada</h5>
+    <p>Ahora puede agregar los viajes realizados durante este turno.</p>
+    <div class="mt-3">
+        <a href="{% url 'agregar_viaje' id=hoja_ruta.id %}" class="btn btn-success">
+            <i class="bi bi-plus-circle"></i> Agregar Primer Viaje
+        </a>
+        <a href="{% url 'listar_bitacoras' %}" class="btn btn-outline-secondary">
+            <i class="bi bi-list"></i> Ver Todas las Hojas
+        </a>
+    </div>
+</div>
+{% endif %}
+
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/agregar_viaje.js' %}"></script>
+{% endblock %}
+

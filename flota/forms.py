@@ -212,19 +212,43 @@ class HojaRutaForm(forms.ModelForm):
 class ViajeForm(forms.ModelForm):
     class Meta:
         model = Viaje
-        fields = [
-            'hora_salida', 'hora_llegada', 'destino', 'rut_paciente', 
-            'nombre_paciente', 'tipo_servicio', 'km_recorridos_viaje'
-        ]
-        widgets = {
-            'hora_salida': forms.TimeInput(attrs={'class': 'form-control', 'type': 'time'}),
-            'hora_llegada': forms.TimeInput(attrs={'class': 'form-control', 'type': 'time'}),
-            'destino': forms.TextInput(attrs={'class': 'form-control'}),
-            'rut_paciente': forms.TextInput(attrs={'class': 'form-control'}),
-            'nombre_paciente': forms.TextInput(attrs={'class': 'form-control'}),
-            'tipo_servicio': forms.Select(attrs={'class': 'form-control'}),
-            'km_recorridos_viaje': forms.NumberInput(attrs={'class': 'form-control'}),
-        }
+        fields = ['hora_salida', 'hora_llegada', 'destino', 'rut_paciente', 
+                  'nombre_paciente', 'tipo_servicio', 'km_inicio_viaje', 'km_fin_viaje']
+    
+    def __init__(self, *args, **kwargs):
+        self.hoja_ruta = kwargs.pop('hoja_ruta', None)
+        super().__init__(*args, **kwargs)
+        
+        if self.hoja_ruta:
+            # KM inicio por defecto = KM final del último viaje o KM inicio de la hoja
+            ultimo_viaje = self.hoja_ruta.viajes.last()
+            if ultimo_viaje:
+                self.fields['km_inicio_viaje'].initial = ultimo_viaje.km_fin_viaje
+            else:
+                self.fields['km_inicio_viaje'].initial = self.hoja_ruta.km_inicio
+    
+    def clean(self):
+        cleaned_data = super().clean()
+        km_inicio = cleaned_data.get('km_inicio_viaje')
+        km_fin = cleaned_data.get('km_fin_viaje')
+        
+        # Validar que KM fin >= KM inicio
+        if km_fin and km_inicio and km_fin < km_inicio:
+            raise forms.ValidationError("El KM final no puede ser menor al KM inicial")
+        
+        # Validar que no haya saltos de KM (consistencia)
+        if self.hoja_ruta and km_inicio:
+            # El KM inicio debe coincidir con el KM fin del viaje anterior
+            # o con el KM inicio de la hoja (si es el primer viaje)
+            ultimo_viaje = self.hoja_ruta.viajes.last()
+            if ultimo_viaje:
+                if km_inicio != ultimo_viaje.km_fin_viaje:
+                    raise forms.ValidationError(
+                        f"El KM inicial ({km_inicio}) debe coincidir con el KM final "
+                        f"del viaje anterior ({ultimo_viaje.km_fin_viaje})"
+                    )
+        
+        return cleaned_data
 
 
 class CargaCombustibleForm(forms.ModelForm):
@@ -233,7 +257,7 @@ class CargaCombustibleForm(forms.ModelForm):
         fields = [
             'fecha', 'patente_vehiculo', 'kilometraje_al_cargar',
             'litros', 'precio_unitario', 'costo_total', 'nro_boleta',
-            'proveedor', 'conductor', 'cuenta_presupuestaria'
+            'conductor', 'cuenta_presupuestaria'
         ]
         widgets = {
             'fecha': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
@@ -243,7 +267,6 @@ class CargaCombustibleForm(forms.ModelForm):
             'precio_unitario': forms.NumberInput(attrs={'class': 'form-control', 'step': '1', 'min': '0'}),
             'costo_total': forms.NumberInput(attrs={'class': 'form-control', 'step': '1', 'min': '0'}),
             'nro_boleta': forms.TextInput(attrs={'class': 'form-control'}),
-            'proveedor': forms.Select(attrs={'class': 'form-control'}),
             'conductor': forms.Select(attrs={'class': 'form-control'}),
             'cuenta_presupuestaria': forms.Select(attrs={'class': 'form-control'}),
         }
@@ -252,12 +275,15 @@ class CargaCombustibleForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         if self.instance.pk and self.instance.fecha:
             self.fields['fecha'].widget.attrs['value'] = self.instance.fecha.strftime('%Y-%m-%d')
-        self.fields['proveedor'].required = False
 
         # REQ: Filtrar vehículos que no esten en mantenimiento ni de baja
         self.fields['patente_vehiculo'].queryset = Vehiculo.objects.filter(
             estado__in=['Disponible', 'En uso']
         ).order_by('patente')
+
+        # Auto-seleccionar conductor actual
+        if not self.instance.pk:
+            self.fields['conductor'].initial = self.initial.get('conductor')
 
 
 class MantenimientoForm(forms.ModelForm):

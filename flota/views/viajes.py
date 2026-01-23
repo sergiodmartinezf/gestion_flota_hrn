@@ -5,8 +5,8 @@ from django.db.models import Sum
 from django.http import HttpResponse
 from django.utils import timezone
 import xlwt
-from ..models import HojaRuta, CargaCombustible, FallaReportada, AlertaMantencion, Viaje, Vehiculo, Proveedor
-from ..forms import HojaRutaForm, CargaCombustibleForm, FallaReportadaForm
+from ..models import HojaRuta, CargaCombustible, FallaReportada, AlertaMantencion, Viaje, Vehiculo
+from ..forms import HojaRutaForm, CargaCombustibleForm, FallaReportadaForm, ViajeForm
 from .utilidades import es_conductor_o_admin, es_administrador
 
 # RF_15: Registrar bitácora (Hoja de Ruta)
@@ -17,44 +17,23 @@ def registrar_bitacora(request):
         form = HojaRutaForm(request.POST)
         if form.is_valid():
             hoja_ruta = form.save(commit=False)
-            hoja_ruta.conductor = request.user
+            hoja_ruta.conductor = request.user  # ¡IMPORTANTE!
             hoja_ruta.save()
-
-            vehiculo = hoja_ruta.vehiculo
-
-            # Actualizar kilometraje del vehículo
-            if vehiculo.kilometraje_actual < hoja_ruta.km_fin:
-                vehiculo.kilometraje_actual = hoja_ruta.km_fin
-
-                # REQ: Alerta de kilometraje para próximo mantenimiento
-                if vehiculo.umbral_mantencion > 0:
-                    km_faltantes = vehiculo.kilometraje_para_mantencion
-                    if km_faltantes <= 500: # Umbral de aviso: 500 km antes
-                        # Crear alerta/notificación
-                        AlertaMantencion.objects.get_or_create(
-                            vehiculo=vehiculo,
-                            vigente=True,
-                            defaults={
-                                'descripcion': f'Alerta de proximidad: Faltan {km_faltantes} km para mantenimiento preventivo.',
-                                'valor_umbral': vehiculo.umbral_mantencion
-                            }
-                        )
-                        # REQ: Notificación visual inmediata
-                        messages.warning(request, f'⚠️ ATENCIÓN: Al vehículo {vehiculo.patente} le quedan solo {km_faltantes} km para su mantenimiento.')
-
-                vehiculo.save()
-
-            elif hoja_ruta.km_fin < vehiculo.kilometraje_actual:
-                messages.warning(request, f'El kilometraje final ({hoja_ruta.km_fin}) es menor al actual ({vehiculo.kilometraje_actual}). Verifique.')
-                return render(request, 'flota/registrar_bitacora.html', {'form': form})
-
-            messages.success(request, 'Bitácora registrada exitosamente.')
-            return redirect('listar_bitacoras')
+            
+            # DEBUG: Mostrar mensaje de éxito
+            messages.success(request, f'Hoja de ruta creada exitosamente (ID: {hoja_ruta.id})')
+            
+            return redirect('agregar_viaje', id=hoja_ruta.id)
+        else:
+            # DEBUG: Mostrar errores del formulario
+            for field, errors in form.errors.items():
+                for error in errors:
+                    messages.error(request, f'Error en {field}: {error}')
     else:
         form = HojaRutaForm()
-        # El filtrado de vehículos ya está en el __init__ del form
-
-    return render(request, 'flota/registrar_bitacora.html', {'form': form})
+    
+    template = 'flota/registrar_bitacora_conductor.html' if request.user.rol == 'Conductor' else 'flota/registrar_bitacora.html'
+    return render(request, template, {'form': form})
 
 
 @login_required
@@ -64,6 +43,8 @@ def listar_bitacoras(request):
         bitacoras = HojaRuta.objects.filter(conductor=request.user).order_by('-fecha', '-creado_en')
     else:
         bitacoras = HojaRuta.objects.all()
+
+    messages.info(request, f'Mostrando {bitacoras.count()} bitácoras')
 
     # Filtro por vehículo
     vehiculo_filtro = request.GET.get('vehiculo')
@@ -101,13 +82,14 @@ def modificar_bitacora(request, id):
     return render(request, 'flota/modificar_bitacora.html', {'form': form, 'hoja': hoja})
 
 
-# --- NUEVA VISTA DETALLE BITÁCORA (REQ: Ficha detallada) ---
+# --- NUEVA VISTA DETALLE BITÁCORA ---
 @login_required
 def detalle_bitacora(request, id):
     hoja = get_object_or_404(HojaRuta, id=id)
     viajes = hoja.viajes.all()
-    # Calcular totales
-    total_km_viajes = viajes.aggregate(Sum('km_recorridos_viaje'))['km_recorridos_viaje__sum'] or 0
+    
+    # Calcular totales usando la propiedad calculada
+    total_km_viajes = sum(v.km_recorridos_calculados for v in viajes)
 
     return render(request, 'flota/detalle_bitacora.html', {
         'hoja': hoja,
@@ -128,6 +110,12 @@ def registrar_carga_combustible(request):
                 if request.user.rol == 'Conductor':
                     carga.conductor = request.user
                 carga.save()
+                # Actualizar kilometraje del vehículo
+                if carga.kilometraje_al_cargar:
+                    vehiculo = carga.patente_vehiculo
+                    if carga.kilometraje_al_cargar > vehiculo.kilometraje_actual:
+                        vehiculo.kilometraje_actual = carga.kilometraje_al_cargar
+                        vehiculo.save()
                 messages.success(request, 'Carga de combustible registrada exitosamente.')
                 return redirect('listar_cargas_combustible')
             except Exception as e:
@@ -139,8 +127,6 @@ def registrar_carga_combustible(request):
                     messages.error(request, f'{field}: {error}')
     else:
         form = CargaCombustibleForm()
-        # Filtrar proveedores activos
-        form.fields['proveedor'].queryset = Proveedor.objects.filter(activo=True).order_by('nombre_fantasia')
     
     return render(request, 'flota/registrar_carga_combustible.html', {'form': form})
 
@@ -271,3 +257,44 @@ def exportar_consolidado_viajes(request):
     return response
 
 
+@login_required
+@user_passes_test(es_conductor_o_admin)
+def agregar_viaje(request, id):
+    hoja_ruta = get_object_or_404(HojaRuta, id=id)
+    
+    if request.method == 'POST':
+        form = ViajeForm(request.POST, hoja_ruta=hoja_ruta)
+        if form.is_valid():
+            viaje = form.save(commit=False)
+            viaje.hoja_ruta = hoja_ruta
+            viaje.save()
+            
+            # ✅ Actualizar vehículo con el KM más alto registrado
+            vehiculo = hoja_ruta.vehiculo
+            if viaje.km_fin_viaje > vehiculo.kilometraje_actual:
+                vehiculo.kilometraje_actual = viaje.km_fin_viaje
+                vehiculo.save()
+                
+                # Verificar alertas de mantenimiento
+                if vehiculo.kilometraje_para_mantencion <= 500:
+                    messages.warning(request, 
+                        f'⚠️ Al vehículo {vehiculo.patente} le quedan {vehiculo.kilometraje_para_mantencion} km para mantenimiento')
+            
+            messages.success(request, 
+                f'Viaje registrado: {viaje.km_recorridos_calculados} km recorridos')
+            
+            # ✅ Redirigir para agregar otro viaje (con KM inicial prellenado)
+            return redirect('agregar_viaje', id=hoja_ruta.id)
+    else:
+        form = ViajeForm(hoja_ruta=hoja_ruta)
+    
+    # Calcular resumen
+    total_km_viajes = sum(v.km_recorridos_calculados for v in hoja_ruta.viajes.all())
+    
+    return render(request, 'flota/agregar_viaje.html', {
+        'form': form,
+        'hoja_ruta': hoja_ruta,
+        'viajes_existentes': hoja_ruta.viajes.all(),
+        'total_km_viajes': total_km_viajes
+    })
+    
