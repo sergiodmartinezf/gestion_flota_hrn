@@ -1,348 +1,258 @@
 {% extends 'base.html' %}
 {% load static %}
 
-{% block title %}Registrar Bitácora - Conductor{% endblock %}
+{% block title %}Registrar Salida - Conductor{% endblock %}
 
 {% block extra_css %}
 <style>
     .form-paso {
         display: none;
-        animation: fadeIn 0.5s ease-in-out;
-        padding: 20px;
-        background: #f8f9fa;
-        border-radius: 8px;
+        animation: fadeIn 0.4s ease-in-out;
+        padding: 25px;
+        background: #fff;
+        border-radius: 12px;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.05);
         margin-bottom: 20px;
-        border-left: 4px solid #0d6efd;
+        border-top: 5px solid #0d6efd;
     }
     
     .form-paso.activo {
         display: block;
     }
     
-    /* ESTILOS PARA MENSAJES DE ERROR CON ESPACIO FIJO */
-    .error-container {
-        min-height: 24px; /* Altura fija para evitar movimiento */
-        position: relative;
-        margin-top: 4px;
-    }
-    
-    .error-mensaje {
-        color: #dc3545;
-        font-size: 0.875em;
-        opacity: 0;
-        visibility: hidden;
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        transition: opacity 0.2s ease;
-        background: #fff;
-        padding: 2px 4px;
-        border-radius: 3px;
-        border: 1px solid #f8d7da;
-        margin: 0;
-    }
-    
-    .error-mensaje.mostrar {
-        opacity: 1;
-        visibility: visible;
-    }
-    
-    /* Estilo para campos inválidos */
-    .campo-invalido {
-        border-color: #dc3545 !important;
-        background-color: #fff8f8 !important;
-    }
-    
-    /* Asegurar que los contenedores mantengan su espacio */
-    .mb-3 {
-        margin-bottom: 1.5rem !important; /* Espacio consistente */
-    }
-    
-    /* Barra de progreso */
-    .progreso-container {
-        margin-bottom: 2rem;
-    }
-    
-    .progreso-bar {
-        width: 100%;
-        height: 8px;
-        background-color: #e9ecef;
-        border-radius: 4px;
-        overflow: hidden;
-        margin-bottom: 8px;
-    }
-    
-    .progreso-fill {
-        height: 100%;
-        background-color: #0d6efd;
-        border-radius: 4px;
-        transition: width 0.3s ease;
-        width: 0%;
-    }
-    
-    .progreso-texto {
-        text-align: center;
-        font-size: 0.9rem;
-        color: #6c757d;
-        font-weight: 500;
-    }
-    
-    /* Estructura de los pasos */
     .paso-header {
         display: flex;
         justify-content: space-between;
         align-items: center;
         margin-bottom: 1.5rem;
-        padding-bottom: 0.75rem;
-        border-bottom: 1px solid #dee2e6;
+        padding-bottom: 1rem;
+        border-bottom: 1px solid #f0f0f0;
     }
+
+    .paso-titulo { font-size: 1.3rem; font-weight: 600; color: #2c3e50; }
+    .paso-titulo i { color: #0d6efd; margin-right: 10px; }
+    .paso-indicador { background: #e9ecef; color: #495057; padding: 5px 12px; border-radius: 20px; font-size: 0.85rem; font-weight: 600; }
     
-    .paso-titulo {
-        font-size: 1.25rem;
-        font-weight: 500;
-        color: #212529;
-    }
-    
-    .paso-titulo i {
-        margin-right: 10px;
-        color: #0d6efd;
-    }
-    
-    .paso-indicador {
-        background-color: #6c757d;
-        color: white;
-        padding: 4px 12px;
-        border-radius: 20px;
-        font-size: 0.875rem;
-        font-weight: 500;
-    }
-    
-    /* Botones de navegación */
-    .nav-pasos {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-top: 2rem;
-        padding-top: 1.5rem;
-        border-top: 1px solid #dee2e6;
-        position: sticky;
-        bottom: 0;
-        background: #f8f9fa;
-        padding: 1rem;
-        border-radius: 8px;
-    }
-    
-    /* Asegurar que los botones no se muevan */
-    .nav-pasos > * {
-        margin: 0 5px;
-    }
-    
-    /* Botón cancelar específico */
-    #btn-cancelar {
-        margin-left: auto;
-    }
+    /* Barra de progreso */
+    .progreso-container { margin-bottom: 2rem; padding: 0 10px; }
+    .progreso-bar { width: 100%; height: 10px; background-color: #e9ecef; border-radius: 5px; overflow: hidden; margin-bottom: 8px; }
+    .progreso-fill { height: 100%; background: linear-gradient(90deg, #0d6efd, #0dcaf0); border-radius: 5px; transition: width 0.4s ease; width: 0%; }
+    .progreso-texto { text-align: right; font-size: 0.85rem; color: #6c757d; font-weight: 600; }
+
+    /* Validaciones */
+    .campo-invalido { border-color: #dc3545 !important; background-color: #fff8f8 !important; }
+    .error-mensaje { color: #dc3545; font-size: 0.85em; margin-top: 4px; display: none; }
+    .error-mensaje.mostrar { display: block; animation: slideDown 0.2s; }
+
+    /* Botones */
+    .nav-pasos { display: flex; justify-content: space-between; margin-top: 2rem; padding: 1rem; background: #fff; border-radius: 12px; box-shadow: 0 -2px 10px rgba(0,0,0,0.05); }
+
+    @keyframes slideDown { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 </style>
 {% endblock %}
 
 {% block content %}
-<h2 class="mb-4"><i class="bi bi-journal-text"></i> Registrar Bitácora - Conductor</h2>
+<div class="container py-3">
+    <h2 class="mb-4 text-primary"><i class="bi bi-steering-wheel"></i> Registrar Nueva Salida</h2>
 
-<div class="alert alert-info">
-    <i class="bi bi-info-circle"></i> Complete el formulario paso a paso. Los campos marcados con * son obligatorios.
-</div>
-
-<!-- Barra de progreso -->
-<div class="progreso-container">
-    <div class="progreso-bar">
-        <div class="progreso-fill" id="progreso-fill"></div>
-    </div>
-    <div class="progreso-texto" id="progreso-texto">Paso 1 de 8</div>
-</div>
-
-<form method="post" id="form-pasos" novalidate>
-    {% csrf_token %}
-    
-    <!-- Paso 1: Vehículo -->
-    <div class="form-paso activo" id="paso-1" data-campo="vehiculo">
-        <div class="paso-header">
-            <div class="paso-titulo"><i class="bi bi-car-front"></i> Seleccionar Vehículo</div>
-            <div class="paso-indicador">Paso 1</div>
+    <div class="progreso-container">
+        <div class="progreso-bar">
+            <div class="progreso-fill" id="progreso-fill"></div>
         </div>
-        <div class="mb-3">
-            <label for="id_vehiculo" class="form-label">Vehículo asignado *</label>
-            <select name="vehiculo" id="id_vehiculo" class="form-control">
-                <option value="">Seleccione un vehículo</option>
-                {% for vehiculo in form.vehiculo.field.queryset %}
-                    <option value="{{ vehiculo.pk }}">{{ vehiculo.patente }} - {{ vehiculo.marca }} {{ vehiculo.modelo }}</option>
-                {% endfor %}
-            </select>
-            <div class="error-container">
-                <div class="error-mensaje" id="error-vehiculo">Debe seleccionar un vehículo</div>
+        <div class="progreso-texto" id="progreso-texto">Paso 1 de 6</div>
+    </div>
+
+    <form method="post" id="form-pasos" novalidate>
+        {% csrf_token %}
+        
+        <div class="form-paso activo" id="paso-1" data-titulo="Datos del Vehículo">
+            <div class="paso-header">
+                <div class="paso-titulo"><i class="bi bi-car-front-fill"></i> Vehículo y Turno</div>
+                <div class="paso-indicador">Paso 1</div>
             </div>
-        </div>
-    </div>
-
-    <!-- Paso 2: Fecha -->
-    <div class="form-paso" id="paso-2" data-campo="fecha">
-        <div class="paso-header">
-            <div class="paso-titulo"><i class="bi bi-calendar"></i> Fecha del Turno</div>
-            <div class="paso-indicador">Paso 2</div>
-        </div>
-        <div class="mb-3">
-            <label for="id_fecha" class="form-label">Fecha *</label>
-            <input type="date" name="fecha" id="id_fecha" class="form-control" value="{% now 'Y-m-d' %}">
-            <div class="error-container">
-                <div class="error-mensaje" id="error-fecha">Debe ingresar una fecha válida</div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Paso 3: Turno -->
-    <div class="form-paso" id="paso-3" data-campo="turno">
-        <div class="paso-header">
-            <div class="paso-titulo"><i class="bi bi-clock"></i> Turno de Trabajo</div>
-            <div class="paso-indicador">Paso 3</div>
-        </div>
-        <div class="mb-3">
-            <label for="id_turno" class="form-label">Turno *</label>
-            <select name="turno" id="id_turno" class="form-control">
-                <option value="">Seleccione un turno</option>
-                {% for value, label in form.turno.field.choices %}
-                    <option value="{{ value }}">{{ label }}</option>
-                {% endfor %}
-            </select>
-            <div class="error-container">
-                <div class="error-mensaje" id="error-turno">Debe seleccionar un turno</div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Paso 4: KM Inicio -->
-    <div class="form-paso" id="paso-4" data-campo="km_inicio">
-        <div class="paso-header">
-            <div class="paso-titulo"><i class="bi bi-speedometer"></i> Kilometraje Inicial</div>
-            <div class="paso-indicador">Paso 4</div>
-        </div>
-        <div class="mb-3">
-            <label for="id_km_inicio" class="form-label">Kilometraje al inicio del turno *</label>
-            <input type="number" name="km_inicio" id="id_km_inicio" class="form-control" min="0" step="1">
-            <div class="error-container">
-                <div class="error-mensaje" id="error-km_inicio">Debe ingresar un valor numérico positivo</div>
-            </div>
-            <small class="text-muted">KM actual del vehículo: <span id="km-actual-vehiculo">0</span></small>
-        </div>
-    </div>
-
-    <!-- Paso 5: KM Fin -->
-    <div class="form-paso" id="paso-5" data-campo="km_fin">
-        <div class="paso-header">
-            <div class="paso-titulo"><i class="bi bi-speedometer2"></i> Kilometraje Final Estimado</div>
-            <div class="paso-indicador">Paso 5</div>
-        </div>
-        <div class="mb-3">
-            <label for="id_km_fin" class="form-label">Kilometraje al final del turno (estimado) *</label>
-            <input type="number" name="km_fin" id="id_km_fin" class="form-control" min="0" step="1">
-            <div class="error-container">
-                <div class="error-mensaje" id="error-km_fin">Debe ser mayor o igual al KM inicial</div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Paso 6: Personal Médico -->
-    <div class="form-paso" id="paso-6" data-campo="personal">
-        <div class="paso-header">
-            <div class="paso-titulo"><i class="bi bi-person-badge"></i> Personal Médico</div>
-            <div class="paso-indicador">Paso 6</div>
-        </div>
-        <div class="mb-3">
-            <label for="id_medico" class="form-label">Médico (opcional)</label>
-            <input type="text" name="medico" id="id_medico" class="form-control" placeholder="Nombre del Médico">
-        </div>
-        <div class="mb-3">
-            <label for="id_enfermero" class="form-label">Enfermero/a (opcional)</label>
-            <input type="text" name="enfermero" id="id_enfermero" class="form-control" placeholder="Nombre Enfermero/a">
-        </div>
-        <div class="mb-3">
-            <label for="id_tens" class="form-label">TENS (opcional)</label>
-            <input type="text" name="tens" id="id_tens" class="form-control" placeholder="Nombre TENS">
-        </div>
-        <div class="mb-3">
-            <label for="id_camillero" class="form-label">Camillero (opcional)</label>
-            <input type="text" name="camillero" id="id_camillero" class="form-control" placeholder="Nombre Camillero">
-        </div>
-    </div>
-
-    <!-- Paso 7: Observaciones -->
-    <div class="form-paso" id="paso-7" data-campo="observaciones">
-        <div class="paso-header">
-            <div class="paso-titulo"><i class="bi bi-chat-text"></i> Observaciones</div>
-            <div class="paso-indicador">Paso 7</div>
-        </div>
-        <div class="mb-3">
-            <label for="id_observaciones" class="form-label">Observaciones Generales (opcional)</label>
-            <textarea name="observaciones" id="id_observaciones" class="form-control" rows="3"></textarea>
-        </div>
-    </div>
-
-    <!-- Paso 8: Resumen -->
-    <div class="form-paso" id="paso-8" data-campo="resumen">
-        <div class="paso-header">
-            <div class="paso-titulo"><i class="bi bi-check-circle"></i> Resumen</div>
-            <div class="paso-indicador">Paso 8</div>
-        </div>
-        <div class="card">
-            <div class="card-body">
-                <h5 class="card-title">Revise los datos ingresados:</h5>
-                <div id="resumen-datos">
-                    <!-- Los datos se llenarán con JavaScript -->
+            <div class="row g-3">
+                <div class="col-md-12">
+                    <label for="id_vehiculo" class="form-label">Vehículo *</label>
+                    <select name="vehiculo" id="id_vehiculo" class="form-select form-select-lg" required>
+                        <option value="">Seleccione el vehículo...</option>
+                        {% for vehiculo in form.vehiculo.field.queryset %}
+                            <option value="{{ vehiculo.pk }}">{{ vehiculo.patente }} - {{ vehiculo.marca }} {{ vehiculo.modelo }}</option>
+                        {% endfor %}
+                    </select>
+                    <div class="error-mensaje" id="error-vehiculo">Debe seleccionar un vehículo</div>
+                </div>
+                <div class="col-md-6">
+                    <label for="id_fecha" class="form-label">Fecha *</label>
+                    <input type="date" name="fecha" id="id_fecha" class="form-control" value="{% now 'Y-m-d' %}" required>
+                </div>
+                <div class="col-md-6">
+                    <label for="id_turno" class="form-label">Turno *</label>
+                    <select name="turno" id="id_turno" class="form-select" required>
+                        <option value="">Seleccione turno...</option>
+                        {% for value, label in form.turno.field.choices %}
+                            {% if value != "" %}<option value="{{ value }}">{{ label }}</option>{% endif %}
+                        {% endfor %}
+                    </select>
+                    <div class="error-mensaje" id="error-turno">Seleccione un turno</div>
                 </div>
             </div>
         </div>
-        <div class="alert alert-warning mt-3">
-            <i class="bi bi-exclamation-triangle"></i> Verifique que toda la información sea correcta antes de enviar.
-        </div>
-    </div>
 
-    <!-- Navegación -->
-    <div class="nav-pasos">
-        <button type="button" id="btn-anterior" class="btn btn-secondary" disabled>
-            <i class="bi bi-arrow-left"></i> Anterior
-        </button>
-        <button type="button" id="btn-siguiente" class="btn btn-primary">
-            Siguiente <i class="bi bi-arrow-right"></i>
-        </button>
-        <button type="submit" id="btn-enviar" class="btn btn-success" style="display: none;">
-            <i class="bi bi-check-lg"></i> Guardar Hoja de Ruta
-        </button>
-        <a href="{% url 'listar_bitacoras' %}" class="btn btn-outline-secondary" id="btn-cancelar">
-            <i class="bi bi-x-circle"></i> Cancelar
-        </a>
-    </div>
-    
-    <!-- AL FINAL del formulario, antes del cierre de </form> -->
-    <div style="display: none;">
-        <!-- Campos ocultos para enviar TODOS los datos -->
-        <input type="date" name="fecha" id="hidden_fecha">
-        <select name="turno" id="hidden_turno">
-            {% for value, label in form.turno.field.choices %}
-                <option value="{{ value }}">{{ label }}</option>
-            {% endfor %}
-        </select>
-        <select name="vehiculo" id="hidden_vehiculo">
-            {% for vehiculo in form.vehiculo.field.queryset %}
-                <option value="{{ vehiculo.pk }}">{{ vehiculo.patente }}</option>
-            {% endfor %}
-        </select>
-        <input type="number" name="km_inicio" id="hidden_km_inicio">
-        <input type="number" name="km_fin" id="hidden_km_fin">
-        <input type="text" name="medico" id="hidden_medico">
-        <input type="text" name="enfermero" id="hidden_enfermero">
-        <input type="text" name="tens" id="hidden_tens">
-        <input type="text" name="camillero" id="hidden_camillero">
-        <textarea name="observaciones" id="hidden_observaciones"></textarea>
-    </div>
-</form>
+        <div class="form-paso" id="paso-2" data-titulo="Personal Médico">
+            <div class="paso-header">
+                <div class="paso-titulo"><i class="bi bi-people-fill"></i> Equipo Médico</div>
+                <div class="paso-indicador">Paso 2</div>
+            </div>
+            <div class="alert alert-light border">
+                <small class="text-muted"><i class="bi bi-info-circle"></i> Deje en blanco si no aplica.</small>
+            </div>
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label class="form-label">Médico</label>
+                    {{ form.medico }} </div>
+                <div class="col-md-6">
+                    <label class="form-label">Enfermero/a</label>
+                    {{ form.enfermero }}
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">TENS</label>
+                    {{ form.tens }}
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">Camillero</label>
+                    {{ form.camillero }}
+                </div>
+            </div>
+        </div>
+
+        <div class="form-paso" id="paso-3" data-titulo="Detalle del Viaje">
+            <div class="paso-header">
+                <div class="paso-titulo"><i class="bi bi-geo-alt-fill"></i> Destino y Paciente</div>
+                <div class="paso-indicador">Paso 3</div>
+            </div>
+            
+            <div class="mb-3">
+                <label class="form-label">Hora Salida *</label>
+                <input type="time" name="hora_salida" id="id_hora_salida" class="form-control" required>
+                <div class="error-mensaje" id="error-hora_salida">Ingrese la hora de salida</div>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">Destino / Lugar *</label>
+                {{ form_viaje.destino }} <div class="error-mensaje" id="error-destino">Ingrese el destino</div>
+            </div>
+
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label class="form-label">Paciente (Nombre)</label>
+                    {{ form_viaje.nombre_paciente }}
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">RUT Paciente</label>
+                    {{ form_viaje.rut_paciente }}
+                </div>
+                <div class="col-12">
+                    <label class="form-label">Tipo de Servicio *</label>
+                    {{ form_viaje.tipo_servicio }}
+                </div>
+            </div>
+        </div>
+
+        <div class="form-paso" id="paso-4" data-titulo="Control de Kilometraje">
+            <div class="paso-header">
+                <div class="paso-titulo"><i class="bi bi-speedometer"></i> Cierre de Viaje</div>
+                <div class="paso-indicador">Paso 4</div>
+            </div>
+            
+            <div class="alert alert-info py-2">
+                <i class="bi bi-info-circle-fill me-2"></i>
+                <strong>KM Actual Vehículo:</strong> <span id="span-km-actual" class="fw-bold">---</span>
+            </div>
+        
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label class="form-label fw-bold">KM Salida (Inicio) *</label>
+                    <input type="number" name="km_inicio_viaje" id="id_km_inicio_viaje" class="form-control form-control-lg" required>
+                    <div class="error-mensaje" id="error-km_inicio_viaje">KM inicial requerido</div>
+                </div>
+                
+                <div class="col-md-6">
+                    <label class="form-label fw-bold">KM Llegada (Fin) *</label>
+                    <input type="number" name="km_fin_viaje" id="id_km_fin_viaje" class="form-control form-control-lg" required>
+                    <small class="text-success fw-bold d-block mt-1" id="kms-recorridos-calc">Recorridos: 0 km</small>
+                    <div class="error-mensaje" id="error-km_fin_viaje">El KM final debe ser mayor al inicial</div>
+                </div>
+                
+                <div class="col-12"><hr class="text-muted"></div>
+        
+                <div class="col-md-6">
+                    <label class="form-label fw-bold">Hora de Llegada *</label>
+                    <input type="time" name="hora_llegada" id="id_hora_llegada" class="form-control form-control-lg" required>
+                    <div class="error-mensaje" id="error-hora_llegada">Ingrese la hora de llegada</div>
+                </div>
+                
+                <div class="col-md-6">
+                    <label class="form-label text-muted">Hora de Salida (Registrada en Paso 3)</label>
+                    <input type="time" id="visual_hora_salida" class="form-control bg-light" disabled>
+                </div>
+            </div>
+        </div>
+
+        <div class="form-paso" id="paso-5" data-titulo="Observaciones">
+            <div class="paso-header">
+                <div class="paso-titulo"><i class="bi bi-chat-text-fill"></i> Observaciones</div>
+                <div class="paso-indicador">Paso 5</div>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Comentarios generales de la salida</label>
+                {{ form.observaciones }}
+            </div>
+        </div>
+
+        <div class="form-paso" id="paso-6" data-titulo="Confirmar">
+            <div class="paso-header">
+                <div class="paso-titulo"><i class="bi bi-check-circle-fill"></i> Resumen</div>
+                <div class="paso-indicador">Paso 6</div>
+            </div>
+            
+            <div class="card bg-light border-0">
+                <div class="card-body" id="resumen-contenido">
+                    </div>
+            </div>
+            
+            <div class="form-check mt-3">
+                <input class="form-check-input" type="checkbox" id="check-confirmacion" required>
+                <label class="form-check-label" for="check-confirmacion">
+                    Declaro que los datos ingresados son verídicos.
+                </label>
+                <div class="error-mensaje" id="error-confirmacion">Debe confirmar para guardar.</div>
+            </div>
+        </div>
+
+        <div class="nav-pasos">
+            <button type="button" id="btn-anterior" class="btn btn-outline-secondary px-4" disabled>
+                <i class="bi bi-arrow-left"></i> Anterior
+            </button>
+            
+            <div>
+                <a href="{% url 'listar_bitacoras' %}" class="btn btn-link text-decoration-none text-muted me-2">Cancelar</a>
+                <button type="button" id="btn-siguiente" class="btn btn-primary px-4">
+                    Siguiente <i class="bi bi-arrow-right"></i>
+                </button>
+                <button type="submit" id="btn-enviar" class="btn btn-success px-4" style="display: none;">
+                    <i class="bi bi-save"></i> Registrar Salida
+                </button>
+            </div>
+        </div>
+
+        <div class="d-none">
+            <input type="number" name="km_inicio" id="hidden_km_inicio_hoja">
+            <input type="number" name="km_fin" id="hidden_km_fin_hoja">
+        </div>
+
+    </form>
+</div>
 {% endblock %}
 
 {% block extra_js %}

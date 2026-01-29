@@ -181,8 +181,7 @@ class ProveedorForm(forms.ModelForm):
 class HojaRutaForm(forms.ModelForm):
     class Meta:
         model = HojaRuta
-        fields = ['fecha', 'turno', 'vehiculo', 'medico', 'enfermero', 'tens', 'camillero',
-                  'km_inicio', 'km_fin', 'observaciones'] # Litros eliminados
+        fields = ['fecha', 'turno', 'vehiculo', 'medico', 'enfermero', 'tens', 'camillero', 'observaciones', 'km_inicio', 'km_fin']
 
         widgets = {
             'fecha': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}),
@@ -209,6 +208,8 @@ class HojaRutaForm(forms.ModelForm):
                 estado__in=['Disponible', 'En uso']
             ).order_by('patente')
 
+        #self.fields['turno'].empty_label = "Seleccione un turno"
+
 class ViajeForm(forms.ModelForm):
     class Meta:
         model = Viaje
@@ -227,27 +228,33 @@ class ViajeForm(forms.ModelForm):
             else:
                 self.fields['km_inicio_viaje'].initial = self.hoja_ruta.km_inicio
     
+    # Dentro de la clase ViajeForm
     def clean(self):
         cleaned_data = super().clean()
+        hora_salida = cleaned_data.get('hora_salida')
+        hora_llegada = cleaned_data.get('hora_llegada')
         km_inicio = cleaned_data.get('km_inicio_viaje')
         km_fin = cleaned_data.get('km_fin_viaje')
-        
-        # Validar que KM fin >= KM inicio
-        if km_fin and km_inicio and km_fin < km_inicio:
-            raise forms.ValidationError("El KM final no puede ser menor al KM inicial")
-        
-        # Validar que no haya saltos de KM (consistencia)
-        if self.hoja_ruta and km_inicio:
-            # El KM inicio debe coincidir con el KM fin del viaje anterior
-            # o con el KM inicio de la hoja (si es el primer viaje)
-            ultimo_viaje = self.hoja_ruta.viajes.last()
-            if ultimo_viaje:
-                if km_inicio != ultimo_viaje.km_fin_viaje:
-                    raise forms.ValidationError(
-                        f"El KM inicial ({km_inicio}) debe coincidir con el KM final "
-                        f"del viaje anterior ({ultimo_viaje.km_fin_viaje})"
-                    )
-        
+
+        # 1. Validación de Hora
+        if hora_salida and hora_llegada:
+            if hora_salida == hora_llegada:
+                self.add_error('hora_llegada', 'La hora de llegada no puede ser igual a la de salida.')
+
+        # 2. Validación de Kilometraje
+        if km_inicio is not None and km_fin is not None:
+            if km_fin <= km_inicio:
+                self.add_error('km_fin_viaje', 
+                              f'El kilometraje final ({km_fin}) debe ser MAYOR al inicial ({km_inicio}).')
+
+        # 3. Validación de Continuidad
+        hoja_ruta = self.hoja_ruta
+        if hoja_ruta:
+            ultimo_viaje = hoja_ruta.viajes.order_by('hora_salida').last()
+            if ultimo_viaje and km_inicio != ultimo_viaje.km_fin_viaje:
+                # Solo advertencia, no error
+                pass 
+                
         return cleaned_data
 
 
@@ -754,13 +761,19 @@ class ArriendoForm(forms.ModelForm):
 
 
 class OrdenCompraForm(forms.ModelForm):
+    estado = forms.CharField(
+        max_length=100,
+        required=True,
+        widget=forms.TextInput(attrs={'class': 'form-control'}),
+        help_text="Estado exacto de Mercado Público"
+    )
     class Meta:
         model = OrdenCompra
         fields = [
             'nro_oc', 'fecha_emision', 'proveedor', 
             'monto_neto', 'impuesto', 'monto_total',
             'id_licitacion', 'folio_sigfe', 'estado',
-            'archivo_adjunto', 'cuenta_presupuestaria'
+            'archivo_adjunto', 'cuenta_presupuestaria', 'orden_trabajo', 'vehiculo'
         ]
         widgets = {
             'nro_oc': forms.TextInput(attrs={'class': 'form-control'}),
@@ -771,22 +784,49 @@ class OrdenCompraForm(forms.ModelForm):
             'monto_total': forms.NumberInput(attrs={'class': 'form-control', 'step': '1', 'min': '0'}),
             'id_licitacion': forms.TextInput(attrs={'class': 'form-control'}),
             'folio_sigfe': forms.TextInput(attrs={'class': 'form-control'}),
-            'estado': forms.Select(attrs={'class': 'form-control'}),
+            #'estado': forms.TextInput(attrs={'class': 'form-control'}),
             'archivo_adjunto': forms.FileInput(attrs={'class': 'form-control'}),
             'cuenta_presupuestaria': forms.Select(attrs={'class': 'form-control'}),
+            'orden_trabajo': forms.Select(attrs={'class': 'form-control'}),
+            'vehiculo': forms.Select(attrs={'class': 'form-control'}),
         }
     
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         if self.instance.pk and self.instance.fecha_emision:
             self.fields['fecha_emision'].widget.attrs['value'] = self.instance.fecha_emision.strftime('%Y-%m-%d')
+        
+        # Si hay una orden de trabajo seleccionada, auto-completar vehículo y proveedor
+        if 'orden_trabajo' in self.data and self.data['orden_trabajo']:
+            try:
+                ot = OrdenTrabajo.objects.get(pk=self.data['orden_trabajo'])
+                self.fields['vehiculo'].initial = ot.vehiculo
+                self.fields['proveedor'].initial = ot.proveedor
+            except (OrdenTrabajo.DoesNotExist, ValueError):
+                pass
+
+        if self.instance.pk:
+            self.fields['estado'].initial = self.instance.estado
+    
+    def clean_estado(self):
+        """Asegurar que el estado esté normalizado"""
+        from .models import normalizar_estado_oc
+        estado = self.cleaned_data.get('estado')
+        return normalizar_estado_oc(estado)
+
+    def save(self, commit=True):
+        orden = super().save(commit=False)
+        if commit:
+            orden.save()
+        return orden
+        
 
 class OrdenTrabajoForm(forms.ModelForm):
     class Meta:
         model = OrdenTrabajo
         fields = [
             'nro_ot', 'descripcion', 'fecha_solicitud', 'vehiculo',
-            'proveedor', 'orden_compra'
+            'proveedor'
         ]
         widgets = {
             'nro_ot': forms.TextInput(attrs={'class': 'form-control'}),
@@ -794,15 +834,23 @@ class OrdenTrabajoForm(forms.ModelForm):
             'fecha_solicitud': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
             'vehiculo': forms.Select(attrs={'class': 'form-control'}),
             'proveedor': forms.Select(attrs={'class': 'form-control'}),
-            'orden_compra': forms.Select(attrs={'class': 'form-control'}),
         }
         labels = {
             'nro_ot': 'Número de Orden de Trabajo',
             'descripcion': 'Descripción del trabajo solicitado',
             'fecha_solicitud': 'Fecha de Solicitud',
         }
+        help_texts = {
+            'proveedor': 'La orden de compra se generará después de crear esta orden de trabajo.',
+        }
     
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         if self.instance.pk and self.instance.fecha_solicitud:
             self.fields['fecha_solicitud'].widget.attrs['value'] = self.instance.fecha_solicitud.strftime('%Y-%m-%d')
+        
+        # Filtrar proveedores que son talleres
+        self.fields['proveedor'].queryset = Proveedor.objects.filter(es_taller=True, activo=True).order_by('nombre_fantasia')
+        
+        # Filtrar proveedores que son talleres
+        self.fields['proveedor'].queryset = Proveedor.objects.filter(es_taller=True, activo=True).order_by('nombre_fantasia')

@@ -12,11 +12,11 @@
                     <label for="estado" class="form-label">Estado:</label>
                     <select name="estado" id="estado" class="form-select">
                         <option value="">Todos</option>
-                        <option value="Emitida" {% if estado_filter == 'Emitida' %}selected{% endif %}>Emitida</option>
-                        <option value="Aceptada" {% if estado_filter == 'Aceptada' %}selected{% endif %}>Aceptada</option>
-                        <option value="Recepcionada" {% if estado_filter == 'Recepcionada' %}selected{% endif %}>Recepcionada</option>
-                        <option value="Pagada" {% if estado_filter == 'Pagada' %}selected{% endif %}>Pagada</option>
-                        <option value="Anulada" {% if estado_filter == 'Anulada' %}selected{% endif %}>Anulada</option>
+                        {% for estado in estados %}
+                        <option value="{{ estado.valor }}" {% if estado_filter == estado.valor %}selected{% endif %}>
+                            {{ estado.nombre }}
+                        </option>
+                        {% endfor %}
                     </select>
                 </div>
                 <div class="col-md-4">
@@ -44,11 +44,16 @@
         </div>
     </div>
 
-    <!-- Botón para registrar nueva OC -->
+    <!-- Botones para registrar nueva OC -->
     <div class="mb-3">
-        <a href="{% url 'importar_oc' %}" class="btn btn-success">
-            <i class="bi bi-plus-circle"></i> Nueva Orden de Compra
-        </a>
+        <div class="btn-group" role="group">
+            <a href="{% url 'importar_oc' %}" class="btn btn-success">
+                <i class="bi bi-download"></i> Importar desde MercadoPúblico
+            </a>
+            <a href="{% url 'registrar_orden_compra' %}" class="btn btn-outline-success">
+                <i class="bi bi-plus-circle"></i> Registrar Manualmente
+            </a>
+        </div>
     </div>
 
     <!-- Tabla de órdenes de compra -->
@@ -105,3 +110,4 @@
     </div>
 </div>
 {% endblock %}
+

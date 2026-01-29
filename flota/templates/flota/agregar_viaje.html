@@ -196,6 +196,24 @@
                 <div class="viaje-progreso-texto" id="viaje-progreso-texto">Paso 1 de 6</div>
             </div>
 
+            <!-- Para errores de formulario -->
+            {% if form.errors %}
+            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                <strong><i class="bi bi-exclamation-triangle-fill"></i> Error al guardar:</strong>
+                <ul>
+                {% for field in form %}
+                    {% for error in field.errors %}
+                        <li><strong>{{ field.label }}:</strong> {{ error }}</li>
+                    {% endfor %}
+                {% endfor %}
+                {% for error in form.non_field_errors %}
+                    <li>{{ error }}</li>
+                {% endfor %}
+                </ul>
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+            {% endif %}
+
             <form method="post" id="form-viaje-pasos" novalidate data-hoja-ruta-id="{{ hoja_ruta.id }}">
                 {% csrf_token %}
                 
@@ -297,14 +315,21 @@
                         </div>
                         <div class="col-md-6 mb-3">
                             <label for="id_km_fin_viaje" class="form-label">KM al llegar *</label>
-                            <input type="number" name="km_fin_viaje" id="id_km_fin_viaje" 
-                                   class="form-control" min="0" step="1" required
-                                   value="{% if form.km_fin_viaje.value %}{{ form.km_fin_viaje.value }}{% endif %}">
+                            <div class="input-group">
+                                <input type="number" name="km_fin_viaje" id="id_km_fin_viaje" 
+                                       class="form-control" min="0" step="1" required
+                                       value="{% if form.km_fin_viaje.value %}{{ form.km_fin_viaje.value }}{% endif %}"
+                                       oninput="validarKmInmediato()">
+                                <span class="input-group-text">
+                                    <i id="km-icono" class="bi bi-x-circle text-danger"></i>
+                                </span>
+                            </div>
                             <div class="error-container">
-                                <div class="error-mensaje" id="error-km_fin_viaje">Debe ingresar el KM final</div>
+                                <div class="error-mensaje" id="error-km_fin_viaje">El KM final debe ser MAYOR al inicial</div>
                             </div>
                             <small class="text-muted d-block mt-1">
                                 KM Recorridos: <span id="km-recorridos-calculados">0</span> km
+                                <span id="km-validacion-texto" class="ms-2"></span>
                             </small>
                         </div>
                     </div>
@@ -344,8 +369,9 @@
                         <i class="bi bi-x-circle"></i> Cancelar
                     </a>
                 </div>
-                
+
                 <!-- Campos ocultos para envío del formulario -->
+                 <!--
                 <div style="display: none;">
                     <input type="time" name="hora_salida" id="viaje_hidden_hora_salida">
                     <input type="time" name="hora_llegada" id="viaje_hidden_hora_llegada">
@@ -360,6 +386,7 @@
                     <input type="number" name="km_inicio_viaje" id="viaje_hidden_km_inicio_viaje">
                     <input type="number" name="km_fin_viaje" id="viaje_hidden_km_fin_viaje">
                 </div>
+                -->
             </form>
         </div>
 

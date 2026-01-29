@@ -20,7 +20,7 @@ class FormularioViajePasos {
         const form = document.getElementById('form-viaje-pasos');
         if (form) {
             form.addEventListener('submit', (e) => {
-                this.prepararEnvio();
+                //this.prepararEnvio();
                 
                 if (!this.validarTodosLosCampos()) {
                     e.preventDefault();
@@ -83,35 +83,40 @@ class FormularioViajePasos {
         const kmFinInput = document.getElementById('id_km_fin_viaje');
         
         if (kmInicioInput && kmFinInput) {
-            // Establecer valor mínimo para km_fin_viaje
-            kmInicioInput.addEventListener('change', function() {
-                const kmInicio = parseInt(this.value) || 0;
-                const kmFin = parseInt(kmFinInput.value) || 0;
-                
-                if (kmFin < kmInicio) {
-                    kmFinInput.value = kmInicio;
-                }
-                kmFinInput.min = kmInicio;
-                calcularKMRecorridos();
-            });
-            
-            // Calcular automáticamente los km recorridos
-            kmFinInput.addEventListener('change', calcularKMRecorridos);
-            
-            // Calcular al inicio
-            calcularKMRecorridos();
-            
-            function calcularKMRecorridos() {
+            // Función para validar en tiempo real
+            const validarKmEnTiempoReal = () => {
                 const kmInicio = parseInt(kmInicioInput.value) || 0;
                 const kmFin = parseInt(kmFinInput.value) || 0;
-                const kmRecorridos = Math.max(0, kmFin - kmInicio);
                 
-                // Actualizar visualización de km recorridos
+                // Calcular KM recorridos
+                const kmRecorridos = Math.max(0, kmFin - kmInicio);
                 const kmRecorridosSpan = document.getElementById('km-recorridos-calculados');
                 if (kmRecorridosSpan) {
                     kmRecorridosSpan.textContent = kmRecorridos;
                 }
-            }
+                
+                // Validación en tiempo real
+                if (kmFin <= kmInicio) {
+                    this.mostrarError('km_fin_viaje', 'El KM final debe ser MAYOR al inicial');
+                    kmFinInput.classList.add('campo-invalido');
+                    return false;
+                } else {
+                    this.ocultarError('km_fin_viaje');
+                    kmFinInput.classList.remove('campo-invalido');
+                    return true;
+                }
+            };
+            
+            // Validar cuando cambia el KM de inicio
+            kmInicioInput.addEventListener('input', validarKmEnTiempoReal);
+            kmInicioInput.addEventListener('change', validarKmEnTiempoReal);
+            
+            // Validar cuando cambia el KM de fin (en tiempo real)
+            kmFinInput.addEventListener('input', validarKmEnTiempoReal);
+            kmFinInput.addEventListener('change', validarKmEnTiempoReal);
+            
+            // Calcular al inicio
+            validarKmEnTiempoReal();
         }
     }
     
@@ -147,8 +152,8 @@ class FormularioViajePasos {
                 const kmInicio = parseInt(document.getElementById('id_km_inicio_viaje').value) || 0;
                 const kmFin = parseInt(document.getElementById('id_km_fin_viaje').value) || 0;
                 
-                if (kmFin < kmInicio) {
-                    this.mostrarError('km_fin_viaje', 'El KM final debe ser mayor o igual al inicial');
+                if (kmFin <= kmInicio) {  // Ahora es <= para mayor estricto
+                    this.mostrarError('km_fin_viaje', 'El KM final debe ser MAYOR al inicial');
                     esValido = false;
                 }
                 break;
@@ -181,6 +186,21 @@ class FormularioViajePasos {
         const campoId = campo.id.replace('id_', '');
         const errorElement = document.getElementById(`error-${campoId}`);
         
+        // Validación específica para kilometraje
+        if (campo.id === 'id_km_fin_viaje' && campo.value) {
+            const kmInicio = parseInt(document.getElementById('id_km_inicio_viaje').value) || 0;
+            const kmFin = parseInt(campo.value) || 0;
+            
+            if (kmFin <= kmInicio) {
+                campo.classList.add('campo-invalido');
+                if (errorElement) {
+                    errorElement.textContent = 'El KM final debe ser mayor que el inicial';
+                    errorElement.classList.add('mostrar');
+                }
+                return false;
+            }
+        }
+
         if (campo.hasAttribute('required') && !campo.value.trim()) {
             campo.classList.add('campo-invalido');
             if (errorElement) {
@@ -285,10 +305,10 @@ class FormularioViajePasos {
                 this.datos[campoId] = campo.value;
                 
                 // Copiar a campo oculto
-                const hiddenCampo = document.getElementById(`viaje_hidden_${campoId}`);
-                if (hiddenCampo) {
-                    hiddenCampo.value = campo.value;
-                }
+                //const hiddenCampo = document.getElementById(`viaje_hidden_${campoId}`);
+                //if (hiddenCampo) {
+                //    hiddenCampo.value = campo.value;
+                //}
             }
         });
     }
@@ -455,6 +475,34 @@ class FormularioViajePasos {
     }
 }
 
+function validarKmInmediato() {
+    const kmInicio = parseInt(document.getElementById('id_km_inicio_viaje').value) || 0;
+    const kmFin = parseInt(document.getElementById('id_km_fin_viaje').value) || 0;
+    const kmIcono = document.getElementById('km-icono');
+    const kmTexto = document.getElementById('km-validacion-texto');
+    
+    if (kmFin > kmInicio) {
+        kmIcono.className = 'bi bi-check-circle-fill text-success';
+        if (kmTexto) {
+            kmTexto.textContent = '✓ Válido';
+            kmTexto.className = 'text-success';
+        }
+    } else if (kmFin === kmInicio) {
+        kmIcono.className = 'bi bi-exclamation-circle-fill text-warning';
+        if (kmTexto) {
+            kmTexto.textContent = '⚠ Debe ser MAYOR';
+            kmTexto.className = 'text-warning';
+        }
+    } else {
+        kmIcono.className = 'bi bi-x-circle-fill text-danger';
+        if (kmTexto) {
+            kmTexto.textContent = '✗ Inválido';
+            kmTexto.className = 'text-danger';
+        }
+    }
+}
+
+
 // Inicializar cuando el DOM esté listo
 document.addEventListener('DOMContentLoaded', function() {
     const hojaRutaId = document.getElementById('form-viaje-pasos')?.dataset?.hojaRutaId;
@@ -483,5 +531,14 @@ document.addEventListener('DOMContentLoaded', function() {
                 e.target.value = rut;
             });
         }
+    }
+    const kmFinInput = document.getElementById('id_km_fin_viaje');
+    const kmInicioInput = document.getElementById('id_km_inicio_viaje');
+    
+    if (kmFinInput && kmInicioInput) {
+        kmFinInput.addEventListener('input', validarKmInmediato);
+        kmInicioInput.addEventListener('input', validarKmInmediato);
+        // Validar al cargar
+        setTimeout(validarKmInmediato, 100);
     }
 });

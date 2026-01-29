@@ -2,11 +2,14 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib import messages
 from django.utils import timezone
+from django.http import JsonResponse
+from datetime import datetime, date
 import re
 from ..models import OrdenCompra, OrdenTrabajo, Proveedor, Vehiculo, Mantenimiento, CuentaPresupuestaria
 from ..forms import OrdenCompraForm, OrdenTrabajoForm
 from .utilidades import es_administrador
 from flota.utils import consultar_oc_mercado_publico
+
 
 def importar_orden_compra(request):
     if request.method == 'POST':
@@ -39,6 +42,17 @@ def importar_orden_compra(request):
                 
                 if created_prov:
                     messages.info(request, f"Proveedor {proveedor.nombre_fantasia} creado.")
+
+                # ========== CONVERTIR FECHA DE STRING A DATE ==========
+                fecha_emision = None
+                if datos.get('fecha_emision'):
+                    try:
+                        fecha_emision = datetime.strptime(datos['fecha_emision'], '%Y-%m-%d').date()
+                    except ValueError:
+                        # Si el formato no es válido, usar fecha actual
+                        fecha_emision = timezone.now().date()
+                else:
+                    fecha_emision = timezone.now().date()
 
                 # ========== BUSCAR VEHÍCULO EN BASE DE DATOS ==========
                 vehiculo_asociado = None
@@ -125,13 +139,13 @@ def importar_orden_compra(request):
                     defaults={
                         'descripcion': datos['descripcion'][:500],
                         'vehiculo': vehiculo_asociado,  # Se asigna si se encontró
-                        'fecha_emision': datos['fecha_emision'],
+                        'fecha_emision': fecha_emision,  # Usamos el objeto date convertido
                         'monto_neto': datos.get('monto_neto', 0),
                         'monto_total': datos.get('monto_total', 0),
                         'impuesto': datos.get('impuestos', 0),
                         'id_licitacion': datos.get('id_licitacion', ''),
                         'folio_sigfe': '',  # Dejamos vacío o elimina el campo
-                        'estado': datos['estado'],
+                        'estado': datos.get('estado', 'Emitida'),
                         'proveedor': proveedor,
                         'tipo_adquisicion': 'Licitación Pública',
                         'cuenta_presupuestaria': cuenta_presupuestaria,  # Se asigna si se encontró
@@ -165,7 +179,7 @@ def importar_orden_compra(request):
 
     return render(request, 'flota/importar_oc.html')
 
-    
+
 # RF_29: Registrar orden de compra
 @login_required
 @user_passes_test(es_administrador)
@@ -191,16 +205,33 @@ def listar_ordenes_compra(request):
     estado_filter = request.GET.get('estado')
     proveedor_filter = request.GET.get('proveedor')
     
+    # Normalizar el filtro de estado
     if estado_filter:
         ordenes = ordenes.filter(estado=estado_filter)
+    
     if proveedor_filter:
         ordenes = ordenes.filter(proveedor__id=proveedor_filter)
+    
+    # Obtener estados únicos de la base de datos
+    estados_unicos = OrdenCompra.objects.values_list('estado', flat=True).distinct().order_by('estado')
+    
+    # Convertir a lista de diccionarios
+    estados = []
+    for estado in estados_unicos:
+        estados.append({
+            'valor': estado,
+            'nombre': estado  # Usar el estado directamente, no normalizar_estado_visual
+        })
+    
+    # Ordenar por nombre
+    estados.sort(key=lambda x: x['nombre'])
     
     proveedores = Proveedor.objects.all()
     
     return render(request, 'flota/listar_ordenes_compra.html', {
         'ordenes': ordenes,
         'proveedores': proveedores,
+        'estados': estados,
         'estado_filter': estado_filter,
         'proveedor_filter': proveedor_filter,
     })
@@ -328,5 +359,26 @@ def eliminar_orden_trabajo(request, id):
         return redirect('listar_ordenes_trabajo')
     
     return render(request, 'flota/eliminar_orden_trabajo.html', {'orden': orden})
+
+
+# API: Obtener datos de una orden de trabajo (para auto-completar formulario de OC)
+@login_required
+def api_orden_trabajo(request, id):
+    """
+    Endpoint API para obtener datos de una orden de trabajo.
+    Usado para auto-completar formularios de orden de compra.
+    """
+    try:
+        ot = get_object_or_404(OrdenTrabajo, id=id)
+        return JsonResponse({
+            'id': ot.id,
+            'nro_ot': ot.nro_ot,
+            'vehiculo_id': ot.vehiculo.id if ot.vehiculo else None,
+            'vehiculo_patente': ot.vehiculo.patente if ot.vehiculo else None,
+            'proveedor_id': ot.proveedor.id if ot.proveedor else None,
+            'proveedor_nombre': ot.proveedor.nombre_fantasia if ot.proveedor else None,
+        })
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=400)
 
 

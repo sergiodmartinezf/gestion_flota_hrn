@@ -93,6 +93,8 @@ urlpatterns = [
     path('ordenes-trabajo/modificar/<int:id>/', views.modificar_orden_trabajo, name='modificar_orden_trabajo'),
     path('ordenes-trabajo/eliminar/<int:id>/', views.eliminar_orden_trabajo, name='eliminar_orden_trabajo'),
     path('ordenes-trabajo/detalle/<int:id>/', views.detalle_orden_trabajo, name='detalle_orden_trabajo'),
+    # API
+    path('api/orden-trabajo/<int:id>/', views.api_orden_trabajo, name='api_orden_trabajo'),
     
     # Exportaciones
     path('exportar/viajes/', views.exportar_consolidado_viajes, name='exportar_viajes'),

@@ -104,7 +104,8 @@ from .ordenes import (
     listar_ordenes_trabajo,
     detalle_orden_trabajo,
     modificar_orden_trabajo,
-    eliminar_orden_trabajo
+    eliminar_orden_trabajo,
+    api_orden_trabajo
 )
 
 # Importar APIs

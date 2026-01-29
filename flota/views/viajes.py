@@ -14,26 +14,70 @@ from .utilidades import es_conductor_o_admin, es_administrador
 @user_passes_test(es_conductor_o_admin)
 def registrar_bitacora(request):
     if request.method == 'POST':
-        form = HojaRutaForm(request.POST)
-        if form.is_valid():
-            hoja_ruta = form.save(commit=False)
-            hoja_ruta.conductor = request.user  # ¡IMPORTANTE!
-            hoja_ruta.save()
-            
-            # DEBUG: Mostrar mensaje de éxito
-            messages.success(request, f'Hoja de ruta creada exitosamente (ID: {hoja_ruta.id})')
-            
-            return redirect('agregar_viaje', id=hoja_ruta.id)
+        form_hoja = HojaRutaForm(request.POST)
+        # Inicializamos el form de viaje (sin hoja_ruta aún, se asigna al guardar)
+        form_viaje = ViajeForm(request.POST) 
+        
+        if form_hoja.is_valid() and form_viaje.is_valid():
+            try:
+                # 1. Guardar Hoja de Ruta
+                hoja_ruta = form_hoja.save(commit=False)
+                hoja_ruta.conductor = request.user
+                
+                # Sincronización de KMs: 
+                # El KM inicio de la hoja es el KM inicio del viaje
+                # El KM fin de la hoja (temporalmente) es el KM fin del viaje
+                viaje_data = form_viaje.cleaned_data
+                hoja_ruta.km_inicio = viaje_data.get('km_inicio_viaje')
+                hoja_ruta.km_fin = viaje_data.get('km_fin_viaje')
+                
+                hoja_ruta.save()
+                
+                # 2. Guardar Viaje
+                viaje = form_viaje.save(commit=False)
+                viaje.hoja_ruta = hoja_ruta
+                viaje.save()
+                
+                # 3. Actualizar Vehículo (Lógica de agregar_viaje traída aquí)
+                vehiculo = hoja_ruta.vehiculo
+                if viaje.km_fin_viaje > vehiculo.kilometraje_actual:
+                    vehiculo.kilometraje_actual = viaje.km_fin_viaje
+                    vehiculo.save()
+                    
+                    # Verificar alertas de mantenimiento
+                    if vehiculo.kilometraje_para_mantencion <= 500:
+                        messages.warning(request, 
+                            f'⚠️ Al vehículo {vehiculo.patente} le quedan {vehiculo.kilometraje_para_mantencion} km para mantenimiento')
+
+                messages.success(request, f'Bitácora y viaje inicial registrados exitosamente (ID: {hoja_ruta.id})')
+                
+                # Redirigir al detalle o a agregar otro viaje si fuera necesario
+                return redirect('listar_bitacoras')
+                
+            except Exception as e:
+                messages.error(request, f'Error al guardar los datos: {str(e)}')
         else:
-            # DEBUG: Mostrar errores del formulario
-            for field, errors in form.errors.items():
-                for error in errors:
-                    messages.error(request, f'Error en {field}: {error}')
+            # Errores en alguno de los formularios
+            mensajes_error = []
+            for field, errors in form_hoja.errors.items():
+                mensajes_error.append(f"Hoja - {field}: {', '.join(errors)}")
+            for field, errors in form_viaje.errors.items():
+                mensajes_error.append(f"Viaje - {field}: {', '.join(errors)}")
+            
+            messages.error(request, "Por favor corrija los errores: " + " | ".join(mensajes_error))
+            
     else:
-        form = HojaRutaForm()
+        form_hoja = HojaRutaForm()
+        form_viaje = ViajeForm()
     
+    # Renderizar template
     template = 'flota/registrar_bitacora_conductor.html' if request.user.rol == 'Conductor' else 'flota/registrar_bitacora.html'
-    return render(request, template, {'form': form})
+    
+    # Importante: Pasar ambos formularios al contexto
+    return render(request, template, {
+        'form': form_hoja,       # Mantenemos 'form' para compatibilidad
+        'form_viaje': form_viaje # Nuevo formulario
+    })
 
 
 @login_required
@@ -269,7 +313,7 @@ def agregar_viaje(request, id):
             viaje.hoja_ruta = hoja_ruta
             viaje.save()
             
-            # ✅ Actualizar vehículo con el KM más alto registrado
+            # Actualizar vehículo con el KM más alto registrado
             vehiculo = hoja_ruta.vehiculo
             if viaje.km_fin_viaje > vehiculo.kilometraje_actual:
                 vehiculo.kilometraje_actual = viaje.km_fin_viaje
@@ -280,12 +324,36 @@ def agregar_viaje(request, id):
                     messages.warning(request, 
                         f'⚠️ Al vehículo {vehiculo.patente} le quedan {vehiculo.kilometraje_para_mantencion} km para mantenimiento')
             
-            messages.success(request, 
-                f'Viaje registrado: {viaje.km_recorridos_calculados} km recorridos')
+            primer_viaje = hoja_ruta.viajes.order_by('hora_salida', 'km_inicio_viaje').first()
+            ultimo_viaje = hoja_ruta.viajes.order_by('hora_salida', 'km_inicio_viaje').last()
             
-            # ✅ Redirigir para agregar otro viaje (con KM inicial prellenado)
+            if primer_viaje:
+                hoja_ruta.km_inicio = primer_viaje.km_inicio_viaje
+            
+            if ultimo_viaje:
+                hoja_ruta.km_fin = ultimo_viaje.km_fin_viaje
+            
+            hoja_ruta.save()
+
+            messages.success(request, f'Viaje registrado: {viaje.km_recorridos_calculados} km recorridos')
             return redirect('agregar_viaje', id=hoja_ruta.id)
+        else:
+            # ESTE ES EL NUEVO BLOQUE DE ERROR QUE CAUSABA EL PROBLEMA DE INDENTACIÓN
+            messages.error(request, 'No se pudo registrar el viaje. Verifique los errores arriba del formulario.')
+            print("Errores formulario viaje:", form.errors)
+
     else:
+        # Pre-llenado inteligente para el siguiente viaje
+        initial_data = {}
+        ultimo_viaje = hoja_ruta.viajes.last()
+        
+        # Si ya hay un viaje, el inicio del nuevo es el fin del anterior
+        if ultimo_viaje:
+            initial_data['km_inicio_viaje'] = ultimo_viaje.km_fin_viaje
+        else:
+            # Si es el PRIMER viaje, sugerimos el kilometraje actual del vehículo
+            initial_data['km_inicio_viaje'] = hoja_ruta.vehiculo.kilometraje_actual
+            
         form = ViajeForm(hoja_ruta=hoja_ruta)
     
     # Calcular resumen

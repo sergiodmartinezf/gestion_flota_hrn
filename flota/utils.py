@@ -8,6 +8,7 @@ from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from openpyxl.utils import get_column_letter
 from django.http import HttpResponse
 from datetime import datetime
+from .models import normalizar_estado_oc, normalizar_estado_visual
 
 
 def crear_estilos_excel():
@@ -91,9 +92,15 @@ def consultar_oc_mercado_publico(codigo_oc):
             items_str = "\n".join(items)
 
         # Datos básicos
+        estado_original = oc_data.get('Estado', 'Emitida')
+        
+        estado_normalizado = normalizar_estado_oc(estado_original)
+        estado_visual = normalizar_estado_visual(estado_normalizado)
+
+        # Datos básicos
         info_limpia = {
             'codigo': oc_data.get('Codigo', codigo_oc),
-            'estado': oc_data.get('Estado', 'Emitida'),
+            'estado_original': estado_original,
             'fecha_emision': oc_data.get('Fechas', {}).get('FechaCreacion', '').split('T')[0],
             'descripcion': oc_data.get('Descripcion', oc_data.get('Nombre', f'Orden de compra {codigo_oc}'))[:500],
             'monto_neto': oc_data.get('TotalNeto', 0),

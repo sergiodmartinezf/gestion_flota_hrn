@@ -1,8 +1,7 @@
-class FormularioPasos {
+class FormularioUnificado {
     constructor() {
         this.pasoActual = 1;
-        this.totalPasos = 8;
-        this.datos = {};
+        this.totalPasos = 6;
         this.vehiculosKilometraje = {};
         
         this.init();
@@ -10,8 +9,27 @@ class FormularioPasos {
     
     init() {
         this.cargarDatosVehiculos();
+        this.configurarHora();
         this.setupEventListeners();
         this.actualizarProgreso();
+        this.prepararInputsWidgets();
+    }
+    
+    prepararInputsWidgets() {
+        // Asegurar que los inputs generados por Django tengan la clase form-control
+        document.querySelectorAll('input, select, textarea').forEach(el => {
+            if (!el.classList.contains('form-control') && !el.classList.contains('form-select') && !el.classList.contains('form-check-input')) {
+                el.classList.add('form-control');
+            }
+        });
+    }
+
+    configurarHora() {
+        // Poner hora actual en salida si está vacía
+        const ahora = new Date();
+        const horaStr = ahora.getHours().toString().padStart(2, '0') + ':' + ahora.getMinutes().toString().padStart(2, '0');
+        const inputHora = document.getElementById('id_hora_salida');
+        if (inputHora && !inputHora.value) inputHora.value = horaStr;
     }
     
     cargarDatosVehiculos() {
@@ -20,405 +38,272 @@ class FormularioPasos {
             .then(data => {
                 this.vehiculosKilometraje = data;
                 
-                // Configurar evento cuando cambia el vehículo
                 const vehiculoSelect = document.getElementById('id_vehiculo');
                 if (vehiculoSelect) {
                     vehiculoSelect.addEventListener('change', (e) => {
-                        this.actualizarKilometrajeVehiculo(e.target.value);
+                        this.actualizarInfoVehiculo(e.target.value);
                     });
-                    
-                    // Si ya hay un valor seleccionado, actualizar
-                    if (vehiculoSelect.value) {
-                        this.actualizarKilometrajeVehiculo(vehiculoSelect.value);
-                    }
+                    if (vehiculoSelect.value) this.actualizarInfoVehiculo(vehiculoSelect.value);
                 }
             })
-            .catch(error => console.error('Error cargando datos de vehículos:', error));
+            .catch(err => console.error('Error API:', err));
     }
     
-    actualizarKilometrajeVehiculo(patente) {
-        const kmActual = this.vehiculosKilometraje[patente] || 0;
-        const kmActualSpan = document.getElementById('km-actual-vehiculo');
-        const kmInicioInput = document.getElementById('id_km_inicio');
-        const kmFinInput = document.getElementById('id_km_fin');
+    actualizarInfoVehiculo(id) {
+        const kmActual = this.vehiculosKilometraje[id] || 0;
         
-        if (kmActualSpan) kmActualSpan.textContent = kmActual;
-        if (kmInicioInput) {
-            kmInicioInput.value = kmActual;
-            kmInicioInput.min = kmActual;
+        // Actualizar visualizador
+        const spanKm = document.getElementById('span-km-actual');
+        if (spanKm) spanKm.textContent = kmActual + ' km';
+        
+        // Actualizar inputs de KM
+        const inputInicio = document.getElementById('id_km_inicio_viaje');
+        const inputFin = document.getElementById('id_km_fin_viaje');
+        
+        if (inputInicio) {
+            inputInicio.value = kmActual;
+            inputInicio.min = 0; 
         }
-        if (kmFinInput) {
-            kmFinInput.min = kmActual;
-            if (parseInt(kmFinInput.value) < kmActual) {
-                kmFinInput.value = kmActual;
-            }
+        
+        if (inputFin) {
+            inputFin.min = kmActual;
+            // Disparar validación si hay valor
+            if (inputFin.value) this.calcularRecorrido();
+        }
+    }
+    
+    calcularRecorrido() {
+        const inicio = parseInt(document.getElementById('id_km_inicio_viaje').value) || 0;
+        const fin = parseInt(document.getElementById('id_km_fin_viaje').value) || 0;
+        const span = document.getElementById('kms-recorridos-calc');
+        
+        if (!span) return;
+
+        const diff = fin - inicio;
+        if (diff >= 0) {
+            span.textContent = `Recorridos: ${diff} km`;
+            span.className = 'text-success fw-bold d-block mt-1';
+        } else {
+            span.textContent = 'Error: KM Fin menor a Inicio';
+            span.className = 'text-danger fw-bold d-block mt-1';
         }
     }
     
     setupEventListeners() {
-        const form = document.getElementById('form-pasos');
-        form.addEventListener('submit', (e) => {
-            // Asegurar que todos los datos estén en campos ocultos
-            this.prepararEnvio();
-            
-            // Validar todos los campos requeridos
-            if (!this.validarTodosLosCampos()) {
-                e.preventDefault();
-                alert('Por favor complete todos los campos requeridos');
-            }
-        });
+        // Cálculo de KM en tiempo real
+        const kmIn = document.getElementById('id_km_inicio_viaje');
+        const kmOut = document.getElementById('id_km_fin_viaje');
+        
+        if (kmIn) kmIn.addEventListener('input', () => this.calcularRecorrido());
+        if (kmOut) kmOut.addEventListener('input', () => this.calcularRecorrido());
 
-        // Botón Siguiente
-        document.getElementById('btn-siguiente').addEventListener('click', () => {
-            if (this.validarPasoActual()) {
-                this.siguientePaso();
+        // Botones Navegación
+        const btnSig = document.getElementById('btn-siguiente');
+        const btnAnt = document.getElementById('btn-anterior');
+
+        if(btnSig) {
+            btnSig.addEventListener('click', () => {
+                if (this.validarPasoActual()) this.cambiarPaso(1);
+            });
+        }
+        
+        if(btnAnt) {
+            btnAnt.addEventListener('click', () => {
+                this.cambiarPaso(-1);
+            });
+        }
+        
+        // Submit
+        const form = document.getElementById('form-pasos');
+        if(form) {
+            form.addEventListener('submit', (e) => {
+                const checkConfirm = document.getElementById('check-confirmacion');
+                
+                if (!this.validarPasoActual() || (checkConfirm && !checkConfirm.checked)) {
+                    e.preventDefault();
+                    if (checkConfirm && !checkConfirm.checked) {
+                        const errDiv = document.getElementById('error-confirmacion');
+                        if(errDiv) errDiv.classList.add('mostrar');
+                    }
+                } else {
+                    // Sincronizar campos ocultos para HojaRuta
+                    const kmInicioHoja = document.getElementById('hidden_km_inicio_hoja');
+                    const kmFinHoja = document.getElementById('hidden_km_fin_hoja');
+                    
+                    if(kmInicioHoja) kmInicioHoja.value = document.getElementById('id_km_inicio_viaje').value;
+                    if(kmFinHoja) kmFinHoja.value = document.getElementById('id_km_fin_viaje').value;
+                }
+            });
+        }
+
+        // Navegación con Enter
+        document.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter' && e.target.tagName !== 'TEXTAREA') {
+                e.preventDefault();
+                if (this.pasoActual < this.totalPasos) {
+                    const btn = document.getElementById('btn-siguiente');
+                    if(btn) btn.click();
+                }
             }
         });
-        
-        // Botón Anterior
-        document.getElementById('btn-anterior').addEventListener('click', () => {
-            this.pasoAnterior();
-        });
-        
-        // Validar campos al perder foco
-        document.querySelectorAll('#form-pasos input, #form-pasos select, #form-pasos textarea').forEach(element => {
-            element.addEventListener('blur', () => {
-                if (this.obtenerPasoDesdeElemento(element) === this.pasoActual) {
-                    this.validarCampo(element);
-                }
-            });
-            
-            // Permitir Enter para avanzar
-            element.addEventListener('keypress', (e) => {
-                if (e.key === 'Enter') {
-                    e.preventDefault();
-                    if (this.validarPasoActual()) {
-                        this.siguientePaso();
-                    }
-                }
-            });
-        });
-    }
-    
-    obtenerPasoDesdeElemento(element) {
-        // Buscar el paso padre del elemento
-        let pasoElement = element;
-        while (pasoElement && !pasoElement.classList.contains('form-paso')) {
-            pasoElement = pasoElement.parentElement;
-        }
-        
-        if (pasoElement && pasoElement.id) {
-            const pasoNum = parseInt(pasoElement.id.split('-')[1]);
-            return pasoNum || 1;
-        }
-        return 1;
     }
     
     validarPasoActual() {
-        const pasoElement = document.getElementById(`paso-${this.pasoActual}`);
-        let esValido = true;
+        const pasoEl = document.getElementById(`paso-${this.pasoActual}`);
+        if (!pasoEl) return true;
+
+        const inputs = pasoEl.querySelectorAll('input[required], select[required]');
+        let valido = true;
         
-        // Obtener todos los campos requeridos en este paso
-        const camposRequeridos = pasoElement.querySelectorAll('[required]');
-        
-        camposRequeridos.forEach(campo => {
-            if (!this.validarCampo(campo)) {
-                esValido = false;
+        inputs.forEach(input => {
+            if (!input.value.trim()) {
+                this.mostrarError(input, 'Este campo es obligatorio');
+                valido = false;
+            } else {
+                this.ocultarError(input);
             }
         });
-        
-        // Validaciones específicas por paso
-        switch (this.pasoActual) {
-            case 4: // KM Inicio
-                const kmInicio = document.getElementById('id_km_inicio').value;
-                if (kmInicio < 0) {
-                    this.mostrarError('km_inicio', 'El kilometraje no puede ser negativo');
-                    esValido = false;
-                }
-                break;
-                
-            case 5: // KM Fin
-                const kmInicioVal = parseInt(document.getElementById('id_km_inicio').value) || 0;
-                const kmFin = parseInt(document.getElementById('id_km_fin').value) || 0;
-                if (kmFin < kmInicioVal) {
-                    this.mostrarError('km_fin', 'El KM final debe ser mayor o igual al inicial');
-                    esValido = false;
-                }
-                break;
-        }
-        
-        if (esValido) {
-            this.guardarDatosPaso();
-        }
-        
-        return esValido;
-    }
-    
-    validarCampo(campo) {
-        const campoId = campo.id.replace('id_', '');
-        const errorElement = document.getElementById(`error-${campoId}`);
-        
-        if (campo.hasAttribute('required') && !campo.value.trim()) {
-            campo.classList.add('campo-invalido');
-            if (errorElement) {
-                errorElement.textContent = this.obtenerMensajeErrorDefault(campoId);
-                errorElement.classList.add('mostrar');
-            }
-            return false;
-        }
-        
+
         // Validaciones específicas
-        if (campo.type === 'number' && campo.value < 0) {
-            campo.classList.add('campo-invalido');
-            if (errorElement) {
-                errorElement.textContent = 'El valor no puede ser negativo';
-                errorElement.classList.add('mostrar');
+        if (this.pasoActual === 4) { // Paso KM y Horas
+            // 1. Kilometraje
+            const inicio = parseInt(document.getElementById('id_km_inicio_viaje').value) || 0;
+            const fin = parseInt(document.getElementById('id_km_fin_viaje').value) || 0;
+            
+            if (fin <= inicio) {
+                this.mostrarError(document.getElementById('id_km_fin_viaje'), 'El KM final debe ser mayor al inicial');
+                valido = false;
             }
-            return false;
-        }
-        
-        // Si pasa todas las validaciones
-        campo.classList.remove('campo-invalido');
-        if (errorElement) {
-            errorElement.classList.remove('mostrar');
-        }
-        return true;
-    }
-    
-    obtenerMensajeErrorDefault(campoId) {
-        const mensajes = {
-            'vehiculo': 'Debe seleccionar un vehículo',
-            'fecha': 'Debe ingresar una fecha válida',
-            'turno': 'Debe seleccionar un turno',
-            'km_inicio': 'Debe ingresar un valor numérico positivo',
-            'km_fin': 'Debe ser mayor o igual al KM inicial'
-        };
-        return mensajes[campoId] || 'Campo requerido';
-    }
-    
-    mostrarError(campoId, mensaje) {
-        const campo = document.getElementById(`id_${campoId}`);
-        const errorElement = document.getElementById(`error-${campoId}`);
-        
-        if (campo) campo.classList.add('campo-invalido');
-        if (errorElement) {
-            errorElement.textContent = mensaje;
-            errorElement.classList.add('mostrar');
-        }
-    }
-    
-    ocultarError(campoId) {
-        const campo = document.getElementById(`id_${campoId}`);
-        const errorElement = document.getElementById(`error-${campoId}`);
-        
-        if (campo) campo.classList.remove('campo-invalido');
-        if (errorElement) {
-            errorElement.classList.remove('mostrar');
-        }
-    }
-    
-    guardarDatosPaso() {
-        const pasoElement = document.getElementById(`paso-${this.pasoActual}`);
-        const campos = pasoElement.querySelectorAll('input, select, textarea');
-        
-        campos.forEach(campo => {
-            if (campo.id) {
-                const campoId = campo.id.replace('id_', '');
-                this.datos[campoId] = campo.value;
-                
-                // Copiar a campo oculto
-                const hiddenCampo = document.getElementById(`hidden_${campoId}`);
-                if (hiddenCampo) {
-                    hiddenCampo.value = campo.value;
+
+            // 2. Horas (Validar llegada vs salida)
+            const horaSalida = document.getElementById('id_hora_salida').value;
+            const horaLlegadaInput = document.getElementById('id_hora_llegada');
+            const horaLlegada = horaLlegadaInput ? horaLlegadaInput.value : null;
+
+            if (horaSalida && horaLlegada) {
+                if (horaLlegada < horaSalida) {
+                    this.mostrarError(horaLlegadaInput, 'La hora de llegada no puede ser anterior a la salida');
+                    valido = false;
+                } else if (horaLlegada === horaSalida) {
+                     this.mostrarError(horaLlegadaInput, 'La hora de llegada debe ser posterior a la salida');
+                     valido = false;
                 }
             }
-        });
+        }
+
+        return valido;
     }
     
-    siguientePaso() {
-        if (this.pasoActual < this.totalPasos) {
-            this.ocultarPaso(this.pasoActual);
-            this.pasoActual++;
+    mostrarError(input, msg) {
+        input.classList.add('campo-invalido');
+        // Buscar div de error hermano o por ID
+        let errorDiv = input.parentElement.querySelector('.error-mensaje');
+        if (!errorDiv && input.id) errorDiv = document.getElementById(`error-${input.id.replace('id_', '')}`);
+        
+        if (errorDiv) {
+            errorDiv.textContent = msg;
+            errorDiv.classList.add('mostrar');
+        }
+    }
+    
+    ocultarError(input) {
+        input.classList.remove('campo-invalido');
+        let errorDiv = input.parentElement.querySelector('.error-mensaje');
+        if (!errorDiv && input.id) errorDiv = document.getElementById(`error-${input.id.replace('id_', '')}`);
+        if (errorDiv) errorDiv.classList.remove('mostrar');
+    }
+    
+    cambiarPaso(direccion) {
+        const pasoActualEl = document.getElementById(`paso-${this.pasoActual}`);
+        if(pasoActualEl) pasoActualEl.classList.remove('activo');
+        
+        this.pasoActual += direccion;
+        
+        const nuevoPaso = document.getElementById(`paso-${this.pasoActual}`);
+        if(nuevoPaso) {
+            nuevoPaso.classList.add('activo');
             
-            // Si vamos al paso de resumen, actualizar los datos
-            if (this.pasoActual === 8) {
-                this.actualizarResumen();
+            // Foco al primer input
+            const primerInput = nuevoPaso.querySelector('input, select');
+            if (primerInput) primerInput.focus();
+        }
+
+        // Lógica específica al entrar al Paso 4 (Copiar hora visual)
+        if (this.pasoActual === 4) {
+            const horaSalidaVal = document.getElementById('id_hora_salida').value;
+            const visualSalida = document.getElementById('visual_hora_salida');
+            if (visualSalida) visualSalida.value = horaSalidaVal;
+            
+            // Prellenar hora llegada con actual si está vacía
+            const horaLlegada = document.getElementById('id_hora_llegada');
+            if (horaLlegada && !horaLlegada.value) {
+                const ahora = new Date();
+                horaLlegada.value = ahora.getHours().toString().padStart(2, '0') + ':' + ahora.getMinutes().toString().padStart(2, '0');
             }
-            
-            this.mostrarPaso(this.pasoActual);
-            this.actualizarProgreso();
-            this.actualizarBotones();
         }
-    }
-    
-    pasoAnterior() {
-        if (this.pasoActual > 1) {
-            this.ocultarPaso(this.pasoActual);
-            this.pasoActual--;
-            this.mostrarPaso(this.pasoActual);
-            this.actualizarProgreso();
-            this.actualizarBotones();
-        }
-    }
-    
-    mostrarPaso(numero) {
-        const pasoElement = document.getElementById(`paso-${numero}`);
-        if (pasoElement) {
-            pasoElement.classList.add('activo');
-            
-            // Enfocar el primer campo del paso
-            const primerCampo = pasoElement.querySelector('input, select, textarea');
-            if (primerCampo) primerCampo.focus();
-        }
-    }
-    
-    ocultarPaso(numero) {
-        const pasoElement = document.getElementById(`paso-${numero}`);
-        if (pasoElement) {
-            pasoElement.classList.remove('activo');
-        }
-    }
-    
-    actualizarProgreso() {
-        const porcentaje = (this.pasoActual / this.totalPasos) * 100;
-        const progresoFill = document.getElementById('progreso-fill');
-        const progresoTexto = document.getElementById('progreso-texto');
         
-        if (progresoFill) progresoFill.style.width = `${porcentaje}%`;
-        if (progresoTexto) progresoTexto.textContent = `Paso ${this.pasoActual} de ${this.totalPasos}`;
-    }
-    
-    actualizarBotones() {
-        const btnAnterior = document.getElementById('btn-anterior');
-        const btnSiguiente = document.getElementById('btn-siguiente');
-        const btnEnviar = document.getElementById('btn-enviar');
-        
-        // Botón Anterior
-        btnAnterior.disabled = this.pasoActual === 1;
-        
-        // Botón Siguiente/Enviar
         if (this.pasoActual === this.totalPasos) {
-            btnSiguiente.style.display = 'none';
-            btnEnviar.style.display = 'inline-block';
+            this.generarResumen();
+        }
+        
+        this.actualizarInterfaz();
+    }
+    
+    actualizarInterfaz() {
+        // Barra Progreso
+        const porcentaje = ((this.pasoActual - 1) / (this.totalPasos - 1)) * 100;
+        const progFill = document.getElementById('progreso-fill');
+        const progText = document.getElementById('progreso-texto');
+        
+        if(progFill) progFill.style.width = `${porcentaje}%`;
+        if(progText) progText.textContent = `Paso ${this.pasoActual} de ${this.totalPasos}`;
+        
+        // Botones
+        const btnAnt = document.getElementById('btn-anterior');
+        const btnSig = document.getElementById('btn-siguiente');
+        const btnEnv = document.getElementById('btn-enviar');
+        
+        if(btnAnt) btnAnt.disabled = (this.pasoActual === 1);
+        
+        if (this.pasoActual === this.totalPasos) {
+            if(btnSig) btnSig.style.display = 'none';
+            if(btnEnv) btnEnv.style.display = 'inline-block';
         } else {
-            btnSiguiente.style.display = 'inline-block';
-            btnEnviar.style.display = 'none';
+            if(btnSig) btnSig.style.display = 'inline-block';
+            if(btnEnv) btnEnv.style.display = 'none';
         }
     }
     
-    actualizarResumen() {
-        const resumenHtml = `
-            <table class="table table-sm">
-                <tr>
-                    <th>Vehículo:</th>
-                    <td>${this.obtenerTextoSelect('id_vehiculo')}</td>
-                </tr>
-                <tr>
-                    <th>Fecha:</th>
-                    <td>${this.datos.fecha || '-'}</td>
-                </tr>
-                <tr>
-                    <th>Turno:</th>
-                    <td>${this.obtenerTextoSelect('id_turno')}</td>
-                </tr>
-                <tr>
-                    <th>KM Inicio:</th>
-                    <td>${this.datos.km_inicio || '0'} km</td>
-                </tr>
-                <tr>
-                    <th>KM Fin estimado:</th>
-                    <td>${this.datos.km_fin || '0'} km</td>
-                </tr>
-                <tr>
-                    <th>Médico:</th>
-                    <td>${this.datos.medico || 'No especificado'}</td>
-                </tr>
-                <tr>
-                    <th>Enfermero/a:</th>
-                    <td>${this.datos.enfermero || 'No especificado'}</td>
-                </tr>
-                <tr>
-                    <th>TENS:</th>
-                    <td>${this.datos.tens || 'No especificado'}</td>
-                </tr>
-                <tr>
-                    <th>Camillero:</th>
-                    <td>${this.datos.camillero || 'No especificado'}</td>
-                </tr>
-                <tr>
-                    <th>Observaciones:</th>
-                    <td>${this.datos.observaciones || 'Ninguna'}</td>
-                </tr>
-            </table>
+    generarResumen() {
+        const getVal = (id) => document.getElementById(id)?.value || '-';
+        const getTxt = (id) => {
+            const el = document.getElementById(id);
+            return el && el.options && el.selectedIndex >= 0 ? el.options[el.selectedIndex].text : '-';
+        };
+        
+        const html = `
+            <div class="row">
+                <div class="col-6 mb-2"><strong>Vehículo:</strong><br>${getTxt('id_vehiculo')}</div>
+                <div class="col-6 mb-2"><strong>Fecha:</strong><br>${getVal('id_fecha')}</div>
+                <div class="col-6 mb-2"><strong>Turno:</strong><br>${getTxt('id_turno')}</div>
+                <div class="col-6 mb-2"><strong>Destino:</strong><br>${getVal('id_destino')}</div>
+                <div class="col-6 mb-2"><strong>Paciente:</strong><br>${getVal('id_nombre_paciente')}</div>
+                <div class="col-6 mb-2"><strong>Hora Salida:</strong><br>${getVal('id_hora_salida')}</div>
+                <div class="col-6 mb-2"><strong>Hora Llegada:</strong><br>${getVal('id_hora_llegada')}</div>
+                
+                <div class="col-12 border-top pt-2 mt-2">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span><strong>KM Inicio:</strong> ${getVal('id_km_inicio_viaje')}</span>
+                        <i class="bi bi-arrow-right text-muted"></i>
+                        <span><strong>KM Fin:</strong> ${getVal('id_km_fin_viaje')}</span>
+                    </div>
+                </div>
+            </div>
         `;
-        
-        document.getElementById('resumen-datos').innerHTML = resumenHtml;
-    }
-    
-    obtenerTextoSelect(selectId) {
-        const select = document.getElementById(selectId);
-        if (select && select.selectedIndex >= 0) {
-            return select.options[select.selectedIndex].text;
-        }
-        return 'No seleccionado';
-    }
-    
-    validarTodosLosCampos() {
-        let esValido = true;
-        
-        for (let i = 1; i <= this.totalPasos; i++) {
-            const pasoElement = document.getElementById(`paso-${i}`);
-            const camposRequeridos = pasoElement.querySelectorAll('[required]');
-            
-            camposRequeridos.forEach(campo => {
-                if (!this.validarCampo(campo)) {
-                    esValido = false;
-                }
-            });
-        }
-        
-        return esValido;
-    }
-    
-    prepararEnvio() {
-        // Copiar todos los valores a los campos ocultos
-        for (const [campoId, valor] of Object.entries(this.datos)) {
-            const hiddenCampo = document.getElementById(`hidden_${campoId}`);
-            if (hiddenCampo) {
-                hiddenCampo.value = valor;
-            }
-        }
+        const resumenContenido = document.getElementById('resumen-contenido');
+        if(resumenContenido) resumenContenido.innerHTML = html;
     }
 }
 
-// Inicializar cuando el DOM esté listo
-document.addEventListener('DOMContentLoaded', function() {
-    const formularioPasos = new FormularioPasos();
-    
-    // Configurar fecha actual por defecto
-    const fechaInput = document.getElementById('id_fecha');
-    if (fechaInput && !fechaInput.value) {
-        const hoy = new Date().toISOString().split('T')[0];
-        fechaInput.value = hoy;
-    }
-    
-    // Configurar KM fin igual al inicio por defecto
-    const kmInicio = document.getElementById('id_km_inicio');
-    const kmFin = document.getElementById('id_km_fin');
-    if (kmInicio && kmFin) {
-        kmInicio.addEventListener('change', function() {
-            if (kmFin.value < this.value) {
-                kmFin.value = this.value;
-            }
-        });
-    }
-    
-    // Limpiar errores cuando el usuario empieza a escribir
-    document.querySelectorAll('#form-pasos input, #form-pasos select, #form-pasos textarea').forEach(element => {
-        element.addEventListener('input', function() {
-            const campoId = this.id.replace('id_', '');
-            formularioPasos.ocultarError(campoId);
-        });
-    });
-});
+document.addEventListener('DOMContentLoaded', () => new FormularioUnificado());
 

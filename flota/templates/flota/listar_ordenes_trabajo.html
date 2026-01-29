@@ -77,8 +77,10 @@
                             </td>
                             <td>{{ orden.proveedor.nombre_fantasia }}</td>
                             <td>
-                                {% if orden.orden_compra %}
-                                <span class="badge bg-info">{{ orden.orden_compra.nro_oc }}</span>
+                                {% if orden.ordenes_compra.all %}
+                                    {% for oc in orden.ordenes_compra.all %}
+                                    <span class="badge bg-info me-1">{{ oc.nro_oc }}</span>
+                                    {% endfor %}
                                 {% else %}
                                 <span class="badge bg-warning">Sin OC</span>
                                 {% endif %}

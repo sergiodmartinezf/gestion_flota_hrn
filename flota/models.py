@@ -4,6 +4,89 @@ from django.core.validators import MinValueValidator
 from decimal import Decimal
 from django.utils import timezone
 
+
+# Estados de ordenes de compra
+def normalizar_estado_oc(estado):
+    """
+    Normaliza cualquier variante de estado de orden de compra a los estados estándar.
+    
+    Mapea estados de Mercado Público y variantes a estados internos consistentes.
+    """
+    if not estado:
+        return 'Emitida'
+    
+    estado = str(estado).strip().upper()
+    
+    # Mapeo de estados de Mercado Público a estados internos
+    mapa_mercadopublico = {
+        'RECEPCIÓN CONFORME': 'RECEPCIONADA',
+        'RECEPCION CONFORME': 'RECEPCIONADA',
+        'RECEPCIONADA PARCIALMENTE': 'RECEPCIONADA',
+        'RECEPCION ACEPTADA PARCIALMENTE': 'RECEPCIONADA',
+        'RECEPCION CONFORME INCOMPLETA': 'RECEPCIONADA',
+        'PENDIENTE DE RECEPCIONAR': 'EMITIDA',
+        'ENVIADA A PROVEEDOR': 'EMITIDA',
+        'EN PROCESO': 'EMITIDA',
+        'CANCELADA': 'ANULADA',
+    }
+    
+    # Mapeo de variantes comunes
+    mapa_variantes = {
+        'RECEPCIONADA': 'RECEPCIONADA',
+        'RECIBIDA': 'RECEPCIONADA',
+        'ENTREGADA': 'RECEPCIONADA',
+        'FINALIZADA': 'RECEPCIONADA',
+        'CONCLUIDA': 'RECEPCIONADA',
+        'ACEPTADA': 'ACEPTADA',
+        'APROBADA': 'ACEPTADA',
+        'VALIDADA': 'ACEPTADA',
+        'EMITIDA': 'EMITIDA',
+        'CREADA': 'EMITIDA',
+        'GENERADA': 'EMITIDA',
+        'PAGADA': 'PAGADA',
+        'LIQUIDADA': 'PAGADA',
+        'FACTURADA': 'PAGADA',
+        'ANULADA': 'ANULADA',
+        'CANCELADA': 'ANULADA',
+        'ELIMINADA': 'ANULADA',
+        'RECHAZADA': 'ANULADA',
+    }
+    
+    # Primero buscar en el mapeo de Mercado Público
+    if estado in mapa_mercadopublico:
+        return mapa_mercadopublico[estado]
+    
+    # Luego buscar en el mapeo de variantes
+    if estado in mapa_variantes:
+        return mapa_variantes[estado]
+    
+    # Si no encuentra coincidencia, intentar coincidencia parcial
+    for clave, valor in mapa_mercadopublico.items():
+        if clave in estado or estado in clave:
+            return valor
+    
+    for clave, valor in mapa_variantes.items():
+        if clave in estado or estado in clave:
+            return valor
+    
+    # Por defecto, devolver Emitida
+    return 'EMITIDA'
+
+
+def normalizar_estado_visual(estado_normalizado):
+    """
+    Convierte un estado normalizado a su forma legible para mostrar en interfaces.
+    """
+    estados_visuales = {
+        'EMITIDA': 'Emitida',
+        'ACEPTADA': 'Aceptada',
+        'RECEPCIONADA': 'Recepcionada',
+        'PAGADA': 'Pagada',
+        'ANULADA': 'Anulada',
+    }
+    return estados_visuales.get(estado_normalizado, estado_normalizado)
+
+
 # --- GESTIÓN DE USUARIOS ---
 
 class UsuarioManager(BaseUserManager):
@@ -119,13 +202,13 @@ class CuentaPresupuestaria(models.Model):
 
 
 class OrdenCompra(models.Model):
-    ESTADOS_OC = [
-        ('Emitida', 'Emitida'),
-        ('Aceptada', 'Aceptada'),
-        ('Recepcionada', 'Recepcionada'),
-        ('Pagada', 'Pagada'),
-        ('Anulada', 'Anulada'),
-    ]
+    #ESTADOS_OC = [
+    #    ('Emitida', 'Emitida'),
+    #    ('Aceptada', 'Aceptada'),
+    #    ('Recepcionada', 'Recepcionada'),
+    #    ('Pagada', 'Pagada'),
+    #    ('Anulada', 'Anulada'),
+    #]
 
     id = models.AutoField(primary_key=True)
     nro_oc = models.CharField(max_length=50, unique=True, verbose_name="Nro Orden de Compra")
@@ -133,13 +216,13 @@ class OrdenCompra(models.Model):
     fecha_emision = models.DateField()
     
     # Montos planificados (según OC física)
-    monto_neto = models.DecimalField(max_digits=12, decimal_places=2, validators=[MinValueValidator(Decimal('0'))])
-    impuesto = models.DecimalField(max_digits=12, decimal_places=2, default=0, validators=[MinValueValidator(Decimal('0'))]) # IVA
-    monto_total = models.DecimalField(max_digits=12, decimal_places=2, validators=[MinValueValidator(Decimal('0'))])
+    monto_neto = models.IntegerField(validators=[MinValueValidator(0)])
+    impuesto = models.IntegerField(default=0, validators=[MinValueValidator(0)]) # IVA
+    monto_total = models.IntegerField(validators=[MinValueValidator(0)])
     
     id_licitacion = models.CharField(max_length=50, blank=True, verbose_name="ID MercadoPúblico")
     folio_sigfe = models.CharField(max_length=50, blank=True, verbose_name="Folio SIGFE")
-    estado = models.CharField(max_length=20, choices=ESTADOS_OC, default='Emitida')
+    estado = models.CharField(max_length=20, default='N/A')
     
     # Archivo físico digitalizado
     archivo_adjunto = models.FileField(upload_to='ordenes_compra/', null=True, blank=True, verbose_name="PDF Orden de Compra")
@@ -148,6 +231,7 @@ class OrdenCompra(models.Model):
     vehiculo = models.ForeignKey('Vehiculo', on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Vehículo Asociado", help_text="Vehículo identificado en la importación")
     cuenta_presupuestaria = models.ForeignKey(CuentaPresupuestaria, on_delete=models.PROTECT, related_name='ordenes_compra', null=True, blank=True)
     presupuesto = models.ForeignKey('Presupuesto', on_delete=models.PROTECT, related_name='ordenes_compra', null=True, blank=True, verbose_name="Presupuesto asociado")
+    orden_trabajo = models.ForeignKey('OrdenTrabajo', on_delete=models.SET_NULL, null=True, blank=True, related_name='ordenes_compra', verbose_name="Orden de Trabajo asociada", help_text="Orden de trabajo que originó esta orden de compra")
     
     TIPO_ADQUISICION = [
         ('Convenio Marco', 'Convenio Marco'),
@@ -166,6 +250,70 @@ class OrdenCompra(models.Model):
             models.Index(fields=['estado', 'fecha_emision']),
             models.Index(fields=['proveedor', 'fecha_emision']),
         ]
+    
+    def save(self, *args, **kwargs):
+        """
+        Al guardar una OC, validar y gestionar presupuesto si corresponde.
+        NOTA: El consumo real del presupuesto se hace a través de signals
+        que recalculan basándose en las OCs activas (no anuladas).
+        """
+        is_new = self.pk is None
+        
+        # Si es nueva OC o se cambió el monto/estado, validar presupuesto
+        if self.cuenta_presupuestaria and self.monto_total > 0 and self.estado != 'Anulada':
+            # Determinar vehículo: desde orden_trabajo o directamente
+            vehiculo_oc = self.vehiculo
+            if not vehiculo_oc and self.orden_trabajo:
+                vehiculo_oc = self.orden_trabajo.vehiculo
+            
+            if vehiculo_oc:
+                anio = self.fecha_emision.year
+                
+                # Buscar presupuesto específico del vehículo
+                presupuesto = Presupuesto.objects.filter(
+                    cuenta=self.cuenta_presupuestaria,
+                    vehiculo=vehiculo_oc,
+                    anio=anio,
+                    activo=True
+                ).first()
+                
+                # Si no hay específico, buscar global
+                if not presupuesto:
+                    presupuesto = Presupuesto.objects.filter(
+                        cuenta=self.cuenta_presupuestaria,
+                        vehiculo__isnull=True,
+                        anio=anio,
+                        activo=True
+                    ).first()
+                
+                # Si es nueva OC, validar presupuesto disponible
+                if is_new and presupuesto:
+                    if not presupuesto.tiene_saldo_suficiente(self.monto_total):
+                        raise ValueError(
+                            f"Presupuesto insuficiente para generar OC. "
+                            f"Disponible: ${presupuesto.disponible:.0f}, "
+                            f"Requerido: ${self.monto_total:.0f}"
+                        )
+                # Si se está modificando y cambió el monto, validar disponibilidad
+                elif not is_new and presupuesto:
+                    # Obtener monto anterior
+                    try:
+                        oc_anterior = OrdenCompra.objects.get(pk=self.pk)
+                        monto_anterior = oc_anterior.monto_total if oc_anterior.estado != 'Anulada' else 0
+                        diferencia = self.monto_total - monto_anterior
+                        
+                        # Si aumentó el monto y no está anulada, validar disponibilidad
+                        if diferencia > 0 and self.estado != 'Anulada':
+                            if not presupuesto.tiene_saldo_suficiente(diferencia):
+                                raise ValueError(
+                                    f"Presupuesto insuficiente para aumentar OC. "
+                                    f"Disponible: ${presupuesto.disponible:.0f}, "
+                                    f"Incremento requerido: ${diferencia:.0f}"
+                                )
+                    except OrdenCompra.DoesNotExist:
+                        pass
+        
+        super().save(*args, **kwargs)
     
     def __str__(self):
         return f"OC {self.nro_oc} - {self.proveedor.nombre_fantasia}"
@@ -280,8 +428,8 @@ class Presupuesto(models.Model):
     
     cuenta = models.ForeignKey(CuentaPresupuestaria, on_delete=models.PROTECT, related_name='presupuestos', verbose_name="Cuenta SIGFE")
     
-    monto_asignado = models.DecimalField(max_digits=12, decimal_places=2, validators=[MinValueValidator(Decimal('0'))])
-    monto_ejecutado = models.DecimalField(max_digits=12, decimal_places=2, default=0, validators=[MinValueValidator(Decimal('0'))])
+    monto_asignado = models.IntegerField(validators=[MinValueValidator(0)])
+    monto_ejecutado = models.IntegerField(default=0, validators=[MinValueValidator(0)])
     
     # Opcional: Presupuesto específico por vehículo, si es null es presupuesto global de la cuenta
     vehiculo = models.ForeignKey(Vehiculo, on_delete=models.CASCADE, related_name='presupuestos', null=True, blank=True)
@@ -344,7 +492,8 @@ class OrdenTrabajo(models.Model):
     
     vehiculo = models.ForeignKey(Vehiculo, on_delete=models.PROTECT, related_name='ordenes_trabajo')
     proveedor = models.ForeignKey(Proveedor, on_delete=models.PROTECT, related_name='ordenes_trabajo')
-    orden_compra = models.ForeignKey(OrdenCompra, on_delete=models.SET_NULL, null=True, blank=True, related_name='ordenes_trabajo')
+    # NOTA: La orden de compra se genera DESPUÉS de la orden de trabajo.
+    # La relación está en OrdenCompra.orden_trabajo, no aquí.
     
     class Meta:
         db_table = 'orden_trabajo'
@@ -386,12 +535,12 @@ class Mantenimiento(models.Model):
     orden_compra = models.ForeignKey(OrdenCompra, on_delete=models.SET_NULL, null=True, blank=True, related_name='mantenimientos_directos')
     
     # --- GESTIÓN DE COSTOS (PLANIFICADO vs REAL) ---
-    costo_estimado = models.DecimalField(max_digits=12, decimal_places=2, default=0, blank=True, help_text="Costo aproximado inicial")
+    costo_estimado = models.IntegerField(default=0, blank=True, help_text="Costo aproximado inicial")
     
     # Desglose de costos reales
-    costo_mano_obra = models.DecimalField(max_digits=12, decimal_places=2, default=0, verbose_name="Costo Mano de Obra")
-    costo_repuestos = models.DecimalField(max_digits=12, decimal_places=2, default=0, verbose_name="Costo Repuestos")
-    costo_total_real = models.DecimalField(max_digits=12, decimal_places=2, default=0, verbose_name="Costo Final Total")
+    costo_mano_obra = models.IntegerField(default=0, verbose_name="Costo Mano de Obra")
+    costo_repuestos = models.IntegerField(default=0, verbose_name="Costo Repuestos")
+    costo_total_real = models.IntegerField(default=0, verbose_name="Costo Final Total")
     
     # Relaciones
     vehiculo = models.ForeignKey(Vehiculo, on_delete=models.PROTECT, related_name='mantenimientos')
@@ -494,8 +643,8 @@ class Arriendo(models.Model):
     fecha_fin = models.DateField(null=True, blank=True, verbose_name="Fecha Fin Contrato")
     
     # Costos
-    costo_diario = models.DecimalField(max_digits=10, decimal_places=2, validators=[MinValueValidator(Decimal('0'))])
-    costo_total = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, verbose_name="Costo total estimado/real")
+    costo_diario = models.IntegerField(validators=[MinValueValidator(0)])
+    costo_total = models.IntegerField(null=True, blank=True, verbose_name="Costo total estimado/real")
     
     # Gestión
     motivo = models.TextField(help_text="Ej: Ambulancia HR-PG-25 en pana de motor")
@@ -568,12 +717,8 @@ class HojaRuta(models.Model):
     camillero = models.CharField(max_length=150, blank=True, verbose_name="Camillero")
 
     # REQ: Kilometraje obligatorio (se valida en form, aqui min value)
-    km_inicio = models.IntegerField(validators=[MinValueValidator(0)])
-    km_fin = models.IntegerField(validators=[MinValueValidator(0)])
-
-    # REQ: Eliminar campos de litros de inicio y fin (ELIMINADOS)
-    # litros_inicio = ... (ELIMINADO)
-    # litros_fin = ... (ELIMINADO)
+    km_inicio = models.IntegerField(null=True, blank=True, verbose_name="KM Inicio Turno", validators=[MinValueValidator(0)])
+    km_fin = models.IntegerField(null=True, blank=True, verbose_name="KM Fin Turno", validators=[MinValueValidator(0)])
 
     observaciones = models.TextField(blank=True)
     creado_en = models.DateTimeField(auto_now_add=True)
@@ -589,27 +734,44 @@ class HojaRuta(models.Model):
     def __str__(self):
         return f"HR {self.vehiculo.patente} - {self.fecha} - {self.conductor.nombre_completo}"
     
+    def actualizar_kilometraje(self):
+        viajes = self.viajes.all().order_by('hora_salida')
+        if viajes.exists():
+            self.km_inicio = viajes.first().km_inicio_viaje
+            self.km_fin = viajes.last().km_fin_viaje
+            self.save()
+
     @property
     def km_recorridos(self):
-        return max(0, self.km_fin - self.km_inicio)
+        if self.km_fin is not None and self.km_inicio is not None:
+            return max(0, self.km_fin - self.km_inicio)
+        return 0
 
 
 class Viaje(models.Model):
     TIPOS_SERVICIO = [
-        ('Traslado Paciente', 'Traslado Paciente'),
-        ('Administrativo', 'Administrativo'),
-        ('Urgencia SAMU', 'Urgencia SAMU'),
-        ('Ronda Médica', 'Ronda Médica'),
-        ('Otro', 'Otro'),
+        ('Llamado', 'Llamado'),
+        ('Rescate de Paciente', 'Rescate de Paciente'),
+        ('A Urgencia HBO', 'A Urgencia HBO'),
+        ('Otros', 'Otros (hora esp, imagen, etc)'),
+        ('Exámenes', 'Exámenes'),
+        ('Alta a Domicilio', 'Alta a Domicilio'),
     ]
     
     id = models.AutoField(primary_key=True)
     hora_salida = models.TimeField()
-    hora_llegada = models.TimeField(null=True, blank=True)
+    hora_llegada = models.TimeField()
     destino = models.CharField(max_length=200)
     rut_paciente = models.CharField(max_length=12, blank=True)
     nombre_paciente = models.CharField(max_length=150, blank=True)
-    tipo_servicio = models.CharField(max_length=30, choices=TIPOS_SERVICIO, default='Traslado Paciente')
+    
+    # Se actualiza el choices y se define un default coherente con la lista nueva
+    tipo_servicio = models.CharField(
+        max_length=50, 
+        choices=TIPOS_SERVICIO, 
+        default='Llamado'
+    )
+    
     #km_recorridos_viaje = models.IntegerField(default=0, validators=[MinValueValidator(0)])
     km_inicio_viaje = models.IntegerField(
         validators=[MinValueValidator(0)], 
@@ -640,12 +802,13 @@ class CargaCombustible(models.Model):
     id = models.AutoField(primary_key=True)
     fecha = models.DateField()
     litros = models.DecimalField(max_digits=8, decimal_places=2, validators=[MinValueValidator(Decimal('0'))])
-    precio_unitario = models.DecimalField(max_digits=8, decimal_places=2, null=True, blank=True)
     
+    precio_unitario = models.IntegerField(null=True, blank=True, validators=[MinValueValidator(0)])
+    costo_total = models.IntegerField(validators=[MinValueValidator(0)])
+
     # Control para rendimiento
     kilometraje_al_cargar = models.IntegerField(validators=[MinValueValidator(0)])
     
-    costo_total = models.DecimalField(max_digits=10, decimal_places=2, validators=[MinValueValidator(Decimal('0'))])
     nro_boleta = models.CharField(max_length=50, blank=True)
     
     patente_vehiculo = models.ForeignKey(Vehiculo, on_delete=models.PROTECT, related_name='cargas_combustible')

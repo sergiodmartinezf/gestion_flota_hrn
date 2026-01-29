@@ -16,7 +16,12 @@ def login_view(request):
             user = authenticate(request, username=rut, password=password)
             if user is not None and user.activo:
                 login(request, user)
-                return redirect('dashboard')
+                # --- NUEVA LÓGICA DE REDIRECCIÓN POR ROL ---
+                if user.rol == 'Conductor':
+                    return redirect('registrar_bitacora')
+                else:
+                    return redirect('dashboard')
+                # -------------------------------------------
             else:
                 messages.error(request, 'RUT o contraseña incorrectos, o usuario deshabilitado.')
     else:

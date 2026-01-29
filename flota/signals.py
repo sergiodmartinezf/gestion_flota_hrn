@@ -2,7 +2,7 @@ from django.db.models.signals import post_save, post_delete, pre_save
 from django.dispatch import receiver
 from django.db.models import Sum
 from decimal import Decimal
-from .models import Mantenimiento, Presupuesto, CargaCombustible, Arriendo
+from .models import Mantenimiento, Presupuesto, CargaCombustible, Arriendo, OrdenCompra
 
 @receiver(pre_save, sender=Mantenimiento)
 def validar_presupuesto_antes_de_guardar(sender, instance, **kwargs):
@@ -130,8 +130,76 @@ def recalcular_monto_ejecutado(presupuesto):
     )['total'] or Decimal('0')
     total += gastos_arriendo
 
+    # 4. Sumar Órdenes de Compra activas (no anuladas)
+    # Las OCs representan compromisos presupuestarios
+    from django.db.models import Q
+    
+    # Determinar vehículo para filtrar OCs
+    if vehiculo:
+        # Buscar OCs del vehículo específico (directamente o a través de OT)
+        ocs = OrdenCompra.objects.filter(
+            cuenta_presupuestaria=cuenta,
+            fecha_emision__year=anio
+        ).exclude(estado='Anulada').filter(
+            Q(vehiculo=vehiculo) | Q(orden_trabajo__vehiculo=vehiculo)
+        )
+    else:
+        # Para presupuesto global, sumar todas las OCs
+        ocs = OrdenCompra.objects.filter(
+            cuenta_presupuestaria=cuenta,
+            fecha_emision__year=anio
+        ).exclude(estado='Anulada')
+    
+    gastos_oc = ocs.aggregate(
+        total=Sum('monto_total')
+    )['total'] or Decimal('0')
+    total += gastos_oc
+
     # Actualizar el presupuesto
     presupuesto.monto_ejecutado = total
     presupuesto.save(update_fields=['monto_ejecutado'])
+
+
+@receiver(post_save, sender=OrdenCompra)
+@receiver(post_delete, sender=OrdenCompra)
+def actualizar_presupuesto_orden_compra(sender, instance, **kwargs):
+    """
+    Cuando se guarda/borra una OC, recalcular el presupuesto asociado.
+    Las OCs representan compromisos presupuestarios.
+    """
+    if not instance.cuenta_presupuestaria:
+        return
+    
+    # Determinar vehículo: desde orden_trabajo o directamente
+    vehiculo_oc = instance.vehiculo
+    if not vehiculo_oc and instance.orden_trabajo:
+        vehiculo_oc = instance.orden_trabajo.vehiculo
+    
+    anio = instance.fecha_emision.year
+    
+    # Buscar presupuestos afectados
+    presupuestos = Presupuesto.objects.filter(
+        cuenta=instance.cuenta_presupuestaria,
+        anio=anio,
+        activo=True
+    )
+    
+    if vehiculo_oc:
+        # Buscar presupuesto específico del vehículo
+        presupuestos = presupuestos.filter(vehiculo=vehiculo_oc)
+        if not presupuestos.exists():
+            # Si no hay específico, buscar global
+            presupuestos = Presupuesto.objects.filter(
+                cuenta=instance.cuenta_presupuestaria,
+                anio=anio,
+                vehiculo__isnull=True,
+                activo=True
+            )
+    else:
+        # Si no hay vehículo específico, afecta a presupuestos globales
+        presupuestos = presupuestos.filter(vehiculo__isnull=True)
+    
+    for p in presupuestos:
+        recalcular_monto_ejecutado(p)
 
     
