@@ -1,10 +1,241 @@
 {% extends 'base.html' %}
 {% block content %}
-<h2>Registrar Orden de Compra</h2>
-<form method="post" enctype="multipart/form-data">
-    {% csrf_token %}
-    {{ form.as_p }}
-    <button type="submit" class="btn btn-primary">Guardar</button>
-    <a href="{% url 'listar_ordenes_compra' %}" class="btn btn-secondary">Cancelar</a>
-</form>
+<div class="container-fluid">
+    <h2 class="mb-4"><i class="bi bi-cart-plus"></i> Registrar Orden de Compra Manualmente</h2>
+    
+    <div class="alert alert-info">
+        <i class="bi bi-info-circle"></i> 
+        <strong>Nota:</strong> Si la orden de compra está en MercadoPúblico, use la opción 
+        <a href="{% url 'importar_oc' %}" class="alert-link">Importar desde MercadoPúblico</a> 
+        para obtener los datos automáticamente.
+    </div>
+
+    <div class="card">
+        <div class="card-body">
+            <form method="post" enctype="multipart/form-data">
+                {% csrf_token %}
+                
+                <div class="row">
+                    <div class="col-md-6">
+                        <h5 class="mb-3">Información Básica</h5>
+                        
+                        <div class="mb-3">
+                            <label for="{{ form.nro_oc.id_for_label }}" class="form-label">
+                                Número de Orden de Compra *
+                            </label>
+                            {{ form.nro_oc }}
+                            {% if form.nro_oc.errors %}
+                                <div class="text-danger small">{{ form.nro_oc.errors }}</div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="{{ form.fecha_emision.id_for_label }}" class="form-label">
+                                Fecha de Emisión *
+                            </label>
+                            {{ form.fecha_emision }}
+                            {% if form.fecha_emision.errors %}
+                                <div class="text-danger small">{{ form.fecha_emision.errors }}</div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="{{ form.proveedor.id_for_label }}" class="form-label">
+                                Proveedor *
+                            </label>
+                            {{ form.proveedor }}
+                            {% if form.proveedor.errors %}
+                                <div class="text-danger small">{{ form.proveedor.errors }}</div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="{{ form.orden_trabajo.id_for_label }}" class="form-label">
+                                Orden de Trabajo Asociada
+                            </label>
+                            {{ form.orden_trabajo }}
+                            <small class="form-text text-muted">
+                                Seleccione la orden de trabajo que originó esta orden de compra.
+                                Si selecciona una OT, el vehículo y proveedor se completarán automáticamente.
+                            </small>
+                            {% if form.orden_trabajo.errors %}
+                                <div class="text-danger small">{{ form.orden_trabajo.errors }}</div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="{{ form.vehiculo.id_for_label }}" class="form-label">
+                                Vehículo Asociado
+                            </label>
+                            {{ form.vehiculo }}
+                            <small class="form-text text-muted">
+                                Se completará automáticamente si selecciona una orden de trabajo.
+                            </small>
+                            {% if form.vehiculo.errors %}
+                                <div class="text-danger small">{{ form.vehiculo.errors }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <h5 class="mb-3">Información Financiera</h5>
+                        
+                        <div class="mb-3">
+                            <label for="{{ form.monto_neto.id_for_label }}" class="form-label">
+                                Monto Neto *
+                            </label>
+                            <div class="input-group">
+                                <span class="input-group-text">$</span>
+                                {{ form.monto_neto }}
+                            </div>
+                            {% if form.monto_neto.errors %}
+                                <div class="text-danger small">{{ form.monto_neto.errors }}</div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="{{ form.impuesto.id_for_label }}" class="form-label">
+                                Impuesto (IVA)
+                            </label>
+                            <div class="input-group">
+                                <span class="input-group-text">$</span>
+                                {{ form.impuesto }}
+                            </div>
+                            {% if form.impuesto.errors %}
+                                <div class="text-danger small">{{ form.impuesto.errors }}</div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="{{ form.monto_total.id_for_label }}" class="form-label">
+                                Monto Total *
+                            </label>
+                            <div class="input-group">
+                                <span class="input-group-text">$</span>
+                                {{ form.monto_total }}
+                            </div>
+                            <small class="form-text text-muted">
+                                Monto neto + impuesto
+                            </small>
+                            {% if form.monto_total.errors %}
+                                <div class="text-danger small">{{ form.monto_total.errors }}</div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="{{ form.cuenta_presupuestaria.id_for_label }}" class="form-label">
+                                Cuenta Presupuestaria
+                            </label>
+                            {{ form.cuenta_presupuestaria }}
+                            <small class="form-text text-muted">
+                                Necesaria para validar y consumir presupuesto.
+                            </small>
+                            {% if form.cuenta_presupuestaria.errors %}
+                                <div class="text-danger small">{{ form.cuenta_presupuestaria.errors }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                
+                <hr>
+                
+                <div class="row">
+                    <div class="col-md-6">
+                        <h5 class="mb-3">Información Adicional</h5>
+                        
+                        <div class="mb-3">
+                            <label for="{{ form.estado.id_for_label }}" class="form-label">
+                                Estado
+                            </label>
+                            {{ form.estado }}
+                            {% if form.estado.errors %}
+                                <div class="text-danger small">{{ form.estado.errors }}</div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="{{ form.id_licitacion.id_for_label }}" class="form-label">
+                                ID Licitación (MercadoPúblico)
+                            </label>
+                            {{ form.id_licitacion }}
+                            {% if form.id_licitacion.errors %}
+                                <div class="text-danger small">{{ form.id_licitacion.errors }}</div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="{{ form.folio_sigfe.id_for_label }}" class="form-label">
+                                Folio SIGFE
+                            </label>
+                            {{ form.folio_sigfe }}
+                            {% if form.folio_sigfe.errors %}
+                                <div class="text-danger small">{{ form.folio_sigfe.errors }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <h5 class="mb-3">Archivo</h5>
+                        
+                        <div class="mb-3">
+                            <label for="{{ form.archivo_adjunto.id_for_label }}" class="form-label">
+                                PDF Orden de Compra
+                            </label>
+                            {{ form.archivo_adjunto }}
+                            {% if form.archivo_adjunto.errors %}
+                                <div class="text-danger small">{{ form.archivo_adjunto.errors }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                
+                {% if form.non_field_errors %}
+                <div class="alert alert-danger">
+                    {{ form.non_field_errors }}
+                </div>
+                {% endif %}
+                
+                <div class="mt-4">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-check-circle"></i> Guardar Orden de Compra
+                    </button>
+                    <a href="{% url 'listar_ordenes_compra' %}" class="btn btn-secondary">
+                        <i class="bi bi-x-circle"></i> Cancelar
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+// Auto-completar vehículo y proveedor cuando se selecciona una orden de trabajo
+document.addEventListener('DOMContentLoaded', function() {
+    const ordenTrabajoSelect = document.getElementById('id_orden_trabajo');
+    const vehiculoSelect = document.getElementById('id_vehiculo');
+    const proveedorSelect = document.getElementById('id_proveedor');
+    
+    if (ordenTrabajoSelect) {
+        ordenTrabajoSelect.addEventListener('change', function() {
+            const otId = this.value;
+            if (otId) {
+                // Hacer petición AJAX para obtener datos de la OT
+                fetch(`/flota/api/orden-trabajo/${otId}/`)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.vehiculo_id && vehiculoSelect) {
+                            vehiculoSelect.value = data.vehiculo_id;
+                        }
+                        if (data.proveedor_id && proveedorSelect) {
+                            proveedorSelect.value = data.proveedor_id;
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error al obtener datos de la OT:', error);
+                    });
+            }
+        });
+    }
+});
+</script>
 {% endblock %}

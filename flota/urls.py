@@ -37,6 +37,7 @@ urlpatterns = [
     path('combustible/listar/', views.listar_cargas_combustible, name='listar_cargas_combustible'),
     path('incidentes/registrar/', views.registrar_incidente, name='registrar_incidente'),
     path('incidentes/listar/', views.listar_incidentes, name='listar_incidentes'),
+    path('bitacoras/<int:id>/agregar-viaje/', views.agregar_viaje, name='agregar_viaje'),
     
     # Mantenimiento (RF_18-23)
     path('mantenimientos/preventivo/', views.programar_mantenimiento_preventivo, name='programar_mantenimiento_preventivo'),
@@ -92,6 +93,8 @@ urlpatterns = [
     path('ordenes-trabajo/modificar/<int:id>/', views.modificar_orden_trabajo, name='modificar_orden_trabajo'),
     path('ordenes-trabajo/eliminar/<int:id>/', views.eliminar_orden_trabajo, name='eliminar_orden_trabajo'),
     path('ordenes-trabajo/detalle/<int:id>/', views.detalle_orden_trabajo, name='detalle_orden_trabajo'),
+    # API
+    path('api/orden-trabajo/<int:id>/', views.api_orden_trabajo, name='api_orden_trabajo'),
     
     # Exportaciones
     path('exportar/viajes/', views.exportar_consolidado_viajes, name='exportar_viajes'),

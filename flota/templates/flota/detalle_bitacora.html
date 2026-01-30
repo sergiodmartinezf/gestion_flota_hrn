@@ -1,167 +1,172 @@
 {% extends 'base.html' %}
-
 {% load static %}
 
-{% block title %}Detalle Bitácora #{{ hoja.id }} - Gestión de Flota{% endblock %}
+{% block title %}Detalle Hoja de Ruta #{{ hoja.id }}{% endblock %}
 
 {% block content %}
 <div class="container-fluid">
-    <h2 class="mb-4"><i class="bi bi-journal-text"></i> Detalle Bitácora #{{ hoja.id }}</h2>
-
-    <!-- Información general de la bitácora -->
-    <div class="card mb-4">
-        <div class="card-header">
-            <h5 class="mb-0"><i class="bi bi-info-circle"></i> Información General</h5>
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2><i class="bi bi-clipboard-data"></i> Hoja de Ruta #{{ hoja.id }}</h2>
+        <div>
+            <a href="{% url 'agregar_viaje' id=hoja.id %}" class="btn btn-success">
+                <i class="bi bi-plus-circle"></i> Agregar Viaje
+            </a>
+            <a href="{% url 'listar_bitacoras' %}" class="btn btn-outline-secondary">
+                <i class="bi bi-list"></i> Volver a Lista
+            </a>
         </div>
-        <div class="card-body">
-            <div class="row">
-                <div class="col-md-3">
-                    <strong>Fecha:</strong><br>
-                    {{ hoja.fecha|date:"d/m/Y" }}
+    </div>
+    
+    <!-- Información de la hoja de ruta -->
+    <div class="row mb-4">
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <i class="bi bi-info-circle"></i> Información del Turno
                 </div>
-                <div class="col-md-3">
-                    <strong>Turno:</strong><br>
-                    {{ hoja.get_turno_display }}
-                </div>
-                <div class="col-md-3">
-                    <strong>Vehículo:</strong><br>
-                    <span class="badge bg-secondary">{{ hoja.vehiculo.patente }}</span><br>
-                    <small>{{ hoja.vehiculo.marca }} {{ hoja.vehiculo.modelo }}</small>
-                </div>
-                <div class="col-md-3">
-                    <strong>Conductor:</strong><br>
-                    {{ hoja.conductor.nombre_completo }}
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-3 mb-2">
+                            <strong>Vehículo:</strong><br>
+                            {{ hoja.vehiculo.patente }} - {{ hoja.vehiculo.marca }} {{ hoja.vehiculo.modelo }}
+                        </div>
+                        <div class="col-md-3 mb-2">
+                            <strong>Fecha:</strong><br>
+                            {{ hoja.fecha|date:"d/m/Y" }}
+                        </div>
+                        <div class="col-md-3 mb-2">
+                            <strong>Turno:</strong><br>
+                            {{ hoja.get_turno_display }}
+                        </div>
+                        <div class="col-md-3 mb-2">
+                            <strong>Conductor:</strong><br>
+                            {{ hoja.conductor.nombre_completo }}
+                        </div>
+                        <div class="col-md-6 mb-2">
+                            <strong>KM Inicio:</strong><br>
+                            {{ hoja.km_inicio }} km
+                        </div>
+                        <div class="col-md-6 mb-2">
+                            <strong>KM Fin:</strong><br>
+                            {{ hoja.km_fin|default:"No registrado" }} km
+                        </div>
+                        {% if hoja.observaciones %}
+                        <div class="col-12 mt-2">
+                            <strong>Observaciones:</strong><br>
+                            {{ hoja.observaciones|linebreaks }}
+                        </div>
+                        {% endif %}
+                    </div>
                 </div>
             </div>
-
-            <hr>
-
-            <div class="row">
-                <div class="col-md-3">
-                    <strong>Kilometraje Inicio:</strong><br>
-                    {{ hoja.km_inicio }} km
+        </div>
+        
+        <div class="col-lg-4">
+            <div class="card">
+                <div class="card-header bg-info text-white">
+                    <i class="bi bi-speedometer"></i> Resumen de Kilometraje
                 </div>
-                <div class="col-md-3">
-                    <strong>Kilometraje Fin:</strong><br>
-                    {{ hoja.km_fin }} km
-                </div>
-                <div class="col-md-3">
-                    <strong>Kilómetros Recorridos:</strong><br>
-                    {{ hoja.km_recorridos }} km
-                </div>
-                <div class="col-md-3">
-                    <strong>Creado en:</strong><br>
-                    {{ hoja.creado_en|date:"d/m/Y H:i" }}
+                <div class="card-body text-center">
+                    <h3 class="text-primary">{{ total_km_viajes }} km</h3>
+                    <p class="text-muted mb-0">Total recorrido en {{ viajes|length }} viaje{{ viajes|pluralize }}</p>
+                    <hr>
+                    <div class="row">
+                        <div class="col-6">
+                            <small class="text-muted">Inicio</small><br>
+                            <strong>{{ hoja.km_inicio }} km</strong>
+                        </div>
+                        <div class="col-6">
+                            <small class="text-muted">Fin</small><br>
+                            <strong>{{ hoja.km_fin|default:hoja.km_inicio }} km</strong>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
-
-    <!-- Personal Médico -->
-    <div class="card mb-4">
-        <div class="card-header">
-            <h5 class="mb-0"><i class="bi bi-people"></i> Personal Médico</h5>
-        </div>
-        <div class="card-body">
-            <div class="row">
-                <div class="col-md-3">
-                    <strong>Médico:</strong><br>
-                    {{ hoja.medico|default:"No especificado" }}
-                </div>
-                <div class="col-md-3">
-                    <strong>Enfermero/a:</strong><br>
-                    {{ hoja.enfermero|default:"No especificado" }}
-                </div>
-                <div class="col-md-3">
-                    <strong>TENS:</strong><br>
-                    {{ hoja.tens|default:"No especificado" }}
-                </div>
-                <div class="col-md-3">
-                    <strong>Camillero:</strong><br>
-                    {{ hoja.camillero|default:"No especificado" }}
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Observaciones -->
-    {% if hoja.observaciones %}
-    <div class="card mb-4">
-        <div class="card-header">
-            <h5 class="mb-0"><i class="bi bi-chat-text"></i> Observaciones</h5>
-        </div>
-        <div class="card-body">
-            {{ hoja.observaciones|linebreaks }}
-        </div>
-    </div>
-    {% endif %}
-
-    <!-- Viajes realizados -->
-    <div class="card mb-4">
-        <div class="card-header d-flex justify-content-between align-items-center">
-            <h5 class="mb-0"><i class="bi bi-geo-alt"></i> Viajes Realizados</h5>
-            <span class="badge bg-info">{{ viajes|length }} viaje{{ viajes|length|pluralize }}</span>
+    
+    <!-- Lista de viajes -->
+    <div class="card">
+        <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
+            <span><i class="bi bi-journey"></i> Viajes Registrados ({{ viajes|length }})</span>
+            <a href="{% url 'agregar_viaje' id=hoja.id %}" class="btn btn-light btn-sm">
+                <i class="bi bi-plus"></i> Nuevo Viaje
+            </a>
         </div>
         <div class="card-body">
             {% if viajes %}
                 <div class="table-responsive">
-                    <table class="table table-hover table-striped">
-                        <thead class="table-light">
+                    <table class="table table-hover">
+                        <thead>
                             <tr>
                                 <th>Hora Salida</th>
                                 <th>Hora Llegada</th>
                                 <th>Destino</th>
                                 <th>Paciente</th>
-                                <th>RUT Paciente</th>
-                                <th>Tipo Servicio</th>
-                                <th>Km Viaje</th>
+                                <th>Tipo</th>
+                                <th>KM Inicio</th>
+                                <th>KM Fin</th>
+                                <th>KM Recorridos</th>
                             </tr>
                         </thead>
                         <tbody>
                             {% for viaje in viajes %}
-                            <tr>
-                                <td>{{ viaje.hora_salida|time:"H:i" }}</td>
-                                <td>{{ viaje.hora_llegada|time:"H:i"|default:"-" }}</td>
-                                <td>{{ viaje.destino }}</td>
-                                <td>{{ viaje.nombre_paciente|default:"-" }}</td>
-                                <td>{{ viaje.rut_paciente|default:"-" }}</td>
-                                <td>
-                                    <span class="badge bg-secondary">{{ viaje.get_tipo_servicio_display }}</span>
-                                </td>
-                                <td>{{ viaje.km_recorridos_viaje }} km</td>
-                            </tr>
+                                <tr>
+                                    <td>{{ viaje.hora_salida|time:"H:i" }}</td>
+                                    <td>{{ viaje.hora_llegada|time:"H:i"|default:"-" }}</td>
+                                    <td>{{ viaje.destino|truncatechars:30 }}</td>
+                                    <td>
+                                        {% if viaje.nombre_paciente %}
+                                            {{ viaje.nombre_paciente }}<br>
+                                            <small class="text-muted">{{ viaje.rut_paciente|default:"" }}</small>
+                                        {% else %}
+                                            -
+                                        {% endif %}
+                                    </td>
+                                    <td><span class="badge bg-info">{{ viaje.tipo_servicio }}</span></td>
+                                    <td>{{ viaje.km_inicio_viaje }} km</td>
+                                    <td>{{ viaje.km_fin_viaje }} km</td>
+                                    <td><strong class="text-success">{{ viaje.km_recorridos_calculados }} km</strong></td>
+                                </tr>
                             {% endfor %}
                         </tbody>
-                        <tfoot class="table-light">
-                            <tr>
-                                <th colspan="6" class="text-end">Total Kilómetros de Viajes:</th>
-                                <th>{{ total_km_viajes }} km</th>
+                        <tfoot>
+                            <tr class="table-active">
+                                <td colspan="7" class="text-end"><strong>Total KM Recorridos:</strong></td>
+                                <td><strong class="text-success">{{ total_km_viajes }} km</strong></td>
                             </tr>
                         </tfoot>
                     </table>
                 </div>
             {% else %}
-                <div class="alert alert-info">
-                    <i class="bi bi-info-circle"></i> No hay viajes registrados para esta bitácora.
+                <div class="text-center py-5">
+                    <i class="bi bi-journey display-1 text-muted"></i>
+                    <h4 class="mt-3">No hay viajes registrados</h4>
+                    <p class="text-muted">Comience agregando el primer viaje de este turno</p>
+                    <a href="{% url 'agregar_viaje' id=hoja.id %}" class="btn btn-primary btn-lg">
+                        <i class="bi bi-plus-circle"></i> Agregar Primer Viaje
+                    </a>
                 </div>
             {% endif %}
         </div>
     </div>
-
-    <!-- Acciones -->
-    <div class="card">
-        <div class="card-body">
-            <div class="btn-group">
-                {% if user.rol == 'Administrador' %}
-                <a href="{% url 'modificar_bitacora' hoja.id %}" class="btn btn-warning">
-                    <i class="bi bi-pencil"></i> Modificar
+    
+    <!-- Acciones adicionales -->
+    <div class="mt-3 d-flex justify-content-between">
+        <a href="{% url 'listar_bitacoras' %}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i> Volver a Lista
+        </a>
+        <div>
+            {% if request.user.rol == 'Administrador' %}
+                <a href="{% url 'modificar_bitacora' id=hoja.id %}" class="btn btn-outline-warning">
+                    <i class="bi bi-pencil"></i> Editar Hoja
                 </a>
-                {% endif %}
-                <a href="{% url 'listar_bitacoras' %}" class="btn btn-secondary">
-                    <i class="bi bi-arrow-left"></i> Volver al Listado
-                </a>
-            </div>
+            {% endif %}
+            <a href="{% url 'agregar_viaje' id=hoja.id %}" class="btn btn-success">
+                <i class="bi bi-plus-circle"></i> Agregar Viaje
+            </a>
         </div>
     </div>
 </div>
 {% endblock %}
+

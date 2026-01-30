@@ -39,7 +39,8 @@ from .viajes import (
     listar_cargas_combustible,
     registrar_incidente,
     listar_incidentes,
-    exportar_consolidado_viajes
+    exportar_consolidado_viajes,
+    agregar_viaje
 )
 
 # Importar vistas de mantenimiento
@@ -103,7 +104,8 @@ from .ordenes import (
     listar_ordenes_trabajo,
     detalle_orden_trabajo,
     modificar_orden_trabajo,
-    eliminar_orden_trabajo
+    eliminar_orden_trabajo,
+    api_orden_trabajo
 )
 
 # Importar APIs

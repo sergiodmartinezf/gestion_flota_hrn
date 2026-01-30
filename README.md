@@ -58,7 +58,12 @@ Sistema web integral desarrollado en Django para la gestión completa de la flot
 - **Base de Datos**: PostgreSQL
 - **Frontend**: HTML5, CSS3, JavaScript
 - **UI Framework**: Bootstrap 5
-- **Librerías**: Pillow (manejo de imágenes), xlwt (exportación Excel)
+- **Librerías**: 
+  - Pillow (manejo de imágenes)
+  - openpyxl (exportación Excel moderna)
+  - xlwt (exportación Excel legacy)
+  - python-dotenv (gestión de variables de entorno)
+  - requests (peticiones HTTP para integraciones)
 - **Autenticación**: Sistema personalizado con RUT chileno
 
 ## Instalación
@@ -85,32 +90,40 @@ source venv/bin/activate
 pip install -r requirements.txt
 ```
 
-5. Configurar la base de datos:
+5. Configurar variables de entorno:
+   - Crear un archivo `.env` en la raíz del proyecto
+   - Agregar las siguientes variables (ajustar según tu configuración):
+   ```env
+   MERCADO_PUBLICO_TICKET=tu_ticket_aqui
+   ```
+   - Nota: El archivo `.env` no debe subirse al repositorio (ya está en `.gitignore`)
+
+6. Configurar la base de datos:
    - Crear base de datos PostgreSQL: `flota_hrn_db`
    - Actualizar credenciales en `gestion_flota/settings.py` si es necesario
 
-6. Realizar migraciones:
+7. Realizar migraciones:
 ```bash
 python manage.py makemigrations
 python manage.py migrate
 ```
 
-7. Crear datos iniciales (opcional):
+8. Crear datos iniciales (opcional):
 ```bash
 python manage.py crear_datos_iniciales
 ```
 
-8. Crear superusuario administrador:
+9. Crear superusuario administrador:
 ```bash
 python manage.py createsuperuser
 ```
 
-9. Ejecutar el servidor de desarrollo:
+10. Ejecutar el servidor de desarrollo:
 ```bash
 python manage.py runserver
 ```
 
-10. Acceder al sistema en: http://127.0.0.1:8000/
+11. Acceder al sistema en: http://127.0.0.1:8000/
 
 ## Estructura del Proyecto
 

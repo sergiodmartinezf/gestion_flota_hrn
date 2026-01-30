@@ -11,15 +11,7 @@
                 <p><strong>Fecha Emisión:</strong> {{ orden.fecha_emision }}</p>
                 <p><strong>Proveedor:</strong> {{ orden.proveedor.nombre_fantasia }}</p>
                 <p><strong>Estado:</strong> 
-                    <span class="badge 
-                        {% if orden.estado == 'Emitida' %}bg-primary
-                        {% elif orden.estado == 'Aceptada' %}bg-info
-                        {% elif orden.estado == 'Recepcionada' %}bg-warning
-                        {% elif orden.estado == 'Pagada' %}bg-success
-                        {% elif orden.estado == 'Anulada' %}bg-danger
-                        {% endif %}">
-                        {{ orden.estado }}
-                    </span>
+                    <span class="badge bg-info">{{ orden.estado }}</span>
                 </p>
             </div>
             <div class="col-md-6">
@@ -28,6 +20,14 @@
                 <p><strong>Impuesto (IVA):</strong> ${{ orden.impuesto|floatformat:2 }}</p>
                 <p><strong>Monto Total:</strong> ${{ orden.monto_total|floatformat:2 }}</p>
                 <p><strong>Cuenta Presupuestaria:</strong> {{ orden.cuenta_presupuestaria|default:"No asignada" }}</p>
+                {% if orden.orden_trabajo %}
+                <p><strong>Orden de Trabajo:</strong>
+                    <a href="{% url 'detalle_orden_trabajo' orden.orden_trabajo.id %}" 
+                       class="badge bg-info text-decoration-none">
+                        {{ orden.orden_trabajo.nro_ot }}
+                    </a>
+                </p>
+                {% endif %}
                 {% if orden.vehiculo %}
                 <p><strong>Vehículo Asociado:</strong>
                     <span class="badge bg-secondary">{{ orden.vehiculo.patente }}</span><br>
@@ -45,6 +45,18 @@
             </div>
             <div class="col-md-6">
                 <p><strong>Folio SIGFE:</strong> {{ orden.folio_sigfe|default:"No especificado" }}</p>
+            </div>
+        </div>
+        {% endif %}
+        
+        {% if orden.descripcion %}
+        <hr>
+        <div class="row">
+            <div class="col-md-12">
+                <h5>Descripción:</h5>
+                <div class="border p-3 bg-light">
+                    {{ orden.descripcion|linebreaks }}
+                </div>
             </div>
         </div>
         {% endif %}

@@ -50,11 +50,13 @@
                                 <tr>
                                     <th>Orden de Compra:</th>
                                     <td>
-                                        {% if orden.orden_compra %}
-                                        <a href="{% url 'detalle_orden_compra' orden.orden_compra.id %}" 
-                                           class="badge bg-info text-decoration-none">
-                                            {{ orden.orden_compra.nro_oc }}
-                                        </a>
+                                        {% if orden.ordenes_compra.all %}
+                                            {% for oc in orden.ordenes_compra.all %}
+                                            <a href="{% url 'detalle_orden_compra' oc.id %}" 
+                                               class="badge bg-info text-decoration-none me-1">
+                                                {{ oc.nro_oc }}
+                                            </a>
+                                            {% endfor %}
                                         {% else %}
                                         <span class="badge bg-warning">Sin OC asociada</span>
                                         {% endif %}
