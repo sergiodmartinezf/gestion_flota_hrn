@@ -179,37 +179,109 @@ class ProveedorForm(forms.ModelForm):
 
 
 class HojaRutaForm(forms.ModelForm):
+    es_camioneta = forms.BooleanField(
+        required=False,
+        widget=forms.HiddenInput(),
+        initial=False
+    )
+    
+    # Campos específicos para camioneta
+    persona_movilizada = forms.CharField(
+        max_length=150,
+        required=False,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control campo-camioneta',
+            'placeholder': 'Nombre de la persona movilizada'
+        }),
+        label='Persona Movilizada'
+    )
+    
+    hora_salida_viaje = forms.TimeField(
+        required=False,
+        widget=forms.TimeInput(attrs={
+            'class': 'form-control campo-camioneta',
+            'type': 'time'
+        }),
+        label='Hora de Salida'
+    )
+    
+    hora_llegada_viaje = forms.TimeField(
+        required=False,
+        widget=forms.TimeInput(attrs={
+            'class': 'form-control campo-camioneta',
+            'type': 'time'
+        }),
+        label='Hora de Llegada'
+    )
+
+    destino_camioneta = forms.CharField(
+        max_length=200,
+        required=False,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control campo-camioneta',
+            'placeholder': 'Ej: Traslado de insumos, documentos, etc.'
+        }),
+        label='Destino'
+    )
+    
     class Meta:
         model = HojaRuta
-        fields = ['fecha', 'turno', 'vehiculo', 'medico', 'enfermero', 'tens', 'camillero', 'observaciones', 'km_inicio', 'km_fin']
-
+        fields = [
+            'fecha', 'turno', 'vehiculo', 'medico', 'enfermero', 
+            'tens', 'camillero', 'observaciones', 'km_inicio',
+            'es_camioneta', 'persona_movilizada', 'hora_salida_viaje',
+            'hora_llegada_viaje', 'destino_camioneta'
+        ]
+        
         widgets = {
             'fecha': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}),
             'turno': forms.Select(attrs={'class': 'form-control'}),
             'vehiculo': forms.Select(attrs={'class': 'form-control'}),
-            'medico': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Nombre del Médico'}),
-            'enfermero': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Nombre Enfermero/a'}),
-            'tens': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Nombre TENS'}),
-            'camillero': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Nombre Camillero'}),
+            'medico': forms.TextInput(attrs={'class': 'form-control campo-ambulancia', 'placeholder': 'Nombre del Médico'}),
+            'enfermero': forms.TextInput(attrs={'class': 'form-control campo-ambulancia', 'placeholder': 'Nombre Enfermero/a'}),
+            'tens': forms.TextInput(attrs={'class': 'form-control campo-ambulancia', 'placeholder': 'Nombre TENS'}),
+            'camillero': forms.TextInput(attrs={'class': 'form-control campo-ambulancia', 'placeholder': 'Nombre Camillero'}),
             'km_inicio': forms.NumberInput(attrs={'class': 'form-control'}),
-            'km_fin': forms.NumberInput(attrs={'class': 'form-control'}),
             'observaciones': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
         }
-
+    
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        if self.instance.pk and self.instance.fecha:
-            self.fields['fecha'].widget.attrs['value'] = self.instance.fecha.strftime('%Y-%m-%d')
-
-        # Filtrar vehículos disponibles (REQ: No mostrar en mantenimiento)
-        # Nota: En "registrar" filtramos, en "editar" (si existe instance) mostramos todos para no romper el form
+        
+        # Auto-completar fecha actual
         if not self.instance.pk:
-            self.fields['vehiculo'].queryset = Vehiculo.objects.filter(
-                estado__in=['Disponible', 'En uso']
-            ).order_by('patente')
+            self.fields['fecha'].initial = datetime.now().date()
+        
+        # Filtrar vehículos disponibles
+        self.fields['vehiculo'].queryset = Vehiculo.objects.filter(
+            estado__in=['Disponible', 'En uso']
+        ).order_by('patente')
+        
+        # Si estamos editando, determinar si es camioneta
+        if self.instance.pk and self.instance.vehiculo:
+            self.fields['es_camioneta'].initial = (self.instance.vehiculo.tipo_carroceria == 'Camioneta')
+    
+    def clean(self):
+        cleaned_data = super().clean()
+        vehiculo = cleaned_data.get('vehiculo')
+        es_camioneta = cleaned_data.get('es_camioneta', False)
+        
+        # Si es camioneta, validar campos específicos
+        if es_camioneta:
+            persona_movilizada = cleaned_data.get('persona_movilizada')
+            destino_camioneta = cleaned_data.get('destino_camioneta')
+            hora_salida = cleaned_data.get('hora_salida_viaje')
+            
+            if not persona_movilizada:
+                self.add_error('persona_movilizada', 'La persona movilizada es obligatoria para camionetas')
+            if not destino_camioneta:
+                self.add_error('destino_camioneta', 'El destino es obligatorio para camionetas')
+            if not hora_salida:
+                self.add_error('hora_salida_viaje', 'La hora de salida es obligatoria para camionetas')
+        
+        return cleaned_data
 
-        #self.fields['turno'].empty_label = "Seleccione un turno"
-
+        
 class ViajeForm(forms.ModelForm):
     class Meta:
         model = Viaje

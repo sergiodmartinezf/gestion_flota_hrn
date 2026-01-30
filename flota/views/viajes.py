@@ -15,8 +15,11 @@ from .utilidades import es_conductor_o_admin, es_administrador
 def registrar_bitacora(request):
     if request.method == 'POST':
         form_hoja = HojaRutaForm(request.POST)
-        # Inicializamos el form de viaje (sin hoja_ruta aún, se asigna al guardar)
-        form_viaje = ViajeForm(request.POST) 
+        form_viaje = ViajeForm(request.POST)
+        
+        print("=== DATOS RECIBIDOS ===")
+        print("POST data:", dict(request.POST))
+        print("=========================")
         
         if form_hoja.is_valid() and form_viaje.is_valid():
             try:
@@ -24,62 +27,69 @@ def registrar_bitacora(request):
                 hoja_ruta = form_hoja.save(commit=False)
                 hoja_ruta.conductor = request.user
                 
-                # Sincronización de KMs: 
-                # El KM inicio de la hoja es el KM inicio del viaje
-                # El KM fin de la hoja (temporalmente) es el KM fin del viaje
-                viaje_data = form_viaje.cleaned_data
-                hoja_ruta.km_inicio = viaje_data.get('km_inicio_viaje')
-                hoja_ruta.km_fin = viaje_data.get('km_fin_viaje')
+                # Determinar si es camioneta
+                es_camioneta = form_hoja.cleaned_data.get('es_camioneta', False)
                 
+                # Guardar hoja de ruta primero
                 hoja_ruta.save()
                 
-                # 2. Guardar Viaje
-                viaje = form_viaje.save(commit=False)
-                viaje.hoja_ruta = hoja_ruta
+                # 2. Crear Viaje según el tipo de vehículo
+                if es_camioneta:
+                    # Para camionetas: crear viaje con campos específicos
+                    viaje = Viaje(
+                        hora_salida=form_hoja.cleaned_data.get('hora_salida_viaje'),
+                        hora_llegada=form_hoja.cleaned_data.get('hora_llegada_viaje'),
+                        destino=form_hoja.cleaned_data.get('destino_camioneta'),
+                        nombre_paciente=form_hoja.cleaned_data.get('persona_movilizada'),
+                        tipo_servicio='Otros',  # Valor por defecto para camionetas
+                        km_inicio_viaje=form_viaje.cleaned_data.get('km_inicio_viaje'),
+                        km_fin_viaje=form_viaje.cleaned_data.get('km_fin_viaje'),
+                        hoja_ruta=hoja_ruta
+                    )
+                else:
+                    # Para ambulancias: usar el formulario ViajeForm normal
+                    viaje = form_viaje.save(commit=False)
+                    viaje.hoja_ruta = hoja_ruta
+                
+                # Guardar viaje
                 viaje.save()
                 
-                # 3. Actualizar Vehículo (Lógica de agregar_viaje traída aquí)
+                # 3. Actualizar kilometraje del vehículo
                 vehiculo = hoja_ruta.vehiculo
                 if viaje.km_fin_viaje > vehiculo.kilometraje_actual:
                     vehiculo.kilometraje_actual = viaje.km_fin_viaje
                     vehiculo.save()
-                    
-                    # Verificar alertas de mantenimiento
-                    if vehiculo.kilometraje_para_mantencion <= 500:
-                        messages.warning(request, 
-                            f'⚠️ Al vehículo {vehiculo.patente} le quedan {vehiculo.kilometraje_para_mantencion} km para mantenimiento')
-
-                messages.success(request, f'Bitácora y viaje inicial registrados exitosamente (ID: {hoja_ruta.id})')
                 
-                # Redirigir al detalle o a agregar otro viaje si fuera necesario
-                return redirect('listar_bitacoras')
+                # 4. Actualizar KM de la hoja de ruta
+                hoja_ruta.km_inicio = viaje.km_inicio_viaje
+                hoja_ruta.km_fin = viaje.km_fin_viaje
+                hoja_ruta.save()
+                
+                messages.success(request, f'Salida registrada exitosamente (ID: {hoja_ruta.id})')
+                return redirect('detalle_bitacora', id=hoja_ruta.id)
                 
             except Exception as e:
-                messages.error(request, f'Error al guardar los datos: {str(e)}')
+                import traceback
+                traceback.print_exc()
+                messages.error(request, f'Error al guardar: {str(e)}')
         else:
-            # Errores en alguno de los formularios
-            mensajes_error = []
+            # Mostrar errores detallados
             for field, errors in form_hoja.errors.items():
-                mensajes_error.append(f"Hoja - {field}: {', '.join(errors)}")
+                for error in errors:
+                    messages.error(request, f'{field}: {error}')
             for field, errors in form_viaje.errors.items():
-                mensajes_error.append(f"Viaje - {field}: {', '.join(errors)}")
-            
-            messages.error(request, "Por favor corrija los errores: " + " | ".join(mensajes_error))
-            
+                for error in errors:
+                    messages.error(request, f'{field}: {error}')
     else:
         form_hoja = HojaRutaForm()
         form_viaje = ViajeForm()
     
-    # Renderizar template
-    template = 'flota/registrar_bitacora_conductor.html' if request.user.rol == 'Conductor' else 'flota/registrar_bitacora.html'
-    
-    # Importante: Pasar ambos formularios al contexto
-    return render(request, template, {
-        'form': form_hoja,       # Mantenemos 'form' para compatibilidad
-        'form_viaje': form_viaje # Nuevo formulario
+    return render(request, 'flota/registrar_bitacora_conductor.html', {
+        'form': form_hoja,
+        'form_viaje': form_viaje
     })
 
-
+    
 @login_required
 def listar_bitacoras(request):
     # Filtro base según rol de usuario
@@ -112,18 +122,20 @@ def listar_bitacoras(request):
 @user_passes_test(es_administrador)
 def modificar_bitacora(request, id):
     hoja = get_object_or_404(HojaRuta, id=id)
+    
     if request.method == 'POST':
         form = HojaRutaForm(request.POST, instance=hoja)
         if form.is_valid():
             form.save()
-            # Nota: Si se corrige el KM fin, se debería evaluar si actualizar el KM del vehículo
-            # pero es complejo si hay hojas posteriores. Por seguridad, solo editamos el registro.
-            messages.success(request, f'Hoja de ruta {hoja.id} corregida exitosamente.')
+            messages.success(request, f'Hoja de ruta {hoja.id} actualizada exitosamente.')
             return redirect('detalle_bitacora', id=hoja.id)
     else:
         form = HojaRutaForm(instance=hoja)
-
-    return render(request, 'flota/modificar_bitacora.html', {'form': form, 'hoja': hoja})
+    
+    return render(request, 'flota/modificar_bitacora.html', {
+        'form': form,
+        'hoja': hoja
+    })
 
 
 # --- NUEVA VISTA DETALLE BITÁCORA ---
@@ -132,13 +144,22 @@ def detalle_bitacora(request, id):
     hoja = get_object_or_404(HojaRuta, id=id)
     viajes = hoja.viajes.all()
     
-    # Calcular totales usando la propiedad calculada
+    # Calcular totales
     total_km_viajes = sum(v.km_recorridos_calculados for v in viajes)
+    
+    # Calcular KM final de la hoja (máximo KM de los viajes)
+    if viajes.exists():
+        km_fin_hoja = max(v.km_fin_viaje for v in viajes)
+        hoja.km_fin = km_fin_hoja
+        hoja.save(update_fields=['km_fin'])
+    else:
+        km_fin_hoja = hoja.km_inicio
 
     return render(request, 'flota/detalle_bitacora.html', {
         'hoja': hoja,
         'viajes': viajes,
-        'total_km_viajes': total_km_viajes
+        'total_km_viajes': total_km_viajes,
+        'km_fin_hoja': km_fin_hoja,
     })
 
 

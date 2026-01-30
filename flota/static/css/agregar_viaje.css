@@ -1,0 +1,141 @@
+/* ESTILOS PARA FORMULARIO PASO A PASO DE VIAJE */
+.viaje-paso {
+    display: none;
+    animation: fadeIn 0.5s ease-in-out;
+    padding: 20px;
+    background: #f8f9fa;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    border-left: 4px solid #198754;
+}
+
+.viaje-paso.activo {
+    display: block;
+}
+
+/* Barra de progreso específica para viaje */
+.viaje-progreso-container {
+    margin-bottom: 2rem;
+}
+
+.viaje-progreso-bar {
+    width: 100%;
+    height: 8px;
+    background-color: #e9ecef;
+    border-radius: 4px;
+    overflow: hidden;
+    margin-bottom: 8px;
+}
+
+.viaje-progreso-fill {
+    height: 100%;
+    background-color: #198754;
+    border-radius: 4px;
+    transition: width 0.3s ease;
+    width: 0%;
+}
+
+.viaje-progreso-texto {
+    text-align: center;
+    font-size: 0.9rem;
+    color: #6c757d;
+    font-weight: 500;
+}
+
+/* Estructura de los pasos */
+.viaje-paso-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid #dee2e6;
+}
+
+.viaje-paso-titulo {
+    font-size: 1.25rem;
+    font-weight: 500;
+    color: #212529;
+}
+
+.viaje-paso-titulo i {
+    margin-right: 10px;
+    color: #198754;
+}
+
+.viaje-paso-indicador {
+    background-color: #6c757d;
+    color: white;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 0.875rem;
+    font-weight: 500;
+}
+
+/* Botones de navegación específicos para viaje */
+.viaje-nav-pasos {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 2rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid #dee2e6;
+    position: sticky;
+    bottom: 0;
+    background: #f8f9fa;
+    padding: 1rem;
+    border-radius: 8px;
+}
+
+/* Estilo para la información de la hoja de ruta */
+.hoja-info-card {
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    border-left: 4px solid #0d6efd;
+}
+
+/* Estilo para viajes existentes */
+.viaje-item {
+    border-left: 3px solid #198754;
+    padding-left: 10px;
+    margin-bottom: 10px;
+}
+
+/* Estilos de error */
+.error-container {
+    min-height: 24px;
+    position: relative;
+    margin-top: 4px;
+}
+
+.error-mensaje {
+    color: #dc3545;
+    font-size: 0.875em;
+    opacity: 0;
+    visibility: hidden;
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    transition: opacity 0.2s ease;
+    background: #fff;
+    padding: 2px 4px;
+    border-radius: 3px;
+    border: 1px solid #f8d7da;
+    margin: 0;
+}
+
+.error-mensaje.mostrar {
+    opacity: 1;
+    visibility: visible;
+}
+
+.campo-invalido {
+    border-color: #dc3545 !important;
+    background-color: #fff8f8 !important;
+}
+
+/* Animación */
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}

@@ -4,257 +4,382 @@
 {% block title %}Registrar Salida - Conductor{% endblock %}
 
 {% block extra_css %}
-<style>
-    .form-paso {
-        display: none;
-        animation: fadeIn 0.4s ease-in-out;
-        padding: 25px;
-        background: #fff;
-        border-radius: 12px;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.05);
-        margin-bottom: 20px;
-        border-top: 5px solid #0d6efd;
-    }
-    
-    .form-paso.activo {
-        display: block;
-    }
-    
-    .paso-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 1.5rem;
-        padding-bottom: 1rem;
-        border-bottom: 1px solid #f0f0f0;
-    }
-
-    .paso-titulo { font-size: 1.3rem; font-weight: 600; color: #2c3e50; }
-    .paso-titulo i { color: #0d6efd; margin-right: 10px; }
-    .paso-indicador { background: #e9ecef; color: #495057; padding: 5px 12px; border-radius: 20px; font-size: 0.85rem; font-weight: 600; }
-    
-    /* Barra de progreso */
-    .progreso-container { margin-bottom: 2rem; padding: 0 10px; }
-    .progreso-bar { width: 100%; height: 10px; background-color: #e9ecef; border-radius: 5px; overflow: hidden; margin-bottom: 8px; }
-    .progreso-fill { height: 100%; background: linear-gradient(90deg, #0d6efd, #0dcaf0); border-radius: 5px; transition: width 0.4s ease; width: 0%; }
-    .progreso-texto { text-align: right; font-size: 0.85rem; color: #6c757d; font-weight: 600; }
-
-    /* Validaciones */
-    .campo-invalido { border-color: #dc3545 !important; background-color: #fff8f8 !important; }
-    .error-mensaje { color: #dc3545; font-size: 0.85em; margin-top: 4px; display: none; }
-    .error-mensaje.mostrar { display: block; animation: slideDown 0.2s; }
-
-    /* Botones */
-    .nav-pasos { display: flex; justify-content: space-between; margin-top: 2rem; padding: 1rem; background: #fff; border-radius: 12px; box-shadow: 0 -2px 10px rgba(0,0,0,0.05); }
-
-    @keyframes slideDown { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
-    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-</style>
+<link rel="stylesheet" href="{% static 'css/registrar_bitacora_conductor.css' %}">
 {% endblock %}
 
 {% block content %}
-<div class="container py-3">
+<div class="container py-4">
     <h2 class="mb-4 text-primary"><i class="bi bi-steering-wheel"></i> Registrar Nueva Salida</h2>
-
-    <div class="progreso-container">
-        <div class="progreso-bar">
-            <div class="progreso-fill" id="progreso-fill"></div>
+    
+    <!-- Indicador de pasos -->
+    <div class="pasos-indicador">
+        <div class="paso-item activo" id="indicador-paso-1">
+            <div class="paso-texto">Vehículo</div>
         </div>
-        <div class="progreso-texto" id="progreso-texto">Paso 1 de 6</div>
+        <div class="paso-item" id="indicador-paso-2">
+            <div class="paso-texto">Personal</div>
+        </div>
+        <div class="paso-item" id="indicador-paso-3">
+            <div class="paso-texto">Viaje</div>
+        </div>
+        <div class="paso-item" id="indicador-paso-4">
+            <div class="paso-texto">Kilometraje</div>
+        </div>
+        <div class="paso-item" id="indicador-paso-5">
+            <div class="paso-texto">Confirmar</div>
+        </div>
     </div>
-
+    
+    <!-- Barra de progreso -->
+    <div class="progreso-container">
+        <div class="progreso-bar" id="barra-progreso"></div>
+    </div>
+    
+    <!-- Información del tipo de vehículo -->
+    <div class="vehiculo-info" id="info-vehiculo">
+        <div class="d-flex align-items-center">
+            <i class="bi bi-car-front-fill fs-3 me-3 text-primary" id="icono-vehiculo"></i>
+            <div>
+                <h5 class="mb-1" id="titulo-vehiculo">Seleccione un vehículo</h5>
+                <p class="text-muted mb-0" id="descripcion-vehiculo">El formulario se adaptará al tipo de vehículo seleccionado</p>
+            </div>
+        </div>
+    </div>
+    
     <form method="post" id="form-pasos" novalidate>
         {% csrf_token %}
+        <input type="hidden" name="es_camioneta" id="id_es_camioneta" value="false">
         
-        <div class="form-paso activo" id="paso-1" data-titulo="Datos del Vehículo">
-            <div class="paso-header">
-                <div class="paso-titulo"><i class="bi bi-car-front-fill"></i> Vehículo y Turno</div>
-                <div class="paso-indicador">Paso 1</div>
-            </div>
-            <div class="row g-3">
-                <div class="col-md-12">
-                    <label for="id_vehiculo" class="form-label">Vehículo *</label>
-                    <select name="vehiculo" id="id_vehiculo" class="form-select form-select-lg" required>
-                        <option value="">Seleccione el vehículo...</option>
-                        {% for vehiculo in form.vehiculo.field.queryset %}
-                            <option value="{{ vehiculo.pk }}">{{ vehiculo.patente }} - {{ vehiculo.marca }} {{ vehiculo.modelo }}</option>
-                        {% endfor %}
-                    </select>
-                    <div class="error-mensaje" id="error-vehiculo">Debe seleccionar un vehículo</div>
+        <!-- PASO 1: VEHÍCULO Y TURNO -->
+        <div class="paso-container activo" id="paso-1">
+            <div class="paso-card">
+                <div class="paso-card-header">
+                    <h4 class="mb-0"><i class="bi bi-car-front-fill text-primary me-2"></i> Paso 1: Vehículo y Turno</h4>
                 </div>
-                <div class="col-md-6">
-                    <label for="id_fecha" class="form-label">Fecha *</label>
-                    <input type="date" name="fecha" id="id_fecha" class="form-control" value="{% now 'Y-m-d' %}" required>
-                </div>
-                <div class="col-md-6">
-                    <label for="id_turno" class="form-label">Turno *</label>
-                    <select name="turno" id="id_turno" class="form-select" required>
-                        <option value="">Seleccione turno...</option>
-                        {% for value, label in form.turno.field.choices %}
-                            {% if value != "" %}<option value="{{ value }}">{{ label }}</option>{% endif %}
-                        {% endfor %}
-                    </select>
-                    <div class="error-mensaje" id="error-turno">Seleccione un turno</div>
-                </div>
-            </div>
-        </div>
-
-        <div class="form-paso" id="paso-2" data-titulo="Personal Médico">
-            <div class="paso-header">
-                <div class="paso-titulo"><i class="bi bi-people-fill"></i> Equipo Médico</div>
-                <div class="paso-indicador">Paso 2</div>
-            </div>
-            <div class="alert alert-light border">
-                <small class="text-muted"><i class="bi bi-info-circle"></i> Deje en blanco si no aplica.</small>
-            </div>
-            <div class="row g-3">
-                <div class="col-md-6">
-                    <label class="form-label">Médico</label>
-                    {{ form.medico }} </div>
-                <div class="col-md-6">
-                    <label class="form-label">Enfermero/a</label>
-                    {{ form.enfermero }}
-                </div>
-                <div class="col-md-6">
-                    <label class="form-label">TENS</label>
-                    {{ form.tens }}
-                </div>
-                <div class="col-md-6">
-                    <label class="form-label">Camillero</label>
-                    {{ form.camillero }}
-                </div>
-            </div>
-        </div>
-
-        <div class="form-paso" id="paso-3" data-titulo="Detalle del Viaje">
-            <div class="paso-header">
-                <div class="paso-titulo"><i class="bi bi-geo-alt-fill"></i> Destino y Paciente</div>
-                <div class="paso-indicador">Paso 3</div>
-            </div>
-            
-            <div class="mb-3">
-                <label class="form-label">Hora Salida *</label>
-                <input type="time" name="hora_salida" id="id_hora_salida" class="form-control" required>
-                <div class="error-mensaje" id="error-hora_salida">Ingrese la hora de salida</div>
-            </div>
-
-            <div class="mb-3">
-                <label class="form-label">Destino / Lugar *</label>
-                {{ form_viaje.destino }} <div class="error-mensaje" id="error-destino">Ingrese el destino</div>
-            </div>
-
-            <div class="row g-3">
-                <div class="col-md-6">
-                    <label class="form-label">Paciente (Nombre)</label>
-                    {{ form_viaje.nombre_paciente }}
-                </div>
-                <div class="col-md-6">
-                    <label class="form-label">RUT Paciente</label>
-                    {{ form_viaje.rut_paciente }}
-                </div>
-                <div class="col-12">
-                    <label class="form-label">Tipo de Servicio *</label>
-                    {{ form_viaje.tipo_servicio }}
-                </div>
-            </div>
-        </div>
-
-        <div class="form-paso" id="paso-4" data-titulo="Control de Kilometraje">
-            <div class="paso-header">
-                <div class="paso-titulo"><i class="bi bi-speedometer"></i> Cierre de Viaje</div>
-                <div class="paso-indicador">Paso 4</div>
-            </div>
-            
-            <div class="alert alert-info py-2">
-                <i class="bi bi-info-circle-fill me-2"></i>
-                <strong>KM Actual Vehículo:</strong> <span id="span-km-actual" class="fw-bold">---</span>
-            </div>
-        
-            <div class="row g-3">
-                <div class="col-md-6">
-                    <label class="form-label fw-bold">KM Salida (Inicio) *</label>
-                    <input type="number" name="km_inicio_viaje" id="id_km_inicio_viaje" class="form-control form-control-lg" required>
-                    <div class="error-mensaje" id="error-km_inicio_viaje">KM inicial requerido</div>
-                </div>
-                
-                <div class="col-md-6">
-                    <label class="form-label fw-bold">KM Llegada (Fin) *</label>
-                    <input type="number" name="km_fin_viaje" id="id_km_fin_viaje" class="form-control form-control-lg" required>
-                    <small class="text-success fw-bold d-block mt-1" id="kms-recorridos-calc">Recorridos: 0 km</small>
-                    <div class="error-mensaje" id="error-km_fin_viaje">El KM final debe ser mayor al inicial</div>
-                </div>
-                
-                <div class="col-12"><hr class="text-muted"></div>
-        
-                <div class="col-md-6">
-                    <label class="form-label fw-bold">Hora de Llegada *</label>
-                    <input type="time" name="hora_llegada" id="id_hora_llegada" class="form-control form-control-lg" required>
-                    <div class="error-mensaje" id="error-hora_llegada">Ingrese la hora de llegada</div>
-                </div>
-                
-                <div class="col-md-6">
-                    <label class="form-label text-muted">Hora de Salida (Registrada en Paso 3)</label>
-                    <input type="time" id="visual_hora_salida" class="form-control bg-light" disabled>
-                </div>
-            </div>
-        </div>
-
-        <div class="form-paso" id="paso-5" data-titulo="Observaciones">
-            <div class="paso-header">
-                <div class="paso-titulo"><i class="bi bi-chat-text-fill"></i> Observaciones</div>
-                <div class="paso-indicador">Paso 5</div>
-            </div>
-            <div class="mb-3">
-                <label class="form-label">Comentarios generales de la salida</label>
-                {{ form.observaciones }}
-            </div>
-        </div>
-
-        <div class="form-paso" id="paso-6" data-titulo="Confirmar">
-            <div class="paso-header">
-                <div class="paso-titulo"><i class="bi bi-check-circle-fill"></i> Resumen</div>
-                <div class="paso-indicador">Paso 6</div>
-            </div>
-            
-            <div class="card bg-light border-0">
-                <div class="card-body" id="resumen-contenido">
+                <div class="paso-card-body">
+                    <div class="ayuda-paso">
+                        <i class="bi bi-info-circle me-2"></i>
+                        Seleccione el vehículo que utilizará y especifique la fecha y turno correspondiente.
                     </div>
-            </div>
-            
-            <div class="form-check mt-3">
-                <input class="form-check-input" type="checkbox" id="check-confirmacion" required>
-                <label class="form-check-label" for="check-confirmacion">
-                    Declaro que los datos ingresados son verídicos.
-                </label>
-                <div class="error-mensaje" id="error-confirmacion">Debe confirmar para guardar.</div>
+                    
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label for="id_vehiculo" class="form-label fw-bold">Vehículo *</label>
+                            <select name="vehiculo" id="id_vehiculo" class="form-select form-select-lg" required>
+                                <option value="">Seleccione un vehículo...</option>
+                                {% for vehiculo in form.vehiculo.field.queryset %}
+                                    <option value="{{ vehiculo.pk }}" 
+                                            data-tipo="{{ vehiculo.tipo_carroceria }}"
+                                            data-patente="{{ vehiculo.patente }}"
+                                            data-marca="{{ vehiculo.marca }}"
+                                            data-modelo="{{ vehiculo.modelo }}"
+                                            data-km="{{ vehiculo.kilometraje_actual }}">
+                                        {{ vehiculo.patente }} - {{ vehiculo.marca }} {{ vehiculo.modelo }}
+                                        {% if vehiculo.tipo_carroceria == 'Camioneta' %} (Camioneta)
+                                        {% else %} (Ambulancia) {% endif %}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                            <div class="mensaje-error" id="error-vehiculo">Debe seleccionar un vehículo</div>
+                        </div>
+                        
+                        <div class="col-md-3">
+                            <label for="id_fecha" class="form-label fw-bold">Fecha *</label>
+                            <input type="date" name="fecha" id="id_fecha" class="form-control" 
+                                   value="{% now 'Y-m-d' %}" required>
+                            <div class="mensaje-error" id="error-fecha">Seleccione una fecha válida</div>
+                        </div>
+                        
+                        <div class="col-md-3">
+                            <label for="id_turno" class="form-label fw-bold">Turno *</label>
+                            <select name="turno" id="id_turno" class="form-select" required>
+                                <option value="">Seleccione turno...</option>
+                                {% for value, label in form.turno.field.choices %}
+                                    {% if value != "" %}
+                                        <option value="{{ value }}">{{ label }}</option>
+                                    {% endif %}
+                                {% endfor %}
+                            </select>
+                            <div class="mensaje-error" id="error-turno">Seleccione un turno</div>
+                        </div>
+                        
+                        <div class="col-12 mt-3">
+                            <div class="alert alert-light">
+                                <i class="bi bi-speedometer2 me-2"></i>
+                                <strong>Kilometraje actual del vehículo:</strong>
+                                <span id="km-actual" class="fw-bold ms-2">--- km</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
-
+        
+        <!-- PASO 2: PERSONAL / DATOS ESPECÍFICOS -->
+        <div class="paso-container" id="paso-2">
+            <div class="paso-card">
+                <div class="paso-card-header">
+                    <h4 class="mb-0" id="titulo-paso-2">
+                        <i class="bi bi-people-fill text-primary me-2"></i> 
+                        Paso 2: Equipo Médico
+                    </h4>
+                </div>
+                <div class="paso-card-body">
+                    <div class="ayuda-paso" id="ayuda-paso-2">
+                        <i class="bi bi-info-circle me-2"></i>
+                        Complete los datos del equipo médico que acompaña la ambulancia (opcional).
+                    </div>
+                    
+                    <!-- Campos para Ambulancia -->
+                    <div id="campos-ambulancia">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Médico</label>
+                                {{ form.medico }}
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Enfermero/a</label>
+                                {{ form.enfermero }}
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">TENS</label>
+                                {{ form.tens }}
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Camillero</label>
+                                {{ form.camillero }}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Campos para Camioneta -->
+                    <div class="campo-condicional" id="campos-camioneta">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold">Persona Movilizada *</label>
+                                <input type="text" name="persona_movilizada" id="id_persona_movilizada" 
+                                       class="form-control" placeholder="Nombre completo">
+                                <div class="mensaje-error" id="error-persona_movilizada">Ingrese el nombre de la persona movilizada</div>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold">Motivo del Viaje *</label>
+                                <input type="text" name="motivo_camioneta" id="id_motivo_camioneta" 
+                                       class="form-control" placeholder="Ej: Traslado de insumos médicos">
+                                <div class="mensaje-error" id="error-motivo_camioneta">Ingrese el motivo del viaje</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- PASO 3: DETALLES DEL VIAJE -->
+        <div class="paso-container" id="paso-3">
+            <div class="paso-card">
+                <div class="paso-card-header">
+                    <h4 class="mb-0"><i class="bi bi-geo-alt-fill text-primary me-2"></i> Paso 3: Detalles del Viaje</h4>
+                </div>
+                <div class="paso-card-body">
+                    <div class="ayuda-paso">
+                        <i class="bi bi-info-circle me-2"></i>
+                        Complete los detalles del viaje que realizará.
+                    </div>
+                    
+                    <!-- Campos para AMBULANCIA (visibles por defecto) -->
+                    <div id="campos-viaje-ambulancia">
+                        <div class="row g-3">
+                            <!-- Destino -->
+                            <div class="col-md-8">
+                                <label class="form-label fw-bold">Destino *</label>
+                                <input type="text" name="destino" id="id_destino" class="form-control" 
+                                       placeholder="Ej: Hospital Base Osorno, Clínica, Domicilio particular" required>
+                                <div class="mensaje-error" id="error-destino">Ingrese el destino del viaje</div>
+                            </div>
+                            
+                            <!-- Paciente -->
+                            <div class="col-md-4">
+                                <label class="form-label">Paciente (opcional)</label>
+                                <input type="text" name="nombre_paciente" id="id_nombre_paciente" 
+                                       class="form-control" placeholder="Nombre del paciente">
+                            </div>
+                            
+                            <!-- Tipo de servicio -->
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold">Tipo de Servicio *</label>
+                                <select name="tipo_servicio" id="id_tipo_servicio" class="form-select" required>
+                                    {% for value, label in form_viaje.tipo_servicio.field.choices %}
+                                        <option value="{{ value }}">{{ label }}</option>
+                                    {% endfor %}
+                                </select>
+                                <div class="mensaje-error" id="error-tipo_servicio">Seleccione el tipo de servicio</div>
+                            </div>
+                            
+                            <!-- Horas -->
+                            <div class="col-md-3">
+                                <label class="form-label fw-bold">Hora Salida *</label>
+                                <input type="time" name="hora_salida" id="id_hora_salida" class="form-control" required>
+                                <div class="mensaje-error" id="error-hora_salida">Ingrese la hora de salida</div>
+                            </div>
+                            
+                            <div class="col-md-3">
+                                <label class="form-label">Hora Llegada (opcional)</label>
+                                <input type="time" name="hora_llegada" id="id_hora_llegada" class="form-control">
+                            </div>
+                            
+                            <!-- RUT Paciente -->
+                            <div class="col-md-6">
+                                <label class="form-label">RUT Paciente (opcional)</label>
+                                <input type="text" name="rut_paciente" id="id_rut_paciente" 
+                                       class="form-control" placeholder="12345678-9">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Campos para CAMIONETA (ocultos por defecto) -->
+                    <div id="campos-viaje-camioneta" style="display: none;">
+                        <div class="row g-3">
+                            <!-- Destino para camioneta -->
+                            <div class="col-md-8">
+                                <label class="form-label fw-bold">Destino *</label>
+                                <input type="text" name="destino_camioneta" id="id_destino_camioneta" 
+                                       class="form-control" placeholder="Ej: Traslado de insumos, documentos, etc.">
+                                <div class="mensaje-error" id="error-destino_camioneta">Ingrese el destino para camioneta</div>
+                            </div>
+                            
+                            <!-- Horas para camioneta -->
+                            <div class="col-md-4">
+                                <label class="form-label fw-bold">Hora Salida *</label>
+                                <input type="time" name="hora_salida_viaje" id="id_hora_salida_viaje" class="form-control">
+                                <div class="mensaje-error" id="error-hora_salida_viaje">Ingrese la hora de salida</div>
+                            </div>
+                            
+                            <div class="col-md-4">
+                                <label class="form-label">Hora Llegada (opcional)</label>
+                                <input type="time" name="hora_llegada_viaje" id="id_hora_llegada_viaje" class="form-control">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- PASO 4: CONTROL DE KILOMETRAJE -->
+        <div class="paso-container" id="paso-4">
+            <div class="paso-card">
+                <div class="paso-card-header">
+                    <h4 class="mb-0"><i class="bi bi-speedometer text-primary me-2"></i> Paso 4: Control de Kilometraje</h4>
+                </div>
+                <div class="paso-card-body">
+                    <div class="alert alert-warning">
+                        <i class="bi bi-exclamation-triangle me-2"></i>
+                        Verifique cuidadosamente el kilometraje del odómetro antes de registrar
+                    </div>
+                    
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">KM al inicio *</label>
+                            <div class="input-group input-group-lg">
+                                <input type="number" name="km_inicio_viaje" id="id_km_inicio_viaje" 
+                                       class="form-control" min="0" step="1" required>
+                                <span class="input-group-text">km</span>
+                            </div>
+                            <div class="mensaje-error" id="error-km_inicio_viaje">Ingrese el kilometraje inicial</div>
+                            <small class="text-muted">Sugerencia: Use el kilometraje actual del vehículo</small>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">KM al final *</label>
+                            <div class="input-group input-group-lg">
+                                <input type="number" name="km_fin_viaje" id="id_km_fin_viaje" 
+                                       class="form-control" min="0" step="1" required>
+                                <span class="input-group-text">km</span>
+                            </div>
+                            <div class="mensaje-error" id="error-km_fin_viaje">El KM final debe ser mayor al inicial</div>
+                        </div>
+                        
+                        <div class="col-12">
+                            <div class="alert alert-info mt-3">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <i class="bi bi-arrow-left-right me-2"></i>
+                                        <strong>Kilometraje recorrido:</strong>
+                                    </div>
+                                    <div>
+                                        <span id="km-recorridos" class="fw-bold fs-5">0 km</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Campos ocultos para la hoja de ruta -->
+                    <input type="hidden" name="km_inicio" id="hidden_km_inicio">
+                    <input type="hidden" name="km_fin" id="hidden_km_fin">
+                </div>
+            </div>
+        </div>
+        
+        <!-- PASO 5: OBSERVACIONES Y CONFIRMACIÓN -->
+        <div class="paso-container" id="paso-5">
+            <div class="paso-card">
+                <div class="paso-card-header">
+                    <h4 class="mb-0"><i class="bi bi-check-circle-fill text-primary me-2"></i> Paso 5: Confirmación</h4>
+                </div>
+                <div class="paso-card-body">
+                    <!-- Resumen de datos -->
+                    <div class="card mb-4">
+                        <div class="card-header bg-light">
+                            <h5 class="mb-0"><i class="bi bi-card-checklist me-2"></i> Resumen del Registro</h5>
+                        </div>
+                        <div class="card-body">
+                            <div id="resumen-datos">
+                                <!-- Los datos se llenarán con JavaScript -->
+                                <p class="text-muted text-center">Complete los pasos anteriores para ver el resumen</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Observaciones -->
+                    <div class="mb-4">
+                        <label class="form-label fw-bold">Observaciones adicionales</label>
+                        {{ form.observaciones }}
+                        <small class="text-muted">Ej: Condiciones climáticas, tráfico, incidentes, observaciones del vehículo, etc.</small>
+                    </div>
+                    
+                    <!-- Confirmación -->
+                    <div class="form-check mb-4">
+                        <input class="form-check-input" type="checkbox" id="check-confirmacion" required>
+                        <label class="form-check-label" for="check-confirmacion">
+                            <strong>Confirmo que todos los datos ingresados son correctos y verídicos.</strong>
+                        </label>
+                        <div class="mensaje-error" id="error-confirmacion">Debe confirmar para enviar el registro</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- NAVEGACIÓN ENTRE PASOS -->
         <div class="nav-pasos">
-            <button type="button" id="btn-anterior" class="btn btn-outline-secondary px-4" disabled>
-                <i class="bi bi-arrow-left"></i> Anterior
+            <button type="button" id="btn-anterior" class="btn btn-outline-secondary btn-paso">
+                <i class="bi bi-arrow-left me-2"></i> Anterior
             </button>
             
             <div>
-                <a href="{% url 'listar_bitacoras' %}" class="btn btn-link text-decoration-none text-muted me-2">Cancelar</a>
-                <button type="button" id="btn-siguiente" class="btn btn-primary px-4">
-                    Siguiente <i class="bi bi-arrow-right"></i>
+                <a href="{% url 'listar_bitacoras' %}" class="btn btn-link text-decoration-none text-muted me-3">
+                    <i class="bi bi-x-circle me-1"></i> Cancelar
+                </a>
+                <button type="button" id="btn-siguiente" class="btn btn-primary btn-paso">
+                    Siguiente <i class="bi bi-arrow-right ms-2"></i>
                 </button>
-                <button type="submit" id="btn-enviar" class="btn btn-success px-4" style="display: none;">
-                    <i class="bi bi-save"></i> Registrar Salida
+                <button type="submit" id="btn-enviar" class="btn btn-success btn-paso" style="display: none;">
+                    <i class="bi bi-check-lg me-2"></i> Registrar
                 </button>
             </div>
         </div>
-
-        <div class="d-none">
-            <input type="number" name="km_inicio" id="hidden_km_inicio_hoja">
-            <input type="number" name="km_fin" id="hidden_km_fin_hoja">
-        </div>
-
     </form>
 </div>
 {% endblock %}
 
 {% block extra_js %}
-<script src="{% static 'js/registrar_bitacora_conductor.js' %}"></script>
+<script src="{% static 'js/bitacora_pasos.js' %}"></script>
 {% endblock %}

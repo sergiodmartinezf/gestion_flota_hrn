@@ -1,5 +1,7 @@
 {% extends 'base.html' %}
 
+{% load static %}
+
 {% block title %}Listado de Proveedores - Gestión de Flota{% endblock %}
 
 {% block content %}
@@ -113,15 +115,8 @@
     </div>
 </div>
 
-<script>
-function habilitarProveedor(proveedorId, nombreProveedor) {
-    // Configurar el modal
-    document.getElementById('nombreProveedor').textContent = nombreProveedor;
-    document.getElementById('habilitarProveedorForm').action = `/proveedores/${proveedorId}/habilitar/`;
-    
-    // Mostrar el modal
-    const modal = new bootstrap.Modal(document.getElementById('habilitarProveedorModal'));
-    modal.show();
-}
-</script>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/listar_proveedores.js' %}"></script>
 {% endblock %}
