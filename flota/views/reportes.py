@@ -1,12 +1,13 @@
-from django.shortcuts import render
+from django.shortcuts import render, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponse
-from django.db.models import Sum
+from django.db.models import Sum, Count
 from decimal import Decimal
 from datetime import datetime
 import json
 
-from ..models import Vehiculo, Mantenimiento, CargaCombustible, Arriendo, Presupuesto, FallaReportada, HojaRuta
+from django.utils import timezone as tz
+from ..models import Vehiculo, Mantenimiento, CargaCombustible, Arriendo, Presupuesto, FallaReportada, HojaRuta, AlertaMantencion
 from ..utils import exportar_reporte_excel
 
 
@@ -17,6 +18,12 @@ class ReporteCalculos:
     def calcular_costos_vehiculo(vehiculo):
         mantenimientos = Mantenimiento.objects.filter(vehiculo=vehiculo)
         costo_mantenimientos = mantenimientos.aggregate(
+            total=Sum('costo_total_real')
+        )['total'] or Decimal('0')
+        costo_preventivo = mantenimientos.filter(tipo_mantencion='Preventivo').aggregate(
+            total=Sum('costo_total_real')
+        )['total'] or Decimal('0')
+        costo_correctivo = mantenimientos.filter(tipo_mantencion='Correctivo').aggregate(
             total=Sum('costo_total_real')
         )['total'] or Decimal('0')
         
@@ -32,6 +39,8 @@ class ReporteCalculos:
         return {
             'vehiculo': vehiculo,
             'costo_mantenimientos': costo_mantenimientos,
+            'costo_preventivo': costo_preventivo,
+            'costo_correctivo': costo_correctivo,
             'costo_combustible': costo_combustible,
             'costo_arriendos': costo_arriendos,
             'costo_total': costo_total,
@@ -139,6 +148,8 @@ def exportar_costos_excel(request):
         datos.append({
             'patente': vehiculo.patente,
             'costo_mantenimientos': calculos['costo_mantenimientos'],
+            'costo_preventivo': calculos['costo_preventivo'],
+            'costo_correctivo': calculos['costo_correctivo'],
             'costo_combustible': calculos['costo_combustible'],
             'costo_arriendos': calculos['costo_arriendos'],
             'costo_total': calculos['costo_total'],
@@ -151,6 +162,8 @@ def exportar_costos_excel(request):
     columnas = [
         ('Vehículo', 'patente', 'texto'),
         ('Costo Mantenimientos', 'costo_mantenimientos', 'moneda'),
+        ('Costo Preventivo', 'costo_preventivo', 'moneda'),
+        ('Costo Correctivo', 'costo_correctivo', 'moneda'),
         ('Costo Combustible', 'costo_combustible', 'moneda'),
         ('Costo Arriendos', 'costo_arriendos', 'moneda'),
         ('Costo Total', 'costo_total', 'moneda'),
@@ -252,39 +265,124 @@ def reporte_costos(request):
     })
 
 
-# RF_25: Generar reporte de disponibilidad (ahora parte de reporte_costos)
+# Panel de control visual (gráficos y tablas resumen)
+@login_required
+def panel_control(request):
+    vehiculos = Vehiculo.objects.all()
+    # Tabla resumen costos por vehículo
+    top_costos = []
+    for vehiculo in vehiculos:
+        calculos = ReporteCalculos.calcular_costos_vehiculo(vehiculo)
+        top_costos.append({
+            'vehiculo': vehiculo,
+            'costo_total': calculos['costo_total'],
+            'costo_por_km': calculos['costo_por_km'],
+        })
+    top_costos.sort(key=lambda x: x['costo_total'], reverse=True)
+    top_costos = top_costos[:10]
+    
+    # Próximos mantenimientos
+    proximos_mantenimientos = Mantenimiento.objects.filter(
+        estado='Programado'
+    ).order_by('fecha_ingreso')[:10]
+    
+    # Presupuestos cerca del límite (>= 80% ejecutado)
+    presupuestos_riesgo = [
+        p for p in Presupuesto.objects.filter(activo=True).select_related('vehiculo', 'cuenta')
+        if p.monto_asignado > 0 and p.porcentaje_ejecutado >= 80
+    ][:10]
+    
+    # Datos para gráficos
+    datos_graficos = ReporteCalculos.obtener_datos_graficos_costos()
+    graficos_json = json.dumps(datos_graficos)
+    
+    # Costos por mes (últimos 12 meses)
+    meses_labels = []
+    costos_mes_mant = []
+    costos_mes_comb = []
+    hoy = tz.now().date()
+    from datetime import timedelta
+    for i in range(11, -1, -1):
+        ref = hoy - timedelta(days=30 * i)
+        year, month = ref.year, ref.month
+        mant_mes = Mantenimiento.objects.filter(
+            fecha_ingreso__year=year, fecha_ingreso__month=month
+        ).aggregate(total=Sum('costo_total_real'))['total'] or 0
+        comb_mes = CargaCombustible.objects.filter(
+            fecha__year=year, fecha__month=month
+        ).aggregate(total=Sum('costo_total'))['total'] or 0
+        meses_labels.append(ref.strftime('%Y-%m'))
+        costos_mes_mant.append(float(mant_mes))
+        costos_mes_comb.append(float(comb_mes))
+    
+    return render(request, 'flota/panel_control.html', {
+        'top_costos': top_costos,
+        'proximos_mantenimientos': proximos_mantenimientos,
+        'presupuestos_riesgo': presupuestos_riesgo,
+        'graficos_json': graficos_json,
+        'meses_labels': json.dumps(meses_labels),
+        'costos_mes_mant': json.dumps(costos_mes_mant),
+        'costos_mes_comb': json.dumps(costos_mes_comb),
+    })
+
+
+# RF_25: Generar reporte de disponibilidad (disponibilidad efectiva: días disponibles en período)
 @login_required
 def reporte_disponibilidad(request):
+    from calendar import monthrange
     vehiculos = Vehiculo.objects.all()
-    reporte = []
+    anio = request.GET.get('anio')
+    mes = request.GET.get('mes')
+    if anio:
+        try:
+            anio = int(anio)
+        except ValueError:
+            anio = datetime.now().year
+    else:
+        anio = datetime.now().year
+    mes = int(mes) if mes and str(mes).isdigit() and 1 <= int(mes) <= 12 else None
     
+    if mes:
+        dias_periodo = monthrange(anio, mes)[1]
+    else:
+        dias_periodo = 366 if (anio % 4 == 0 and (anio % 100 != 0 or anio % 400 == 0)) else 365
+    
+    reporte = []
     for vehiculo in vehiculos:
-        # Calcular días fuera de servicio sumando duración de mantenimientos
         mantenimientos = Mantenimiento.objects.filter(vehiculo=vehiculo)
-        total_dias_fuera = 0
+        if mes:
+            mantenimientos = mantenimientos.filter(
+                fecha_ingreso__year=anio, fecha_ingreso__month=mes
+            )
+        else:
+            mantenimientos = mantenimientos.filter(fecha_ingreso__year=anio)
         
+        total_dias_fuera = 0
         for mant in mantenimientos:
             if mant.fecha_salida:
                 dias = (mant.fecha_salida - mant.fecha_ingreso).days
                 total_dias_fuera += max(0, dias)
         
         incidentes = FallaReportada.objects.filter(vehiculo=vehiculo).count()
+        dias_disponibles = max(0, dias_periodo - total_dias_fuera)
         
         reporte.append({
             'patente': vehiculo.patente,
             'marca_modelo': f"{vehiculo.marca} {vehiculo.modelo}",
             'dias_fuera_servicio': total_dias_fuera,
+            'dias_disponibles': dias_disponibles,
+            'dias_periodo': dias_periodo,
             'incidentes': incidentes,
             'estado': vehiculo.get_estado_display(),
-            'vehiculo': vehiculo,  # Para el template
+            'vehiculo': vehiculo,
         })
     
-    # Exportar a Excel si se solicita
     if request.GET.get('exportar') == 'excel':
         columnas = [
             ('Vehículo', 'patente', 'texto'),
             ('Marca/Modelo', 'marca_modelo', 'texto'),
             ('Días Fuera de Servicio', 'dias_fuera_servicio', 'entero'),
+            ('Días Disponibles (disponibilidad efectiva)', 'dias_disponibles', 'entero'),
             ('Número de Incidentes', 'incidentes', 'entero'),
             ('Estado Actual', 'estado', 'texto'),
         ]
@@ -295,7 +393,12 @@ def reporte_disponibilidad(request):
             f'reporte_disponibilidad_{datetime.now().strftime("%Y%m%d")}.xlsx'
         )
     
-    return render(request, 'flota/reporte_disponibilidad.html', {'reporte': reporte})
+    return render(request, 'flota/reporte_disponibilidad.html', {
+        'reporte': reporte,
+        'anio': anio,
+        'mes': mes,
+        'dias_periodo': dias_periodo,
+    })
 
 
 # RF_28: Generar reporte de historial por unidad
@@ -335,3 +438,20 @@ def reporte_historial_unidad(request, patente):
         'fecha_inicio': fecha_inicio,
         'fecha_fin': fecha_fin,
     })
+
+
+@login_required
+def reporte_servicios(request):
+    # Cuenta cuántos viajes hay por cada tipo de servicio
+    servicios = Viaje.objects.values('tipo_servicio').annotate(total=Count('id')).order_by('-total')
+    
+    # Para el gráfico
+    labels = [s['tipo_servicio'] for s in servicios]
+    data = [s['total'] for s in servicios]
+    
+    return render(request, 'flota/reporte_servicios.html', {
+        'servicios': servicios,
+        'chart_labels': labels,
+        'chart_data': data
+    })
+

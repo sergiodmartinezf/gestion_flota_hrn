@@ -20,9 +20,7 @@
                 <div class="mb-3">
                     <strong>RUT:</strong> {{ proveedor.rut_empresa }}
                 </div>
-                <div class="mb-3">
-                    <strong>Giro:</strong> {{ proveedor.giro }}
-                </div>
+                {# Campo giro eliminado del modelo Proveedor #}
                 
                 <form method="post">
                     {% csrf_token %}

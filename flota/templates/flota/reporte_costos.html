@@ -61,6 +61,8 @@
                     <tr>
                         <th>Vehículo</th>
                         <th>Costo Mantenimientos</th>
+                        <th>Preventivo</th>
+                        <th>Correctivo</th>
                         <th>Costo Combustible</th>
                         <th>Costo Arriendos</th>
                         <th>Costo Total</th>
@@ -73,6 +75,8 @@
                     <tr>
                         <td><strong>{{ item.vehiculo.patente }}</strong></td>
                         <td>${{ item.costo_mantenimientos|floatformat:0 }}</td>
+                        <td>${{ item.costo_preventivo|floatformat:0 }}</td>
+                        <td>${{ item.costo_correctivo|floatformat:0 }}</td>
                         <td>${{ item.costo_combustible|floatformat:0 }}</td>
                         <td>${{ item.costo_arriendos|floatformat:0 }}</td>
                         <td><strong>${{ item.costo_total|floatformat:0 }}</strong></td>

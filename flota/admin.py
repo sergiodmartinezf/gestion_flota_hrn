@@ -76,7 +76,7 @@ class ArriendoAdmin(admin.ModelAdmin):
 
 @admin.register(HojaRuta)
 class HojaRutaAdmin(admin.ModelAdmin):
-    list_display = ('id', 'vehiculo', 'fecha', 'conductor', 'turno', 'medico', 'km_recorridos')
+    list_display = ['id', 'fecha', 'turno', 'vehiculo', 'conductor', 'km_inicio', 'km_fin']
     list_filter = ('fecha', 'turno')
     search_fields = ('vehiculo__patente', 'conductor__nombre', 'conductor__apellido', 'medico')
 

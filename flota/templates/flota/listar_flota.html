@@ -61,11 +61,9 @@
                     <thead class="table-dark">
                         <tr>
                             <th>Patente</th>
-                            <th>Marca</th>
-                            <th>Modelo</th>
+                            <th>Marca / Modelo</th>
                             <th>Tipo</th>
                             <th>Estado</th>
-                            <th>Kilometraje</th>
                             <th>Acciones</th>
                         </tr>
                     </thead>
@@ -73,8 +71,7 @@
                         {% for vehiculo in vehiculos %}
                         <tr>
                             <td><strong>{{ vehiculo.patente }}</strong></td>
-                            <td>{{ vehiculo.marca }}</td>
-                            <td>{{ vehiculo.modelo }}</td>
+                            <td>{{ vehiculo.marca }} {{ vehiculo.modelo }}</td>
                             <td>{{ vehiculo.get_tipo_carroceria_display }}</td>
                             <td>
                                 {% if vehiculo.estado == 'Disponible' %}
@@ -87,7 +84,6 @@
                                     <span class="badge bg-secondary">{{ vehiculo.estado }}</span>
                                 {% endif %}
                             </td>
-                            <td>{{ vehiculo.kilometraje_actual|floatformat:0 }} km</td>
                             <td>
                                 <a href="{% url 'ficha_vehiculo' vehiculo.patente %}" class="btn btn-sm btn-info me-1" title="Ver detalles">
                                     <i class="bi bi-eye"></i>

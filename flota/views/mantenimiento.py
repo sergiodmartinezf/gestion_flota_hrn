@@ -7,149 +7,78 @@ from django.utils import timezone
 from django.db.models import Sum
 from decimal import Decimal
 import json
-from ..models import Mantenimiento, Vehiculo, Proveedor, Presupuesto, AlertaMantencion, CuentaPresupuestaria
+from ..models import Mantenimiento, Vehiculo, Proveedor, Presupuesto, AlertaMantencion, CuentaPresupuestaria, OrdenTrabajo
 from ..forms import MantenimientoForm, ProgramarMantenimientoForm, FinalizarMantenimientoForm
 from .utilidades import es_administrador
 from ..utils import exportar_planilla_mantenimientos_excel
 
-# RF_18: Programar mantenimiento preventivo
+# RF_18 y RF_19: Programar/registrar mantenimiento (preventivo o correctivo) desde calendario
 @login_required
 @user_passes_test(es_administrador)
-def programar_mantenimiento_preventivo(request):
-    if request.method == 'POST':
-        form = ProgramarMantenimientoForm(request.POST)
-        if form.is_valid():
-            mantenimiento = form.save(commit=False)
-            
-            # Se asignan valores
-            mantenimiento.tipo_mantencion = 'Preventivo'
-            mantenimiento.estado = 'Programado'
-            
-            # Costos reales parten en 0
-            mantenimiento.costo_mano_obra = 0
-            mantenimiento.costo_repuestos = 0
-            
-            # Validar presupuesto antes de guardar
-            if mantenimiento.cuenta_presupuestaria and mantenimiento.vehiculo:
-                anio = mantenimiento.fecha_ingreso.year
-                
-                # Buscar presupuesto
-                presupuesto = Presupuesto.objects.filter(
-                    cuenta=mantenimiento.cuenta_presupuestaria,
-                    vehiculo=mantenimiento.vehiculo,
-                    anio=anio,
-                    activo=True
-                ).first()
-                
-                if not presupuesto:
-                    presupuesto = Presupuesto.objects.filter(
-                        cuenta=mantenimiento.cuenta_presupuestaria,
-                        vehiculo__isnull=True,
-                        anio=anio,
-                        activo=True
-                    ).first()
-                
-                if not presupuesto:
-                    messages.error(request, 
-                        f"No hay presupuesto asignado para la cuenta {mantenimiento.cuenta_presupuestaria.codigo} "
-                        f"en el año {anio}. Debe crear un presupuesto primero."
-                    )
-                    return render(request, 'flota/programar_mantenimiento_preventivo.html', {'form': form})
-                
-                # Verificar si hay saldo suficiente para el costo estimado
-                if mantenimiento.costo_estimado and mantenimiento.costo_estimado > 0:
-                    if presupuesto.disponible < mantenimiento.costo_estimado:
-                        messages.error(request, 
-                            f"Presupuesto insuficiente. Disponible: ${presupuesto.disponible:.0f}, "
-                            f"Requerido: ${mantenimiento.costo_estimado:.0f}"
-                        )
-                        return render(request, 'flota/programar_mantenimiento_preventivo.html', {'form': form})
-            
-            mantenimiento.save()
-            
-            # Se actualiza el estado del vehículo
-            vehiculo = mantenimiento.vehiculo
-            vehiculo.estado = 'En mantenimiento'
-            vehiculo.save()
-            
+def programar_mantenimiento(request):
+    """Vista unificada: GET redirige al calendario; POST crea mantenimiento preventivo o correctivo."""
+    if request.method != 'POST':
+        return redirect('calendario_mantenciones')
+
+    tipo = (request.POST.get('tipo_mantencion') or '').strip()
+    if tipo not in ('Preventivo', 'Correctivo'):
+        messages.error(request, 'Debe indicar el tipo de mantenimiento (Preventivo o Correctivo).')
+        return redirect('calendario_mantenciones')
+
+    form = ProgramarMantenimientoForm(request.POST)
+    if not form.is_valid():
+        for field, errors in form.errors.items():
+            for error in errors:
+                messages.error(request, f'{field}: {error}')
+        return redirect('calendario_mantenciones')
+
+    mantenimiento = form.save(commit=False)
+    mantenimiento.tipo_mantencion = tipo
+    mantenimiento.estado = 'Programado' if tipo == 'Preventivo' else 'En taller'
+    mantenimiento.costo_mano_obra = 0
+    mantenimiento.costo_repuestos = 0
+
+    if mantenimiento.cuenta_presupuestaria and mantenimiento.vehiculo:
+        anio = mantenimiento.fecha_ingreso.year
+        presupuesto = Presupuesto.objects.filter(
+            cuenta=mantenimiento.cuenta_presupuestaria,
+            vehiculo=mantenimiento.vehiculo,
+            anio=anio,
+            activo=True
+        ).first()
+        if not presupuesto:
+            presupuesto = Presupuesto.objects.filter(
+                cuenta=mantenimiento.cuenta_presupuestaria,
+                vehiculo__isnull=True,
+                anio=anio,
+                activo=True
+            ).first()
+        if not presupuesto:
+            messages.error(request,
+                f"No hay presupuesto asignado para la cuenta {mantenimiento.cuenta_presupuestaria.codigo} "
+                f"en el año {anio}. Debe crear un presupuesto primero."
+            )
+            return redirect('calendario_mantenciones')
+        if mantenimiento.costo_estimado and mantenimiento.costo_estimado > 0 and presupuesto.disponible < mantenimiento.costo_estimado:
+            messages.error(request,
+                f"Presupuesto insuficiente. Disponible: ${presupuesto.disponible:.0f}, "
+                f"Requerido: ${mantenimiento.costo_estimado:.0f}"
+            )
+            return redirect('calendario_mantenciones')
+
+    try:
+        mantenimiento.save()
+        vehiculo = mantenimiento.vehiculo
+        vehiculo.estado = 'En mantenimiento'
+        vehiculo.save()
+        if tipo == 'Preventivo':
             messages.success(request, 'Mantenimiento preventivo programado exitosamente.')
-            return redirect('listar_mantenimientos')
         else:
-            # Errores
-            print("Errores del formulario:", form.errors)
-            messages.error(request, 'Por favor, corrige los errores en el formulario.')
-    else:
-        # Inicializamos el formulario limpio
-        form = ProgramarMantenimientoForm()
-    
-    return render(request, 'flota/programar_mantenimiento_preventivo.html', {'form': form})
+            messages.success(request, 'Mantenimiento correctivo registrado exitosamente.')
+    except Exception as e:
+        messages.error(request, f'Error al guardar: {str(e)}')
 
-
-# RF_19: Registrar mantenimiento correctivo
-@login_required
-@user_passes_test(es_administrador)
-def registrar_mantenimiento_correctivo(request):
-    if request.method == 'POST':
-        form = MantenimientoForm(request.POST)
-        if form.is_valid():
-            try:
-                mantenimiento = form.save(commit=False)
-                mantenimiento.tipo_mantencion = 'Correctivo'
-                mantenimiento.estado = 'En taller'
-                
-                # Calcular costo total real si se proporcionaron costos
-                if mantenimiento.costo_mano_obra or mantenimiento.costo_repuestos:
-                    mantenimiento.costo_total_real = (mantenimiento.costo_mano_obra or 0) + (mantenimiento.costo_repuestos or 0)
-                
-                # Validar presupuesto antes de guardar
-                if mantenimiento.cuenta_presupuestaria and mantenimiento.vehiculo:
-                    anio = mantenimiento.fecha_ingreso.year
-                    
-                    # Buscar presupuesto
-                    presupuesto = Presupuesto.objects.filter(
-                        cuenta=mantenimiento.cuenta_presupuestaria,
-                        vehiculo=mantenimiento.vehiculo,
-                        anio=anio,
-                        activo=True
-                    ).first()
-                    
-                    if not presupuesto:
-                        presupuesto = Presupuesto.objects.filter(
-                            cuenta=mantenimiento.cuenta_presupuestaria,
-                            vehiculo__isnull=True,
-                            anio=anio,
-                            activo=True
-                        ).first()
-                    
-                    if not presupuesto:
-                        messages.error(request, 
-                            f"No hay presupuesto asignado para la cuenta {mantenimiento.cuenta_presupuestaria.codigo} "
-                            f"en el año {anio}. Debe crear un presupuesto primero."
-                        )
-                        # Re-renderizar el formulario con los datos
-                        return render(request, 'flota/registrar_mantenimiento_correctivo.html', {'form': form})
-                
-                mantenimiento.save()
-                
-                # Actualizar estado del vehículo
-                vehiculo = mantenimiento.vehiculo
-                vehiculo.estado = 'En mantenimiento'
-                vehiculo.save()
-                
-                messages.success(request, 'Mantenimiento correctivo registrado exitosamente.')
-                return redirect('listar_mantenimientos')
-            except Exception as e:
-                messages.error(request, f'Error al registrar mantenimiento correctivo: {str(e)}')
-        else:
-            for field, errors in form.errors.items():
-                for error in errors:
-                    messages.error(request, f'{field}: {error}')
-    else:
-        form = MantenimientoForm()
-        # Filtrar proveedores activos
-        form.fields['proveedor'].queryset = Proveedor.objects.filter(activo=True, es_taller=True).order_by('nombre_fantasia')
-    
-    return render(request, 'flota/registrar_mantenimiento_correctivo.html', {'form': form})
+    return redirect('listar_mantenimientos')
 
 
 # RF_20: Listar mantenimientos
@@ -336,9 +265,16 @@ def eliminar_mantenimiento(request, id):
 def calendario_mantenciones(request):
     vehiculos = Vehiculo.objects.all().order_by('patente')
     proveedores = Proveedor.objects.filter(es_taller=True, activo=True).order_by('nombre_fantasia')
+    cuentas = CuentaPresupuestaria.objects.all().order_by('codigo')
+    orden_trabajo_id = request.GET.get('orden_trabajo', '').strip()
+    orden_trabajo = get_object_or_404(OrdenTrabajo, id=orden_trabajo_id) if orden_trabajo_id else None
+    abrir_modal = request.GET.get('abrir_modal') == '1' or bool(orden_trabajo_id)
     return render(request, 'flota/calendario_mantenciones.html', {
         'vehiculos': vehiculos,
         'proveedores': proveedores,
+        'cuentas': cuentas,
+        'orden_trabajo': orden_trabajo,
+        'abrir_modal': abrir_modal,
     })
 
 

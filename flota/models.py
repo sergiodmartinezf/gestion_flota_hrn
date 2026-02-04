@@ -1,6 +1,7 @@
 from django.db import models
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager
 from django.core.validators import MinValueValidator
+from django.core.exceptions import ValidationError
 from decimal import Decimal
 from django.utils import timezone
 
@@ -170,11 +171,11 @@ class Proveedor(models.Model):
     id = models.AutoField(primary_key=True)
     rut_empresa = models.CharField(max_length=12, unique=True)
     nombre_fantasia = models.CharField(max_length=200)
-    giro = models.CharField(max_length=200)
     telefono = models.CharField(max_length=20, blank=True)
     email_contacto = models.EmailField(blank=True)
     es_taller = models.BooleanField(default=False, verbose_name="Es Taller Mecánico")
     es_arrendador = models.BooleanField(default=False, verbose_name="Es Arrendador de Vehículos")
+    es_proveedor_base = models.BooleanField(default=False, verbose_name="Proveedor base (Kaufmann/Arriagada)")
     activo = models.BooleanField(default=True, verbose_name="Activo")
     
     class Meta:
@@ -508,6 +509,7 @@ class Mantenimiento(models.Model):
     TIPOS_MANTENCION = [
         ('Preventivo', 'Preventivo'),
         ('Correctivo', 'Correctivo'),
+        ('Productivo', 'Productivo'),
     ]
     
     ESTADOS = [
@@ -710,12 +712,6 @@ class HojaRuta(models.Model):
     fecha = models.DateField()
     turno = models.CharField(max_length=20, choices=TURNOS)
 
-    # REQ: Campos de personal médico (Digitalización)
-    medico = models.CharField(max_length=150, blank=True, verbose_name="Médico")
-    enfermero = models.CharField(max_length=150, blank=True, verbose_name="Enfermero/a")
-    tens = models.CharField(max_length=150, blank=True, verbose_name="TENS")
-    camillero = models.CharField(max_length=150, blank=True, verbose_name="Camillero")
-
     # REQ: Kilometraje obligatorio (se valida en form, aqui min value)
     km_inicio = models.IntegerField(null=True, blank=True, verbose_name="KM Inicio Turno", validators=[MinValueValidator(0)])
     km_fin = models.IntegerField(null=True, blank=True, verbose_name="KM Fin Turno", validators=[MinValueValidator(0)])
@@ -757,13 +753,29 @@ class Viaje(models.Model):
         ('Exámenes', 'Exámenes'),
         ('Alta a Domicilio', 'Alta a Domicilio'),
     ]
+
+    DESTINOS_RED = [
+        ('Hospital Base Osorno', 'Hospital Base Osorno'),
+        ('Domicilio', 'Domicilio (Requiere Dirección)'),
+    ]
     
     id = models.AutoField(primary_key=True)
     hora_salida = models.TimeField()
     hora_llegada = models.TimeField()
-    destino = models.CharField(max_length=200)
+    destino = models.CharField(max_length=200, choices=DESTINOS_RED, default='Hospital Base Osorno')
+    direccion_especifica = models.CharField(max_length=300, blank=True, verbose_name="Alta a Domicilio")
+    hora_llegada_destino = models.TimeField(null=True, blank=True, verbose_name="Hora Llegada a Destino")
+    hora_salida_destino = models.TimeField(null=True, blank=True, verbose_name="Hora Salida de Destino")
     rut_paciente = models.CharField(max_length=12, blank=True)
     nombre_paciente = models.CharField(max_length=150, blank=True)
+
+    # Campos originarios de anterior versión de HojaRuta
+    medico = models.CharField(max_length=150, blank=True, verbose_name="Médico")
+    enfermero = models.CharField(max_length=150, blank=True, verbose_name="Enfermero/a")
+    tens = models.CharField(max_length=150, blank=True, verbose_name="TENS")
+    camillero = models.CharField(max_length=150, blank=True, verbose_name="Camillero")
+    sin_enfermero = models.BooleanField(default=False, verbose_name="No va enfermero/matrón")
+    sin_camillero = models.BooleanField(default=False, verbose_name="No aplica camillero")
     
     # Se actualiza el choices y se define un default coherente con la lista nueva
     tipo_servicio = models.CharField(
@@ -771,6 +783,10 @@ class Viaje(models.Model):
         choices=TIPOS_SERVICIO, 
         default='Llamado'
     )
+    
+    origen_llamado = models.CharField(max_length=200, blank=True, verbose_name="Origen del llamado/traslado")
+    direccion_domicilio = models.CharField(max_length=300, blank=True, verbose_name="Dirección (cuando destino es domicilio)")
+    retenido_hospital = models.BooleanField(default=False, verbose_name="Ambulancia retenida en hospital base")
     
     #km_recorridos_viaje = models.IntegerField(default=0, validators=[MinValueValidator(0)])
     km_inicio_viaje = models.IntegerField(
@@ -796,6 +812,48 @@ class Viaje(models.Model):
     def km_recorridos_calculados(self):
         """Calcula automáticamente los KM recorridos en este viaje"""
         return max(0, self.km_fin_viaje - self.km_inicio_viaje)
+
+
+class Paciente(models.Model):
+    """Paciente para trazabilidad (RUT, nombre, dirección). Se reutiliza al ingresar RUT."""
+    id = models.AutoField(primary_key=True)
+    rut = models.CharField(max_length=12, unique=True)
+    nombre = models.CharField(max_length=150)
+    direccion = models.CharField(max_length=300, blank=True)
+    telefono = models.CharField(max_length=20, blank=True)
+    
+    class Meta:
+        db_table = 'paciente'
+        verbose_name = 'Paciente'
+        verbose_name_plural = 'Pacientes'
+    
+    def __str__(self):
+        return f"{self.nombre} ({self.rut})"
+
+
+class ViajePaciente(models.Model):
+    """Relación viaje - pacientes adicionales (varios pacientes por viaje)."""
+    id = models.AutoField(primary_key=True)
+    viaje = models.ForeignKey(Viaje, on_delete=models.CASCADE, related_name='pacientes_adicionales')
+    paciente = models.ForeignKey(Paciente, on_delete=models.CASCADE, related_name='viajes')
+    
+    tipo_servicio = models.CharField(
+        max_length=50, 
+        choices=Viaje.TIPOS_SERVICIO, 
+        default='Urgencia',
+        verbose_name="Tipo de Servicio"
+    )
+    
+    orden = models.PositiveSmallIntegerField(default=1)
+
+    class Meta:
+        db_table = 'viaje_paciente'
+        verbose_name = 'Paciente en viaje'
+        verbose_name_plural = 'Pacientes en viaje'
+        ordering = ['viaje', 'orden']
+    
+    def __str__(self):
+        return f"{self.viaje} - {self.paciente}"
 
 
 class CargaCombustible(models.Model):
@@ -826,10 +884,15 @@ class CargaCombustible(models.Model):
 
 
 class FallaReportada(models.Model):
+    TIPO_REPORTE = [
+        ('Falla', 'Falla / Incidente'),
+        ('Desempeño', 'Desempeño del vehículo'),
+    ]
     id = models.AutoField(primary_key=True)
     fecha_reporte = models.DateField()
     descripcion = models.TextField()
-    nivel_urgencia = models.CharField(max_length=20, choices=[('Alta', 'Alta'), ('Media', 'Media'), ('Baja', 'Baja')], null=True, blank=True,default='Media')
+    tipo_reporte = models.CharField(max_length=20, choices=TIPO_REPORTE, default='Falla')
+    nivel_urgencia = models.CharField(max_length=20, choices=[('Alta', 'Alta'), ('Media', 'Media'), ('Baja', 'Baja')], null=True, blank=True, default='Media')
     
     vehiculo = models.ForeignKey(Vehiculo, on_delete=models.CASCADE, related_name='fallas_reportadas')
     conductor = models.ForeignKey(Usuario, on_delete=models.PROTECT, related_name='fallas_reportadas')

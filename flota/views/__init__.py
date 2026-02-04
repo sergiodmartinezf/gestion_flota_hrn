@@ -40,13 +40,15 @@ from .viajes import (
     registrar_incidente,
     listar_incidentes,
     exportar_consolidado_viajes,
-    agregar_viaje
+    exportar_traslados_form,
+    agregar_viaje,
+    acceso_bitacora,
+    cerrar_hoja_ruta
 )
 
 # Importar vistas de mantenimiento
 from .mantenimiento import (
-    programar_mantenimiento_preventivo,
-    registrar_mantenimiento_correctivo,
+    programar_mantenimiento,
     listar_mantenimientos,
     cambiar_estado_mantenimiento,
     editar_mantenimiento,
@@ -70,7 +72,8 @@ from .presupuesto import (
 from .reportes import (
     reporte_costos,
     reporte_disponibilidad,
-    reporte_historial_unidad
+    reporte_historial_unidad,
+    panel_control
 )
 
 # Importar vistas de arriendo
@@ -153,10 +156,10 @@ __all__ = [
     'registrar_incidente',
     'listar_incidentes',
     'exportar_consolidado_viajes',
+    'exportar_traslados_form',
     
     # Mantenimiento
-    'programar_mantenimiento_preventivo',
-    'registrar_mantenimiento_correctivo',
+    'programar_mantenimiento',
     'listar_mantenimientos',
     'cambiar_estado_mantenimiento',
     'editar_mantenimiento',
@@ -177,6 +180,7 @@ __all__ = [
     'reporte_costos',
     'reporte_disponibilidad',
     'reporte_historial_unidad',
+    'panel_control',
     
     # Arriendo
     'registrar_arriendo',

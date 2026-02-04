@@ -1,4 +1,36 @@
-// static/js/bitacora_pasos.js - VERSIÓN CORREGIDA
+function togglePersonal(tipo) {
+    // tipo puede ser 'enfermero' o 'camillero'
+    const check = document.getElementById(`id_sin_${tipo}`);
+    const input = document.getElementById(`id_${tipo}`);
+    
+    if (check && input) {
+        input.disabled = check.checked;
+        if (check.checked) {
+            input.value = '';
+            input.required = false;
+            input.classList.remove('is-invalid');
+        } else {
+            input.required = true; 
+        }
+    }
+}
+
+function toggleDireccion(valorDestino) {
+    const divDireccion = document.getElementById('contenedor-direccion'); // Envuelve el input de dirección en un div con este ID
+    const inputDireccion = document.getElementById('id_direccion_especifica');
+    
+    if (valorDestino === 'Domicilio' || valorDestino === 'Otro') {
+        if(divDireccion) divDireccion.style.display = 'block';
+        if(inputDireccion) inputDireccion.required = true;
+    } else {
+        if(divDireccion) divDireccion.style.display = 'none';
+        if(inputDireccion) {
+            inputDireccion.required = false;
+            inputDireccion.value = '';
+        }
+    }
+}
+
 class BitacoraPasos {
     constructor() {
         this.pasoActual = 1;
@@ -17,7 +49,6 @@ class BitacoraPasos {
         this.actualizarInterfaz();
     }
 
-    // Agrega este método a tu clase BitacoraPasos
     actualizarCamposViaje() {
         const camposViajeAmbulancia = document.getElementById('campos-viaje-ambulancia');
         const camposViajeCamioneta = document.getElementById('campos-viaje-camioneta');
@@ -27,11 +58,12 @@ class BitacoraPasos {
             if (camposViajeAmbulancia) camposViajeAmbulancia.style.display = 'none';
             if (camposViajeCamioneta) camposViajeCamioneta.style.display = 'block';
             
-            // Hacer obligatorios los campos de camioneta
+            // Hacer obligatorios destino, horas de viaje y persona movilizada (motivo es opcional)
             this.marcarCampoRequerido('id_destino_camioneta', true);
             this.marcarCampoRequerido('id_hora_salida_viaje', true);
+            this.marcarCampoRequerido('id_hora_llegada_viaje', true);
             this.marcarCampoRequerido('id_persona_movilizada', true);
-            this.marcarCampoRequerido('id_motivo_camioneta', true);
+            this.marcarCampoRequerido('id_motivo_camioneta', false);
             
             // Quitar requerido de campos de ambulancia
             this.marcarCampoRequerido('id_destino', false);
@@ -45,40 +77,16 @@ class BitacoraPasos {
             // Hacer obligatorios los campos de ambulancia
             this.marcarCampoRequerido('id_destino', true);
             this.marcarCampoRequerido('id_hora_salida', true);
+            this.marcarCampoRequerido('id_hora_llegada', true);
             this.marcarCampoRequerido('id_tipo_servicio', true);
             
             // Quitar requerido de campos de camioneta
             this.marcarCampoRequerido('id_destino_camioneta', false);
             this.marcarCampoRequerido('id_hora_salida_viaje', false);
+            this.marcarCampoRequerido('id_hora_llegada_viaje', false);
             this.marcarCampoRequerido('id_persona_movilizada', false);
-            this.marcarCampoRequerido('id_motivo_camioneta', false);
+            this.marcarCampoRequerido('id_motivo_camioneta', false);  // ya opcional
         }
-    }
-
-    // En el método actualizarTipoVehiculo, llama a este nuevo método:
-    actualizarTipoVehiculo(selectElement) {
-        if (!selectElement || !selectElement.value) {
-            this.esCamioneta = false;
-            this.actualizarInterfazTipoVehiculo();
-            return;
-        }
-        
-        const option = selectElement.options[selectElement.selectedIndex];
-        const tipoCarroceria = option.getAttribute('data-tipo');
-        this.esCamioneta = (tipoCarroceria === 'Camioneta');
-        
-        // Actualizar campo oculto
-        document.getElementById('id_es_camioneta').value = this.esCamioneta;
-        
-        // Actualizar información del vehículo
-        this.actualizarInfoVehiculo(selectElement.value);
-        
-        // Actualizar interfaz según tipo
-        this.actualizarInterfazTipoVehiculo();
-        
-        // Actualizar campos visibles según tipo
-        this.actualizarCamposViaje();
-        this.actualizarPaso2();
     }
 
     // Método auxiliar para marcar campos como requeridos
@@ -137,18 +145,6 @@ class BitacoraPasos {
         }
     }
     
-    configurarHoraPorDefecto() {
-        // Hora actual como hora de salida por defecto
-        const ahora = new Date();
-        const horaStr = ahora.getHours().toString().padStart(2, '0') + ':' + 
-                       ahora.getMinutes().toString().padStart(2, '0');
-        
-        const horaSalidaInput = document.getElementById('id_hora_salida');
-        if (horaSalidaInput && !horaSalidaInput.value) {
-            horaSalidaInput.value = horaStr;
-        }
-    }
-    
     actualizarTipoVehiculo(selectElement) {
         if (!selectElement || !selectElement.value) {
             this.esCamioneta = false;
@@ -172,8 +168,11 @@ class BitacoraPasos {
         // Actualizar interfaz según tipo
         this.actualizarInterfazTipoVehiculo();
         
-        // Actualizar campos visibles según tipo
+        // Actualizar campos visibles según tipo (ambulancia vs camioneta)
         this.actualizarCamposVisibles();
+
+        // Actualizar qué campos de viaje son requeridos según tipo
+        this.actualizarCamposViaje();
     }
     
     actualizarInfoVehiculo(vehiculoId) {
@@ -208,6 +207,25 @@ class BitacoraPasos {
             iconoVehiculo.className = 'bi bi-ambulance fs-3 me-3 text-primary';
             tituloVehiculo.textContent = 'Ambulancia';
             descripcionVehiculo.textContent = 'Registrando salida de ambulancia';
+        }
+    }
+
+    configurarHoraPorDefecto() {
+        // Hora actual como hora de salida por defecto
+        const ahora = new Date();
+        const horaStr = ahora.getHours().toString().padStart(2, '0') + ':' + 
+                       ahora.getMinutes().toString().padStart(2, '0');
+        
+        // Hora de salida para ambulancia
+        const horaSalidaAmbulancia = document.getElementById('id_hora_salida');
+        if (horaSalidaAmbulancia && !horaSalidaAmbulancia.value) {
+            horaSalidaAmbulancia.value = horaStr;
+        }
+
+        // Hora de salida para camioneta
+        const horaSalidaCamioneta = document.getElementById('id_hora_salida_viaje');
+        if (horaSalidaCamioneta && !horaSalidaCamioneta.value) {
+            horaSalidaCamioneta.value = horaStr;
         }
     }
     
@@ -387,18 +405,11 @@ class BitacoraPasos {
             }
         }
         
-        // Validar campos de camioneta si aplica
+        // Validar campos de camioneta si aplica (persona movilizada obligatoria; motivo opcional)
         if (this.esCamioneta && this.pasoActual === 2) {
             const persona = document.getElementById('id_persona_movilizada');
-            const motivo = document.getElementById('id_motivo_camioneta');
-            
             if (persona && !persona.value.trim()) {
                 this.mostrarError('persona_movilizada', 'Ingrese la persona movilizada');
-                esValido = false;
-            }
-            
-            if (motivo && !motivo.value.trim()) {
-                this.mostrarError('motivo_camioneta', 'Ingrese el motivo del viaje');
                 esValido = false;
             }
         }

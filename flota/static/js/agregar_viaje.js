@@ -1,9 +1,10 @@
 // static/js/agregar_viaje_pasos.js
 class FormularioViajePasos {
-    constructor(hojaRutaId) {
+    constructor(hojaRutaId, esCamioneta) {
         this.pasoActual = 1;
-        this.totalPasos = 6;
+        this.totalPasos = 7;
         this.hojaRutaId = hojaRutaId;
+        this.esCamioneta = esCamioneta;
         this.datos = {};
         
         this.init();
@@ -14,14 +15,14 @@ class FormularioViajePasos {
         this.actualizarProgreso();
         this.configurarHoraActual();
         this.configurarKilometraje();
+        this.configurarPacientesExtra();
+        this.configurarCamposMedicos();
     }
     
     setupEventListeners() {
         const form = document.getElementById('form-viaje-pasos');
         if (form) {
             form.addEventListener('submit', (e) => {
-                //this.prepararEnvio();
-                
                 if (!this.validarTodosLosCampos()) {
                     e.preventDefault();
                     this.mostrarErrorGlobal('Por favor complete todos los campos requeridos');
@@ -65,6 +66,50 @@ class FormularioViajePasos {
                 }
             });
         });
+    }
+    
+    configurarCamposMedicos() {
+        // Configurar checkboxes para mostrar/ocultar campos médicos
+        const sinEnfermeroCheck = document.getElementById('id_sin_enfermero');
+        const enfermeroInput = document.getElementById('id_enfermero');
+        const sinCamilleroCheck = document.getElementById('id_sin_camillero');
+        const camilleroInput = document.getElementById('id_camillero');
+        
+        if (sinEnfermeroCheck && enfermeroInput) {
+            sinEnfermeroCheck.addEventListener('change', (e) => {
+                enfermeroInput.disabled = e.target.checked;
+                if (e.target.checked) {
+                    enfermeroInput.value = '';
+                    enfermeroInput.required = false;
+                } else {
+                    enfermeroInput.required = true;
+                }
+            });
+            
+            // Estado inicial
+            enfermeroInput.disabled = sinEnfermeroCheck.checked;
+            if (sinEnfermeroCheck.checked) {
+                enfermeroInput.required = false;
+            }
+        }
+        
+        if (sinCamilleroCheck && camilleroInput) {
+            sinCamilleroCheck.addEventListener('change', (e) => {
+                camilleroInput.disabled = e.target.checked;
+                if (e.target.checked) {
+                    camilleroInput.value = '';
+                    camilleroInput.required = false;
+                } else {
+                    camilleroInput.required = true;
+                }
+            });
+            
+            // Estado inicial
+            camilleroInput.disabled = sinCamilleroCheck.checked;
+            if (sinCamilleroCheck.checked) {
+                camilleroInput.required = false;
+            }
+        }
     }
     
     configurarHoraActual() {
@@ -119,6 +164,26 @@ class FormularioViajePasos {
             validarKmEnTiempoReal();
         }
     }
+
+    configurarPacientesExtra() {
+        const btnAgregar = document.getElementById('btn-agregar-paciente-extra');
+        const contenedor = document.getElementById('contenedor-pacientes-extra');
+        const template = document.getElementById('template-paciente-extra');
+
+        if (!btnAgregar || !contenedor || !template) return;
+
+        btnAgregar.addEventListener('click', () => {
+            const clone = template.content.cloneNode(true);
+            contenedor.appendChild(clone);
+        });
+
+        contenedor.addEventListener('click', (e) => {
+            if (e.target.closest('.btn-remover-paciente-extra')) {
+                const row = e.target.closest('.paciente-extra-row');
+                if (row) row.remove();
+            }
+        });
+    }
     
     obtenerPasoDesdeElemento(element) {
         let pasoElement = element;
@@ -148,11 +213,11 @@ class FormularioViajePasos {
         
         // Validaciones específicas por paso
         switch (this.pasoActual) {
-            case 5: // Kilometraje
+            case 6: // Kilometraje
                 const kmInicio = parseInt(document.getElementById('id_km_inicio_viaje').value) || 0;
                 const kmFin = parseInt(document.getElementById('id_km_fin_viaje').value) || 0;
                 
-                if (kmFin <= kmInicio) {  // Ahora es <= para mayor estricto
+                if (kmFin <= kmInicio) {
                     this.mostrarError('km_fin_viaje', 'El KM final debe ser MAYOR al inicial');
                     esValido = false;
                 }
@@ -171,6 +236,40 @@ class FormularioViajePasos {
                 if (!horaSalida) {
                     this.mostrarError('hora_salida', 'Debe ingresar la hora de salida');
                     esValido = false;
+                }
+                break;
+                
+            case 5: // Equipo médico (solo para ambulancias)
+                if (!this.esCamioneta) {
+                    // Validar médico
+                    const medico = document.getElementById('id_medico').value;
+                    if (!medico.trim()) {
+                        this.mostrarError('medico', 'El Médico Derivador es obligatorio para ambulancias');
+                        esValido = false;
+                    }
+                    
+                    // Validar TENS
+                    const tens = document.getElementById('id_tens').value;
+                    if (!tens.trim()) {
+                        this.mostrarError('tens', 'El TENS es obligatorio para ambulancias');
+                        esValido = false;
+                    }
+                    
+                    // Validar enfermero/a (si no está marcado "No aplica")
+                    const sinEnfermero = document.getElementById('id_sin_enfermero').checked;
+                    const enfermero = document.getElementById('id_enfermero').value;
+                    if (!sinEnfermero && !enfermero.trim()) {
+                        this.mostrarError('enfermero', 'Debe indicar Enfermero/a o marcar "No aplica"');
+                        esValido = false;
+                    }
+                    
+                    // Validar camillero (si no está marcado "No aplica")
+                    const sinCamillero = document.getElementById('id_sin_camillero').checked;
+                    const camillero = document.getElementById('id_camillero').value;
+                    if (!sinCamillero && !camillero.trim()) {
+                        this.mostrarError('camillero', 'Debe indicar Camillero o marcar "No aplica"');
+                        esValido = false;
+                    }
                 }
                 break;
         }
@@ -247,7 +346,9 @@ class FormularioViajePasos {
             'destino': 'Debe ingresar un destino',
             'tipo_servicio': 'Debe seleccionar un tipo de servicio',
             'km_inicio_viaje': 'Debe ingresar el KM inicial',
-            'km_fin_viaje': 'Debe ingresar el KM final'
+            'km_fin_viaje': 'Debe ingresar el KM final',
+            'medico': 'El médico es obligatorio',
+            'tens': 'El TENS es obligatorio'
         };
         return mensajes[campoId] || 'Campo requerido';
     }
@@ -303,12 +404,6 @@ class FormularioViajePasos {
             if (campo.id) {
                 const campoId = campo.id.replace('id_', '');
                 this.datos[campoId] = campo.value;
-                
-                // Copiar a campo oculto
-                //const hiddenCampo = document.getElementById(`viaje_hidden_${campoId}`);
-                //if (hiddenCampo) {
-                //    hiddenCampo.value = campo.value;
-                //}
             }
         });
     }
@@ -394,6 +489,35 @@ class FormularioViajePasos {
         const kmFin = parseInt(this.datos.km_fin_viaje) || 0;
         const kmRecorridos = Math.max(0, kmFin - kmInicio);
         
+        let equipoMedicoHtml = '';
+        if (!this.esCamioneta) {
+            equipoMedicoHtml = `
+                <tr>
+                    <th>Médico:</th>
+                    <td>${this.datos.medico || '-'}</td>
+                </tr>
+                <tr>
+                    <th>TENS:</th>
+                    <td>${this.datos.tens || '-'}</td>
+                </tr>
+                <tr>
+                    <th>Enfermero/a:</th>
+                    <td>${this.datos.sin_enfermero === 'true' ? 'No aplica' : (this.datos.enfermero || '-')}</td>
+                </tr>
+                <tr>
+                    <th>Camillero:</th>
+                    <td>${this.datos.sin_camillero === 'true' ? 'No aplica' : (this.datos.camillero || '-')}</td>
+                </tr>
+            `;
+        } else {
+            equipoMedicoHtml = `
+                <tr>
+                    <th>Equipo Médico:</th>
+                    <td><span class="badge bg-success">No aplica (Camioneta)</span></td>
+                </tr>
+            `;
+        }
+        
         const resumenHtml = `
             <table class="table table-sm">
                 <tr>
@@ -416,6 +540,7 @@ class FormularioViajePasos {
                     <th>Tipo Servicio:</th>
                     <td>${tipoServicioTexto}</td>
                 </tr>
+                ${equipoMedicoHtml}
                 <tr>
                     <th>KM Inicio:</th>
                     <td>${kmInicio} km</td>
@@ -463,16 +588,6 @@ class FormularioViajePasos {
         
         return esValido;
     }
-    
-    prepararEnvio() {
-        // Copiar todos los valores a los campos ocultos
-        for (const [campoId, valor] of Object.entries(this.datos)) {
-            const hiddenCampo = document.getElementById(`viaje_hidden_${campoId}`);
-            if (hiddenCampo) {
-                hiddenCampo.value = valor;
-            }
-        }
-    }
 }
 
 function validarKmInmediato() {
@@ -502,12 +617,44 @@ function validarKmInmediato() {
     }
 }
 
+function togglePersonal(tipo) {
+    const checkbox = document.getElementById(`id_sin_${tipo}`);
+    const input = document.getElementById(`id_${tipo}`);
+    
+    if (checkbox && input) {
+        input.disabled = checkbox.checked;
+        input.required = !checkbox.checked;
+        
+        if (checkbox.checked) {
+            input.value = '';
+        }
+    }
+}
+
+function toggleDireccion(valorDestino) {
+    const contenedor = document.getElementById('contenedor-direccion');
+    const inputDireccion = document.getElementById('id_direccion_especifica');
+    
+    if (contenedor && inputDireccion) {
+        if (valorDestino === 'Domicilio') {
+            contenedor.style.display = 'block';
+            inputDireccion.required = true;
+        } else {
+            contenedor.style.display = 'none';
+            inputDireccion.required = false;
+            inputDireccion.value = ''; // Limpiar si cambia
+        }
+    }
+}
 
 // Inicializar cuando el DOM esté listo
 document.addEventListener('DOMContentLoaded', function() {
-    const hojaRutaId = document.getElementById('form-viaje-pasos')?.dataset?.hojaRutaId;
-    if (hojaRutaId) {
-        const formularioViajePasos = new FormularioViajePasos(hojaRutaId);
+    const form = document.getElementById('form-viaje-pasos');
+    if (form) {
+        const hojaRutaId = form.dataset?.hojaRutaId;
+        const esCamioneta = document.querySelector('.badge.bg-success')?.textContent.includes('Camioneta') || false;
+        
+        const formularioViajePasos = new FormularioViajePasos(hojaRutaId, esCamioneta);
         
         // Limpiar errores cuando el usuario empieza a escribir
         document.querySelectorAll('#form-viaje-pasos input, #form-viaje-pasos select, #form-viaje-pasos textarea').forEach(element => {
@@ -532,13 +679,24 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         }
     }
+    
     const kmFinInput = document.getElementById('id_km_fin_viaje');
     const kmInicioInput = document.getElementById('id_km_inicio_viaje');
     
     if (kmFinInput && kmInicioInput) {
         kmFinInput.addEventListener('input', validarKmInmediato);
         kmInicioInput.addEventListener('input', validarKmInmediato);
-        // Validar al cargar
         setTimeout(validarKmInmediato, 100);
     }
+    
+    // Al cargar la página, ejecutar para estado inicial
+    const destinoSelect = document.getElementById('id_destino');
+    if (destinoSelect) {
+        toggleDireccion(destinoSelect.value);
+    }
+    
+    // Configurar checkboxes inicialmente
+    togglePersonal('enfermero');
+    togglePersonal('camillero');
 });
+

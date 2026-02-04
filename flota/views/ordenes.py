@@ -31,7 +31,6 @@ def importar_orden_compra(request):
                     rut_empresa=datos['proveedor_rut'],
                     defaults={
                         'nombre_fantasia': datos['proveedor_nombre'],
-                        'giro': '',
                         'telefono': '',
                         'email_contacto': '',
                         'es_taller': True,
@@ -191,9 +190,22 @@ def registrar_orden_compra(request):
             messages.success(request, f'Orden de Compra {orden_compra.nro_oc} registrada exitosamente.')
             return redirect('listar_ordenes_compra')
     else:
-        form = OrdenCompraForm()
+        # Prellenar desde OT si se viene desde registrar_orden_trabajo
+        ot_id = request.GET.get('ot')
+        initial = {}
+        if ot_id:
+            try:
+                ot = OrdenTrabajo.objects.get(pk=ot_id)
+                initial = {
+                    'orden_trabajo': ot,
+                    'vehiculo': ot.vehiculo,
+                    'proveedor': ot.proveedor,
+                }
+            except OrdenTrabajo.DoesNotExist:
+                pass
+        form = OrdenCompraForm(initial=initial)
     
-    return render(request, 'flota/registrar_orden_compra.html', {'form': form})
+    return render(request, 'flota/registrar_orden_compra.html', {'form': form, 'ot_preseleccionada': request.GET.get('ot')})
 
 
 # RF_30: Listar órdenes de compra
@@ -275,7 +287,7 @@ def detalle_orden_compra(request, id):
     return render(request, 'flota/detalle_orden_compra.html', {'orden': orden})
 
 
-# Registrar Orden de Trabajo
+# Registrar Orden de Trabajo (tras guardar, redirigir a registrar OC con OT preseleccionada)
 @login_required
 @user_passes_test(es_administrador)
 def registrar_orden_trabajo(request):
@@ -283,8 +295,11 @@ def registrar_orden_trabajo(request):
         form = OrdenTrabajoForm(request.POST)
         if form.is_valid():
             orden_trabajo = form.save()
-            messages.success(request, f'Orden de Trabajo {orden_trabajo.nro_ot} registrada exitosamente.')
-            return redirect('listar_ordenes_trabajo')
+            messages.success(
+                request,
+                f'Orden de Trabajo {orden_trabajo.nro_ot} registrada. Siguiente paso: registrar la Orden de Compra asociada.'
+            )
+            return redirect('registrar_orden_compra' + '?ot=' + str(orden_trabajo.id))
     else:
         form = OrdenTrabajoForm()
     
