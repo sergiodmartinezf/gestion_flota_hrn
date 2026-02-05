@@ -156,3 +156,54 @@
     font-size: 1.1em;
     color: #495057;
 }
+
+/* Ocultar pasos cuando no sean aplicables */
+.viaje-paso[style*="display: none"] {
+    display: none !important;
+}
+
+/* Estilos para badges de tipo de vehículo */
+.badge.tipo-vehiculo-camioneta {
+    background-color: #198754 !important;
+}
+
+.badge.tipo-vehiculo-ambulancia {
+    background-color: #0d6efd !important;
+}
+
+/* Estilo para pasos ocultos */
+.viaje-paso.oculto {
+    display: none !important;
+}
+
+/* Estilos específicos para badges */
+.badge.bg-success::before {
+    content: "🚚 ";
+}
+
+.badge.bg-primary::before {
+    content: "🚑 ";
+}
+
+/* Estilos para campos de tiempo */
+input[type="time"] {
+    padding: 0.5rem;
+    font-size: 1rem;
+}
+
+/* Estilos para selects */
+select.form-control, select.form-select {
+    padding: 0.5rem;
+    font-size: 1rem;
+}
+
+/* Estilos específicos para el formulario de viaje */
+#contenedor-direccion {
+    transition: all 0.3s ease;
+}
+
+/* Asegurar que los campos required tengan indicador visual */
+.required-field::after {
+    content: " *";
+    color: red;
+}

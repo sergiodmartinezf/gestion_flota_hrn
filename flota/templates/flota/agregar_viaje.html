@@ -1,470 +1,164 @@
 {% extends 'base.html' %}
 {% load static %}
 
-{% block title %}Agregar Viaje - Gestión de Flota{% endblock %}
-
-{% block extra_css %}
-<link rel="stylesheet" href="{% static 'css/agregar_viaje.css' %}">
-{% endblock %}
-
 {% block content %}
-<div class="container-fluid py-4">
-
+<!-- En la parte superior, donde se muestra la información de la hoja: -->
+<div class="container py-4">
     <div class="d-flex justify-content-between align-items-center mb-4">
-        <h2 class="mb-0"><i class="bi bi-plus-circle"></i> Agregar Viaje</h2>
-        
-        <div class="d-flex gap-2">
-            <a href="{% url 'listar_bitacoras' %}" class="btn btn-outline-secondary">
-                <i class="bi bi-list-ul"></i> Historial
-            </a>
-            <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#modalCerrarTurno">
-                <i class="bi bi-stop-circle-fill"></i> Cerrar Turno
-            </button>
-        </div>
-    </div>
-
-    <div class="card shadow-sm mb-4 border-start border-primary border-4">
-        <div class="card-body">
-            <div class="row align-items-center text-center text-md-start">
-                <div class="col-md-3 mb-2 mb-md-0">
-                    <small class="text-muted d-block">Vehículo</small>
-                    <strong class="fs-5">{{ hoja_ruta.vehiculo.patente }}</strong>
-                    <span class="badge bg-{% if es_camioneta %}success{% else %}primary{% endif %} ms-2">
-                        {% if es_camioneta %}Camioneta{% else %}Ambulancia{% endif %}
-                    </span>
-                </div>
-                <div class="col-md-3 mb-2 mb-md-0">
-                    <small class="text-muted d-block">Conductor</small>
-                    <strong>{{ hoja_ruta.conductor.nombre_completo }}</strong>
-                </div>
-                <div class="col-md-3 mb-2 mb-md-0">
-                    <small class="text-muted d-block">Estado Turno</small>
-                    <span class="badge bg-success">Activo - {{ hoja_ruta.get_turno_display }}</span>
-                </div>
-                <div class="col-md-3">
-                    <div class="bg-light p-2 rounded text-center">
-                        <small class="text-muted">KM Acumulados Hoy</small>
-                        <div class="fw-bold text-primary">{{ total_km_viajes }} km</div>
-                    </div>
-                </div>
+        <div>
+            <h2>Registrar Viaje</h2>
+            <div class="badge bg-info text-dark">
+                {{ hoja.vehiculo.tipo_carroceria }} | {{ hoja.vehiculo.patente }}
+            </div>
+            <div class="small text-muted mt-1">
+                <!-- Mostrar tripulación de la hoja de ruta -->
+                Tripulación: 
+                Dr. {{ hoja.medico_derivador }} | 
+                TENS {{ hoja.tens }} |
+                {% if hoja.enfermero %}Enf. {{ hoja.enfermero }}{% else %}(Sin enfermero){% endif %} |
+                {% if hoja.camillero %}Cam. {{ hoja.camillero }}{% else %}(Sin camillero){% endif %}
+            </div>
+            <div class="small text-muted">
+                Turno: {{ hoja.get_turno_display }} | Conductor: {{ hoja.conductor.nombre_completo }}
             </div>
         </div>
+        <button class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#modalCerrar">Cerrar Hoja</button>
     </div>
 
     <div class="row">
         <div class="col-lg-8">
-            <div class="card shadow-sm">
-                <div class="card-body p-4">
-                    
-                    <div class="alert alert-info mb-4">
-                        <i class="bi bi-info-circle"></i> Complete el formulario paso a paso para registrar un nuevo viaje.
-                    </div>
-
-                    <div class="viaje-progreso-container mb-4">
-                        <div class="viaje-progreso-bar">
-                            <div class="viaje-progreso-fill" id="viaje-progreso-fill"></div>
-                        </div>
-                        <div class="viaje-progreso-texto" id="viaje-progreso-texto">Paso 1 de 7</div>
-                    </div>
-
-                    {% if form.errors %}
-                    <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                        <strong><i class="bi bi-exclamation-triangle-fill"></i> Error al guardar:</strong>
-                        <ul class="mb-0">
-                        {% for field in form %}
-                            {% for error in field.errors %}
-                                <li><strong>{{ field.label }}:</strong> {{ error }}</li>
-                            {% endfor %}
-                        {% endfor %}
-                        {% for error in form.non_field_errors %}
-                            <li>{{ error }}</li>
-                        {% endfor %}
-                        </ul>
-                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                    </div>
-                    {% endif %}
-
-                    <form method="post" id="form-viaje-pasos" novalidate data-hoja-ruta-id="{{ hoja_ruta.id }}">
+            <div class="card shadow">
+                <div class="card-body">
+                    <form method="post" id="form-viaje">
                         {% csrf_token %}
                         
-                        <!-- Paso 1: Hora de Salida -->
-                        <div class="viaje-paso activo" id="viaje-paso-1">
-                            <div class="viaje-paso-header">
-                                <div class="viaje-paso-titulo"><i class="bi bi-clock"></i> Hora de Salida</div>
-                                <div class="viaje-paso-indicador">Paso 1</div>
+                        <h5 class="border-bottom pb-2 mb-3">1. Datos Operativos</h5>
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label>Hora Salida</label>
+                                {{ form.hora_salida }}
                             </div>
-                            <div class="mb-3">
-                                <label for="id_hora_salida" class="form-label">Hora de Salida *</label>
-                                <input type="time" name="hora_salida" id="id_hora_salida" class="form-control form-control-lg" required
-                                       value="{% if form.hora_salida.value %}{{ form.hora_salida.value }}{% endif %}">
-                                <div class="error-container">
-                                    <div class="error-mensaje" id="error-hora_salida">Debe ingresar la hora de salida</div>
-                                </div>
+                            <div class="col-md-6">
+                                <label>KM Salida</label>
+                                {{ form.km_salida }}
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <label>Categoría de Traslado</label>
+                                {{ form.categoria_traslado }}
+                            </div>
+                            
+                            <div class="col-md-6" id="container-origen-alta" style="display:none;">
+                                <label class="text-primary">Especifique Origen Alta</label>
+                                {{ form.detalle_origen_alta }}
+                            </div>
+
+                            <div class="col-12">
+                                <label>Observaciones generales</label>
+                                {{ form.observaciones }}
                             </div>
                         </div>
 
-                        <!-- Paso 2: Hora de Llegada -->
-                        <div class="viaje-paso" id="viaje-paso-2">
-                            <div class="viaje-paso-header">
-                                <div class="viaje-paso-titulo"><i class="bi bi-clock-history"></i> Hora de Llegada</div>
-                                <div class="viaje-paso-indicador">Paso 2</div>
-                            </div>
-                            <div class="mb-3">
-                                <label for="id_hora_llegada" class="form-label">Hora de Llegada *</label>
-                                <input type="time" name="hora_llegada" id="id_hora_llegada" class="form-control form-control-lg" required
-                                       value="{% if form.hora_llegada.value %}{{ form.hora_llegada.value }}{% endif %}">
-                                <div class="error-container">
-                                    <div class="error-mensaje" id="error-hora_llegada">Debe ingresar la hora de llegada</div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Paso 3: Destino y Tiempos -->
-                        <div class="viaje-paso" id="viaje-paso-3">
-                            <div class="viaje-paso-header">
-                                <div class="viaje-paso-titulo"><i class="bi bi-geo-alt"></i> Destino y Tiempos</div>
-                                <div class="viaje-paso-indicador">Paso 3</div>
-                            </div>
-                            
-                            <div class="mb-3">
-                                <label for="id_destino" class="form-label">Destino Principal *</label>
-                                {{ form.destino }}
-                            </div>
-                        
-                            <div class="mb-3" id="contenedor-direccion" style="display: none;">
-                                <label for="id_direccion_especifica" class="form-label">Dirección Domicilio *</label>
-                                {{ form.direccion_especifica }}
-                            </div>
-                        
-                            <div class="row g-2">
-                                <div class="col-6">
-                                    <label class="form-label small">Salida Base (Río Negro)</label>
-                                    {{ form.hora_salida }}
-                                </div>
-                                <div class="col-6">
-                                    <label class="form-label small">Llegada a Destino (ej. HBO)</label>
-                                    {{ form.hora_llegada_destino }}
-                                </div>
-                                <div class="col-6">
-                                    <label class="form-label small">Salida de Destino (ej. HBO)</label>
-                                    {{ form.hora_salida_destino }}
-                                </div>
-                                <div class="col-6">
-                                    <label class="form-label small">Llegada Base (Río Negro)</label>
-                                    {{ form.hora_llegada }}
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Paso 4: Pacientes -->
-                        <div class="viaje-paso" id="viaje-paso-4">
-                            <div class="viaje-paso-header">
-                                <div class="viaje-paso-titulo"><i class="bi bi-people"></i> Pacientes</div>
-                                <div class="viaje-paso-indicador">Paso 4</div>
-                            </div>
-                            
-                            <div class="card mb-3 border-primary">
-                                <div class="card-header bg-primary text-white py-1">Paciente Principal</div>
-                                <div class="card-body p-2">
-                                    <div class="row g-2">
-                                        <div class="col-md-4">
-                                            <label class="form-label small">RUT</label>
-                                            {{ form.rut_paciente }}
-                                        </div>
-                                        <div class="col-md-8">
-                                            <label class="form-label small">Nombre</label>
-                                            {{ form.nombre_paciente }}
-                                        </div>
-                                        <div class="col-12">
-                                            <label class="form-label small">Tipo Servicio *</label>
-                                            {{ form.tipo_servicio }}
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        
-                            <hr>
-                            
-                            <div class="d-flex justify-content-between align-items-center mb-2">
-                                <h6 class="mb-0">Pacientes Adicionales</h6>
-                                <button type="button" class="btn btn-sm btn-outline-primary" id="btn-agregar-paciente-extra">
-                                    <i class="bi bi-plus-circle"></i> Añadir
-                                </button>
-                            </div>
-                            
-                            <div id="contenedor-pacientes-extra"></div>
-                            
-                            <template id="template-paciente-extra">
-                                <div class="card mb-2 bg-light paciente-extra-row">
-                                    <div class="card-body p-2 position-relative">
-                                        <button type="button" class="btn-close position-absolute top-0 end-0 m-2 btn-remover-paciente-extra" aria-label="Close"></button>
-                                        <div class="row g-2">
-                                            <div class="col-md-4">
-                                                <input type="text" name="pacientes_extra_rut[]" class="form-control form-control-sm" placeholder="RUT">
-                                            </div>
-                                            <div class="col-md-8">
-                                                <input type="text" name="pacientes_extra_nombre[]" class="form-control form-control-sm" placeholder="Nombre completo">
-                                            </div>
-                                            <div class="col-12">
-                                                <select name="pacientes_extra_servicio[]" class="form-select form-select-sm">
-                                                    <option value="Urgencia">Urgencia</option>
-                                                    <option value="Exámenes">Exámenes</option>
-                                                    <option value="Interconsulta">Interconsulta</option>
-                                                    <option value="Alta">Alta a Domicilio</option>
-                                                    <option value="Traslado Secundario">Traslado Secundario</option>
-                                                    <option value="Otro">Otro</option>
-                                                </select>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </template>
-                        </div>
-
-                        <!-- NUEVO PASO 5: Equipo Médico (solo para ambulancias) -->
-                        <div class="viaje-paso" id="viaje-paso-5">
-                            <div class="viaje-paso-header">
-                                <div class="viaje-paso-titulo"><i class="bi bi-heart-pulse"></i> Equipo Médico</div>
-                                <div class="viaje-paso-indicador">Paso 5</div>
-                            </div>
-                            
-                            {% if not es_camioneta %}
-                            <div class="alert alert-info mb-3">
-                                <i class="bi bi-info-circle"></i> Complete los datos del equipo médico para este viaje en ambulancia.
-                            </div>
-                            
-                            <div class="row g-3">
-                                <div class="col-md-6">
-                                    <label for="id_medico" class="form-label">Médico Derivador *</label>
-                                    {{ form.medico }}
-                                    <div class="error-container">
-                                        <div class="error-mensaje" id="error-medico">El médico es obligatorio para ambulancias</div>
-                                    </div>
-                                </div>
-                                
-                                <div class="col-md-6">
-                                    <label for="id_tens" class="form-label">TENS *</label>
-                                    {{ form.tens }}
-                                    <div class="error-container">
-                                        <div class="error-mensaje" id="error-tens">El TENS es obligatorio para ambulancias</div>
-                                    </div>
-                                </div>
-                                
-                                <div class="col-md-6">
-                                    <div class="d-flex align-items-center">
-                                        <label for="id_enfermero" class="form-label me-2">Enfermero/a</label>
-                                        <div class="form-check">
-                                            {{ form.sin_enfermero }}
-                                            <label class="form-check-label" for="id_sin_enfermero">
-                                                No aplica
-                                            </label>
-                                        </div>
-                                    </div>
-                                    {{ form.enfermero }}
-                                    <div class="error-container">
-                                        <div class="error-mensaje" id="error-enfermero">Debe indicar Enfermero/a o marcar "No aplica"</div>
-                                    </div>
-                                </div>
-                                
-                                <div class="col-md-6">
-                                    <div class="d-flex align-items-center">
-                                        <label for="id_camillero" class="form-label me-2">Camillero</label>
-                                        <div class="form-check">
-                                            {{ form.sin_camillero }}
-                                            <label class="form-check-label" for="id_sin_camillero">
-                                                No aplica
-                                            </label>
-                                        </div>
-                                    </div>
-                                    {{ form.camillero }}
-                                    <div class="error-container">
-                                        <div class="error-mensaje" id="error-camillero">Debe indicar Camillero o marcar "No aplica"</div>
-                                    </div>
-                                </div>
-                            </div>
-                            {% else %}
-                            <div class="alert alert-success">
-                                <i class="bi bi-check-circle"></i> Para camionetas, no se requiere equipo médico.
-                            </div>
-                            <input type="hidden" name="medico" value="">
-                            <input type="hidden" name="tens" value="">
-                            <input type="hidden" name="enfermero" value="">
-                            <input type="hidden" name="camillero" value="">
-                            <input type="hidden" name="sin_enfermero" value="true">
-                            <input type="hidden" name="sin_camillero" value="true">
-                            {% endif %}
-                        </div>
-
-                        <!-- Paso 6: Servicio y Kilometraje -->
-                        <div class="viaje-paso" id="viaje-paso-6">
-                            <div class="viaje-paso-header">
-                                <div class="viaje-paso-titulo"><i class="bi bi-truck"></i> Servicio y Kilometraje</div>
-                                <div class="viaje-paso-indicador">Paso 6</div>
-                            </div>
-                            <div class="mb-3">
-                                <label for="id_tipo_servicio" class="form-label">Tipo de Servicio *</label>
-                                <select name="tipo_servicio" id="id_tipo_servicio" class="form-select" required>
-                                    {% for value, label in form.tipo_servicio.field.choices %}
-                                        <option value="{{ value }}" {% if form.tipo_servicio.value == value %}selected{% endif %}>
-                                            {{ label }}
-                                        </option>
-                                    {% endfor %}
-                                </select>
-                                <div class="error-container">
-                                    <div class="error-mensaje" id="error-tipo_servicio">Debe seleccionar un tipo de servicio</div>
-                                </div>
-                            </div>
-                            <div class="row">
-                                <div class="col-md-6 mb-3">
-                                    <label for="id_km_inicio_viaje" class="form-label">KM al salir *</label>
-                                    <input type="number" name="km_inicio_viaje" id="id_km_inicio_viaje" 
-                                           class="form-control" min="0" step="1" required
-                                           value="{% if form.km_inicio_viaje.value %}{{ form.km_inicio_viaje.value }}{% else %}{{ form.km_inicio_viaje.field.initial }}{% endif %}">
-                                    <small class="text-muted">Se autocompleta con el KM anterior</small>
-                                    <div class="error-container"><div class="error-mensaje" id="error-km_inicio_viaje">Requerido</div></div>
-                                </div>
-                                <div class="col-md-6 mb-3">
-                                    <label for="id_km_fin_viaje" class="form-label">KM al llegar *</label>
-                                    <div class="input-group">
-                                        <input type="number" name="km_fin_viaje" id="id_km_fin_viaje" 
-                                               class="form-control" min="0" step="1" required
-                                               value="{% if form.km_fin_viaje.value %}{{ form.km_fin_viaje.value }}{% endif %}"
-                                               oninput="validarKmInmediato()">
-                                        <span class="input-group-text">
-                                            <i id="km-icono" class="bi bi-x-circle text-danger"></i>
-                                        </span>
-                                    </div>
-                                    <small class="text-muted d-block mt-1">
-                                        Recorrido: <span id="km-recorridos-calculados" class="fw-bold">0</span> km
-                                        <span id="km-validacion-texto" class="ms-2"></span>
-                                    </small>
-                                    <div class="error-container">
-                                        <div class="error-mensaje" id="error-km_fin_viaje">El KM final debe ser MAYOR al inicial</div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Paso 7: Resumen -->
-                        <div class="viaje-paso" id="viaje-paso-7">
-                            <div class="viaje-paso-header">
-                                <div class="viaje-paso-titulo"><i class="bi bi-check-circle"></i> Resumen del Viaje</div>
-                                <div class="viaje-paso-indicador">Paso 7</div>
-                            </div>
-                            <div class="card bg-light border-0">
-                                <div class="card-body">
-                                    <div id="viaje-resumen-datos">
-                                        <!-- Se llena dinámicamente con JavaScript -->
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="alert alert-warning mt-3 mb-0">
-                                <i class="bi bi-exclamation-triangle"></i> Verifique que toda la información sea correcta antes de enviar.
-                            </div>
-                        </div>
-
-                        <!-- Navegación entre pasos -->
-                        <div class="viaje-nav-pasos d-flex justify-content-between mt-4 pt-3 border-top">
-                            <button type="button" id="btn-viaje-anterior" class="btn btn-secondary" disabled>
-                                <i class="bi bi-arrow-left"></i> Anterior
+                        <h5 class="border-bottom pb-2 mb-3 mt-4 d-flex justify-content-between">
+                            2. Pacientes / Pasajeros
+                            <button type="button" class="btn btn-sm btn-success" id="add-paciente">
+                                <i class="bi bi-person-plus"></i> Agregar
                             </button>
-                            <div>
-                                <a href="{% url 'detalle_bitacora' id=hoja_ruta.id %}" class="btn btn-link text-secondary text-decoration-none me-2">
-                                    Cancelar
-                                </a>
-                                <button type="button" id="btn-viaje-siguiente" class="btn btn-primary">
-                                    Siguiente <i class="bi bi-arrow-right"></i>
-                                </button>
-                                <button type="submit" id="btn-viaje-enviar" class="btn btn-success" style="display: none;">
-                                    <i class="bi bi-check-lg"></i> Agregar Viaje
-                                </button>
+                        </h5>
+                        
+                        {{ paciente_formset.management_form }}
+                        
+                        <div id="pacientes-container">
+                            {% for form_paciente in paciente_formset %}
+                            <div class="paciente-row card mb-3 bg-light border-0">
+                                <div class="card-body position-relative">
+                                    {% if paciente_formset.can_delete %}
+                                        <div class="delete-checkbox position-absolute top-0 end-0 p-2">
+                                            {{ form_paciente.DELETE }} <label>Eliminar</label>
+                                        </div>
+                                    {% endif %}
+                                    
+                                    {{ form_paciente.id }} <div class="row g-2">
+                                        <div class="col-md-8">
+                                            <label class="small">Nombre Completo</label>
+                                            {{ form_paciente.nombre }}
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label class="small">RUT</label>
+                                            {{ form_paciente.rut }}
+                                        </div>
+                                        
+                                        <div class="col-md-4">
+                                            <label class="small">Destino</label>
+                                            {{ form_paciente.destino_tipo }}
+                                        </div>
+                                        
+                                        <div class="col-md-5 container-direccion" style="display:none;">
+                                            <label class="small text-primary">Dirección / Detalle</label>
+                                            {{ form_paciente.direccion_especifica }}
+                                        </div>
+
+                                        <div class="col-md-3">
+                                            <label class="small">Servicio/Prev</label>
+                                            {{ form_paciente.prevision }}
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
+                            {% endfor %}
+                        </div>
+                        <div id="empty-form" style="display:none;">
+                            <div class="paciente-row card mb-3 bg-light border-0">
+                                <div class="card-body">
+                                    <div class="row g-2">
+                                        <div class="col-md-8">
+                                            <label class="small">Nombre Completo</label>
+                                            {{ paciente_formset.empty_form.nombre }}
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label class="small">RUT</label>
+                                            {{ paciente_formset.empty_form.rut }}
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label class="small">Destino</label>
+                                            {{ paciente_formset.empty_form.destino_tipo }}
+                                        </div>
+                                        <div class="col-md-5 container-direccion" style="display:none;">
+                                            <label class="small text-primary">Dirección / Detalle</label>
+                                            {{ paciente_formset.empty_form.direccion_especifica }}
+                                        </div>
+                                        <div class="col-md-3">
+                                            <label class="small">Servicio/Prev</label>
+                                            {{ paciente_formset.empty_form.prevision }}
+                                        </div>
+                                    </div>
+                                    <button type="button" class="btn btn-sm btn-outline-danger mt-2 remove-paciente">Quitar</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="d-grid mt-4">
+                            <button type="submit" class="btn btn-primary btn-lg">Guardar Registro</button>
                         </div>
                     </form>
                 </div>
             </div>
         </div>
-
-        <!-- Panel lateral con viajes existentes -->
-        <div class="col-lg-4 mt-4 mt-lg-0">
-            <div class="card h-100 shadow-sm">
-                <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
-                    <span class="fw-bold"><i class="bi bi-list-ul"></i> Viajes Registrados</span>
-                    <span class="badge bg-white text-primary">{{ viajes_existentes|length }}</span>
-                </div>
-                <div class="card-body p-0">
-                    {% if viajes_existentes %}
-                        <div class="list-group list-group-flush">
-                            {% for viaje in viajes_existentes %}
-                                <div class="list-group-item">
-                                    <div class="d-flex w-100 justify-content-between align-items-center">
-                                        <h6 class="mb-1 text-truncate" style="max-width: 70%;">{{ viaje.destino }}</h6>
-                                        <span class="badge bg-light text-dark border">{{ viaje.hora_salida|time:"H:i" }}</span>
-                                    </div>
-                                    <p class="mb-1 small text-muted">
-                                        <i class="bi bi-person"></i> {{ viaje.nombre_paciente|default:"-" }}
-                                    </p>
-                                    <div class="d-flex justify-content-between align-items-center mt-1">
-                                        <small class="text-primary">{{ viaje.tipo_servicio }}</small>
-                                        <small class="fw-bold">{{ viaje.km_recorridos_calculados }} km</small>
-                                    </div>
-                                </div>
-                            {% endfor %}
-                        </div>
-                    {% else %}
-                        <div class="text-center py-5 text-muted">
-                            <i class="bi bi-journal-x fs-1 d-block mb-2"></i>
-                            No hay viajes registrados aún en este turno.
-                        </div>
-                    {% endif %}
-                </div>
-                {% if viajes_existentes %}
-                <div class="card-footer bg-light text-center fw-bold">
-                    Total Turno: {{ total_km_viajes }} km
-                </div>
-                {% endif %}
+        
+        <div class="col-lg-4">
+            <div class="card">
+                <div class="card-header">Últimos viajes hoy</div>
+                <ul class="list-group list-group-flush">
+                    {% for v in ultimos_viajes %}
+                    <li class="list-group-item">
+                        <strong>{{ v.hora_salida }}</strong> - {{ v.get_categoria_traslado_display }}<br>
+                        <small>{{ v.get_pacientes_str }}</small>
+                    </li>
+                    {% endfor %}
+                </ul>
             </div>
         </div>
     </div>
-
-    <!-- Modal para cerrar turno -->
-    <div class="modal fade" id="modalCerrarTurno" tabindex="-1" aria-labelledby="modalCerrarTurnoLabel" aria-hidden="true">
-      <div class="modal-dialog">
-        <div class="modal-content">
-          <div class="modal-header bg-danger text-white">
-            <h5 class="modal-title" id="modalCerrarTurnoLabel"><i class="bi bi-exclamation-triangle"></i> Finalizar Turno</h5>
-            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-          </div>
-          <form action="{% url 'cerrar_hoja_ruta' id=hoja_ruta.id %}" method="POST">
-              {% csrf_token %}
-              <div class="modal-body">
-                <p>Está a punto de cerrar la Hoja de Ruta actual. Esto indica que ha terminado su turno o cambia de vehículo.</p>
-                
-                <div class="alert alert-warning">
-                    <div class="row">
-                        <div class="col-6"><strong>Vehículo:</strong> {{ hoja_ruta.vehiculo.patente }}</div>
-                        <div class="col-6"><strong>Total:</strong> {{ total_km_viajes }} km</div>
-                    </div>
-                </div>
-
-                <div class="mb-3">
-                    <label for="km_cierre" class="form-label fw-bold">Kilometraje Final al entregar *</label>
-                    <input type="number" class="form-control form-control-lg" id="km_cierre" name="km_cierre" 
-                           min="{{ hoja_ruta.km_inicio }}" 
-                           value="{% if hoja_ruta.km_fin %}{{ hoja_ruta.km_fin }}{% else %}{{ hoja_ruta.vehiculo.kilometraje_actual }}{% endif %}" 
-                           required>
-                    <div class="form-text">Debe ser igual o mayor al KM actual.</div>
-                </div>
-              </div>
-              <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                <button type="submit" class="btn btn-danger">Confirmar Cierre</button>
-              </div>
-          </form>
-        </div>
-      </div>
-    </div>
-
 </div>
 {% endblock %}
 

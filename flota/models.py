@@ -1,10 +1,54 @@
 from django.db import models
+from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager
 from django.core.validators import MinValueValidator
 from django.core.exceptions import ValidationError
 from decimal import Decimal
 from django.utils import timezone
 
+
+TIPOS_SERVICIO = [
+    ('Llamado', 'Llamado'),
+    ('Rescate de Paciente', 'Rescate de Paciente'),
+    ('A Urgencia HBO', 'A Urgencia HBO'),
+    ('Exámenes', 'Exámenes'),
+    ('Alta a Domicilio', 'Alta a Domicilio'),
+    ('Interconsulta', 'Interconsulta'),
+    ('Horas a especialista', 'Horas a especialista'),
+    ('Imagen', 'Imagen'),
+    ('Administrativo', 'Administrativo'), # Agregado para camionetas
+    ('Otro', 'Otro'),
+]
+
+TURNOS = [
+    ('08-20', 'Turno 08:00 a 20:00'),
+    ('20-08', 'Turno 20:00 a 08:00'),
+    ('09-20', 'Turno 09:00 a 20:00 (fin de semana/feriado)'),
+    ('20-09', 'Turno 20:00 a 09:00 (fin de semana/feriado)'),
+    ('08-17', 'Turno 08:00 a 17:00 (Horario Administrativo)'),
+]
+
+TIPO_TRASLADO_CATEGORIA = [
+    ('PRIMARIO', 'Traslado Primario (Lugar del evento -> Urgencia)'),
+    ('SECUNDARIO', 'Traslado Secundario (Urgencia -> Hospital Base/Red)'),
+    ('OTROS', 'Otros Traslados (Rescates, Exámenes, Especialista)'),
+    ('ALTA', 'Altas'),
+]
+
+# Subcategorías para lógica de negocio
+ORIGEN_ALTA = [
+    ('URGENCIA', 'Desde Servicio de Urgencia'),
+    ('HOSPITALIZADO', 'Desde Hospitalizado'),
+    ('HBO', 'Desde Hospital Base Osorno'),
+]
+
+DESTINOS_COMUNES = [
+    ('HBO', 'Hospital Base Osorno'),
+    ('DOMICILIO', 'Domicilio (Ingresar Dirección)'),
+    ('CESFAM', 'CESFAM'),
+    ('ACHS', 'ACHS/Mutual'),
+    ('OTRO', 'Otro (Especificar)'),
+]
 
 # Estados de ordenes de compra
 def normalizar_estado_oc(estado):
@@ -203,14 +247,6 @@ class CuentaPresupuestaria(models.Model):
 
 
 class OrdenCompra(models.Model):
-    #ESTADOS_OC = [
-    #    ('Emitida', 'Emitida'),
-    #    ('Aceptada', 'Aceptada'),
-    #    ('Recepcionada', 'Recepcionada'),
-    #    ('Pagada', 'Pagada'),
-    #    ('Anulada', 'Anulada'),
-    #]
-
     id = models.AutoField(primary_key=True)
     nro_oc = models.CharField(max_length=50, unique=True, verbose_name="Nro Orden de Compra")
     descripcion = models.TextField(blank=True, verbose_name="Descripción de la OC")
@@ -701,159 +737,121 @@ class Arriendo(models.Model):
 # --- OPERATIVA DIARIA ---
 
 class HojaRuta(models.Model):
-    TURNOS = [
-        ('08-20', 'Turno 08:00 a 20:00'),
-        ('20-08', 'Turno 20:00 a 08:00'),
-        ('09-20', 'Turno 09:00 a 20:00 (fin de semana/feriado)'),
-        ('20-09', 'Turno 20:00 a 09:00 (fin de semana/feriado)'),
-    ]
+    vehiculo = models.ForeignKey(Vehiculo, on_delete=models.PROTECT)
+    conductor = models.ForeignKey(Usuario, on_delete=models.PROTECT)
+    fecha = models.DateField(default=timezone.now)
+    turno = models.CharField(max_length=50, choices=TURNOS)
+    km_inicio = models.PositiveIntegerField()
+    km_fin = models.PositiveIntegerField(null=True, blank=True)
     
-    id = models.AutoField(primary_key=True)
-    fecha = models.DateField()
-    turno = models.CharField(max_length=20, choices=TURNOS)
-
-    # REQ: Kilometraje obligatorio (se valida en form, aqui min value)
-    km_inicio = models.IntegerField(null=True, blank=True, verbose_name="KM Inicio Turno", validators=[MinValueValidator(0)])
-    km_fin = models.IntegerField(null=True, blank=True, verbose_name="KM Fin Turno", validators=[MinValueValidator(0)])
-
-    observaciones = models.TextField(blank=True)
+    # Tripulación (Reglas: Medico/Tens obligatorios, otros opcionales)
+    medico_derivador = models.CharField(max_length=100, verbose_name="Médico del Turno")
+    tens = models.CharField(max_length=100, verbose_name="TENS")
+    
+    # Opcionales
+    enfermero = models.CharField(max_length=100, blank=True, null=True, verbose_name="Enfermero/Matrón")
+    no_aplica_enfermero = models.BooleanField(default=False, verbose_name="No aplica Enfermero")
+    
+    camillero = models.CharField(max_length=100, blank=True, null=True)
+    no_aplica_camillero = models.BooleanField(default=False, verbose_name="No aplica Camillero")
+    
+    abierta = models.BooleanField(default=True)
     creado_en = models.DateTimeField(auto_now_add=True)
-    
-    conductor = models.ForeignKey(Usuario, on_delete=models.PROTECT, related_name='hojas_ruta')
-    vehiculo = models.ForeignKey(Vehiculo, on_delete=models.PROTECT, related_name='hojas_ruta')
     
     class Meta:
         db_table = 'hoja_ruta'
         verbose_name = 'Hoja de Ruta'
         verbose_name_plural = 'Hojas de Ruta'
+        ordering = ['-fecha', '-creado_en']
     
     def __str__(self):
         return f"HR {self.vehiculo.patente} - {self.fecha} - {self.conductor.nombre_completo}"
     
-    def actualizar_kilometraje(self):
-        viajes = self.viajes.all().order_by('hora_salida')
-        if viajes.exists():
-            self.km_inicio = viajes.first().km_inicio_viaje
-            self.km_fin = viajes.last().km_fin_viaje
-            self.save()
+    def clean(self):
+        if self.vehiculo.tipo_carroceria == 'Camioneta' and self.turno != '08-17':
+            raise ValidationError("Las camionetas solo pueden operar en turno administrativo (08:00 - 17:00).")
+        
+        # Validar obligatoriedad condicional
+        if not self.no_aplica_enfermero and not self.enfermero:
+             raise ValidationError("Debe indicar un Enfermero o marcar 'No aplica'.")
+        if not self.no_aplica_camillero and not self.camillero:
+             raise ValidationError("Debe indicar un Camillero o marcar 'No aplica'.")
 
     @property
     def km_recorridos(self):
         if self.km_fin is not None and self.km_inicio is not None:
             return max(0, self.km_fin - self.km_inicio)
         return 0
+    
+    @property
+    def tripulacion_str(self):
+        """Devuelve string con la tripulación"""
+        trip = f"Médico: {self.medico_derivador} | TENS: {self.tens}"
+        if self.enfermero:
+            trip += f" | Enfermero: {self.enfermero}"
+        elif self.no_aplica_enfermero:
+            trip += " | Sin enfermero"
+        if self.camillero:
+            trip += f" | Camillero: {self.camillero}"
+        elif self.no_aplica_camillero:
+            trip += " | Sin camillero"
+        return trip
 
 
 class Viaje(models.Model):
-    TIPOS_SERVICIO = [
-        ('Llamado', 'Llamado'),
-        ('Rescate de Paciente', 'Rescate de Paciente'),
-        ('A Urgencia HBO', 'A Urgencia HBO'),
-        ('Otros', 'Otros (hora esp, imagen, etc)'),
-        ('Exámenes', 'Exámenes'),
-        ('Alta a Domicilio', 'Alta a Domicilio'),
-    ]
-
-    DESTINOS_RED = [
-        ('Hospital Base Osorno', 'Hospital Base Osorno'),
-        ('Domicilio', 'Domicilio (Requiere Dirección)'),
-    ]
-    
-    id = models.AutoField(primary_key=True)
-    hora_salida = models.TimeField()
-    hora_llegada = models.TimeField()
-    destino = models.CharField(max_length=200, choices=DESTINOS_RED, default='Hospital Base Osorno')
-    direccion_especifica = models.CharField(max_length=300, blank=True, verbose_name="Alta a Domicilio")
-    hora_llegada_destino = models.TimeField(null=True, blank=True, verbose_name="Hora Llegada a Destino")
-    hora_salida_destino = models.TimeField(null=True, blank=True, verbose_name="Hora Salida de Destino")
-    rut_paciente = models.CharField(max_length=12, blank=True)
-    nombre_paciente = models.CharField(max_length=150, blank=True)
-
-    # Campos originarios de anterior versión de HojaRuta
-    medico = models.CharField(max_length=150, blank=True, verbose_name="Médico")
-    enfermero = models.CharField(max_length=150, blank=True, verbose_name="Enfermero/a")
-    tens = models.CharField(max_length=150, blank=True, verbose_name="TENS")
-    camillero = models.CharField(max_length=150, blank=True, verbose_name="Camillero")
-    sin_enfermero = models.BooleanField(default=False, verbose_name="No va enfermero/matrón")
-    sin_camillero = models.BooleanField(default=False, verbose_name="No aplica camillero")
-    
-    # Se actualiza el choices y se define un default coherente con la lista nueva
-    tipo_servicio = models.CharField(
-        max_length=50, 
-        choices=TIPOS_SERVICIO, 
-        default='Llamado'
-    )
-    
-    origen_llamado = models.CharField(max_length=200, blank=True, verbose_name="Origen del llamado/traslado")
-    direccion_domicilio = models.CharField(max_length=300, blank=True, verbose_name="Dirección (cuando destino es domicilio)")
-    retenido_hospital = models.BooleanField(default=False, verbose_name="Ambulancia retenida en hospital base")
-    
-    #km_recorridos_viaje = models.IntegerField(default=0, validators=[MinValueValidator(0)])
-    km_inicio_viaje = models.IntegerField(
-        validators=[MinValueValidator(0)], 
-        verbose_name="KM al inicio del viaje"
-    )
-    km_fin_viaje = models.IntegerField(
-        validators=[MinValueValidator(0)], 
-        verbose_name="KM al final del viaje"
-    )
-    
     hoja_ruta = models.ForeignKey(HojaRuta, on_delete=models.CASCADE, related_name='viajes')
     
+    hora_salida = models.TimeField()
+    hora_llegada = models.TimeField(null=True, blank=True)
+    km_salida = models.PositiveIntegerField()
+    km_llegada = models.PositiveIntegerField(null=True, blank=True)
+    
+    # Categorización del Viaje
+    categoria_traslado = models.CharField(max_length=20, choices=TIPO_TRASLADO_CATEGORIA)
+    detalle_origen_alta = models.CharField(max_length=20, choices=ORIGEN_ALTA, blank=True, null=True, verbose_name="Origen del Alta")
+    
+    observaciones = models.TextField(blank=True, null=True)
+    
+    creado_en = models.DateTimeField(auto_now_add=True)
+    actualizado_en = models.DateTimeField(auto_now=True)
+
     class Meta:
         db_table = 'viaje'
         verbose_name = 'Viaje'
         verbose_name_plural = 'Viajes'
+        ordering = ['-hora_salida']
     
     def __str__(self):
-        return f"Viaje {self.hoja_ruta.vehiculo.patente} - {self.destino}"
+        return f"Viaje {self.id} - {self.hoja_ruta.vehiculo.patente} - {self.hora_salida}"
+
+    @property
+    def get_pacientes_str(self):
+        pkts = self.pacientes.all()
+        if not pkts:
+            return "Sin pacientes"
+        return ", ".join([p.nombre for p in pkts])
 
     @property
     def km_recorridos_calculados(self):
         """Calcula automáticamente los KM recorridos en este viaje"""
-        return max(0, self.km_fin_viaje - self.km_inicio_viaje)
+        if self.km_llegada and self.km_salida:
+            return max(0, self.km_llegada - self.km_salida)
+        return 0
 
 
-class Paciente(models.Model):
-    """Paciente para trazabilidad (RUT, nombre, dirección). Se reutiliza al ingresar RUT."""
-    id = models.AutoField(primary_key=True)
-    rut = models.CharField(max_length=12, unique=True)
+class PacienteTraslado(models.Model):
+    """Modelo para soportar 0 a N pacientes por viaje"""
+    viaje = models.ForeignKey(Viaje, on_delete=models.CASCADE, related_name='pacientes')
     nombre = models.CharField(max_length=150)
-    direccion = models.CharField(max_length=300, blank=True)
-    telefono = models.CharField(max_length=20, blank=True)
+    rut = models.CharField(max_length=12, blank=True, null=True)
     
-    class Meta:
-        db_table = 'paciente'
-        verbose_name = 'Paciente'
-        verbose_name_plural = 'Pacientes'
-    
+    # Requerimiento: Cada paciente tiene su destino y tipo de servicio
+    destino_tipo = models.CharField(max_length=20, choices=DESTINOS_COMUNES)
+    direccion_especifica = models.CharField(max_length=200, blank=True, help_text="Dirección si es domicilio u otro")
+    prevision = models.CharField(max_length=50, blank=True, verbose_name="Previsión/Tipo Servicio")
+
     def __str__(self):
-        return f"{self.nombre} ({self.rut})"
-
-
-class ViajePaciente(models.Model):
-    """Relación viaje - pacientes adicionales (varios pacientes por viaje)."""
-    id = models.AutoField(primary_key=True)
-    viaje = models.ForeignKey(Viaje, on_delete=models.CASCADE, related_name='pacientes_adicionales')
-    paciente = models.ForeignKey(Paciente, on_delete=models.CASCADE, related_name='viajes')
-    
-    tipo_servicio = models.CharField(
-        max_length=50, 
-        choices=Viaje.TIPOS_SERVICIO, 
-        default='Urgencia',
-        verbose_name="Tipo de Servicio"
-    )
-    
-    orden = models.PositiveSmallIntegerField(default=1)
-
-    class Meta:
-        db_table = 'viaje_paciente'
-        verbose_name = 'Paciente en viaje'
-        verbose_name_plural = 'Pacientes en viaje'
-        ordering = ['viaje', 'orden']
-    
-    def __str__(self):
-        return f"{self.viaje} - {self.paciente}"
+        return self.nombre
 
 
 class CargaCombustible(models.Model):

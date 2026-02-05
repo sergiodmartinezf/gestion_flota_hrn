@@ -44,7 +44,14 @@
                     <div class="row g-3">
                         <div class="col-md-6">
                             <label for="id_vehiculo" class="form-label fw-bold">Vehículo *</label>
-                            {{ form.vehiculo }}
+                            <select name="vehiculo" id="id_vehiculo" class="form-control" required onchange="actualizarTurnosSegunVehiculo(this)">
+                                <option value="">Seleccione un vehículo...</option>
+                                {% for v in vehiculos_info %}
+                                <option value="{{ v.patente }}" data-km="{{ v.kilometraje }}" data-tipo="{{ v.es_camioneta|yesno:'Camioneta,Ambulancia' }}">
+                                    {{ v.texto }}
+                                </option>
+                                {% endfor %}
+                            </select>
                             <div class="mensaje-error" id="error-vehiculo">Debe seleccionar un vehículo</div>
                         </div>
                         
@@ -58,6 +65,71 @@
                             <label for="id_turno" class="form-label fw-bold">Turno *</label>
                             {{ form.turno }}
                             <div class="mensaje-error" id="error-turno">Seleccione un turno</div>
+                        </div>
+
+                        <!-- Dentro del paso 1, después del campo turno, agregar: -->
+                        <div class="col-12 mt-4">
+                            <h5 class="border-bottom pb-2">Tripulación del Turno</h5>
+                        </div>
+
+                        <!-- Médico (obligatorio) -->
+                        <div class="col-md-6">
+                            <label for="id_medico_derivador" class="form-label fw-bold">Médico Derivador *</label>
+                            <input type="text" name="medico_derivador" id="id_medico_derivador" 
+                                class="form-control" required
+                                placeholder="Nombre del médico del turno">
+                            <div class="mensaje-error" id="error-medico_derivador">Este campo es obligatorio</div>
+                        </div>
+
+                        <!-- TENS (obligatorio) -->
+                        <div class="col-md-6">
+                            <label for="id_tens" class="form-label fw-bold">TENS *</label>
+                            <input type="text" name="tens" id="id_tens" 
+                                class="form-control" required
+                                placeholder="Nombre del TENS del turno">
+                            <div class="mensaje-error" id="error-tens">Este campo es obligatorio</div>
+                        </div>
+
+                        <!-- Enfermero (condicional) -->
+                        <div class="col-md-6">
+                            <label for="id_enfermero" class="form-label fw-bold">Enfermero/Matrón</label>
+                            <div class="input-group">
+                                <input type="text" name="enfermero" id="id_enfermero" 
+                                    class="form-control campo-condicional"
+                                    placeholder="Nombre del enfermero/matrón"
+                                    data-dependent="no_aplica_enfermero">
+                                <div class="input-group-text">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" 
+                                            name="no_aplica_enfermero" id="id_no_aplica_enfermero">
+                                        <label class="form-check-label" for="id_no_aplica_enfermero">
+                                            No aplica
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="mensaje-error" id="error-enfermero">Debe indicar un Enfermero o marcar "No aplica"</div>
+                        </div>
+
+                        <!-- Camillero (condicional) -->
+                        <div class="col-md-6">
+                            <label for="id_camillero" class="form-label fw-bold">Camillero</label>
+                            <div class="input-group">
+                                <input type="text" name="camillero" id="id_camillero" 
+                                    class="form-control campo-condicional"
+                                    placeholder="Nombre del camillero"
+                                    data-dependent="no_aplica_camillero">
+                                <div class="input-group-text">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" 
+                                            name="no_aplica_camillero" id="id_no_aplica_camillero">
+                                        <label class="form-check-label" for="id_no_aplica_camillero">
+                                            No aplica
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="mensaje-error" id="error-camillero">Debe indicar un Camillero o marcar "No aplica"</div>
                         </div>
                         
                         <div class="col-12 mt-3">
@@ -139,4 +211,111 @@
 
 {% block extra_js %}
 <script src="{% static 'js/bitacora_pasos_simple.js' %}"></script>
+<script>
+// Función para actualizar las opciones de turno
+function actualizarTurnosSegunVehiculo(select) {
+    const turnoSelect = document.getElementById('id_turno');
+    const selectedOption = select.options[select.selectedIndex];
+    const texto = selectedOption.text;
+    
+    // Determinar si es camioneta
+    const esCamioneta = texto.includes('Camioneta');
+    
+    // Limpiar opciones
+    turnoSelect.innerHTML = '';
+    
+    if (esCamioneta) {
+        // Solo horario administrativo
+        const option = document.createElement('option');
+        option.value = '08-17';
+        option.textContent = 'Turno 08:00 a 17:00 (Horario Administrativo)';
+        turnoSelect.appendChild(option);
+    } else {
+        // Turnos normales
+        const opciones = [
+            {value: '08-20', text: 'Turno 08:00 a 20:00'},
+            {value: '20-08', text: 'Turno 20:00 a 08:00'},
+            {value: '09-20', text: 'Turno 09:00 a 20:00 (fin de semana/feriado)'},
+            {value: '20-09', text: 'Turno 20:00 a 09:00 (fin de semana/feriado)'}
+        ];
+        
+        opciones.forEach(opcion => {
+            const option = document.createElement('option');
+            option.value = opcion.value;
+            option.textContent = opcion.text;
+            turnoSelect.appendChild(option);
+        });
+        
+        // Seleccionar turno según día
+        const fechaInput = document.querySelector('input[name="fecha"]');
+        if (fechaInput && fechaInput.value) {
+            const fecha = new Date(fechaInput.value);
+            const diaSemana = fecha.getDay();
+            
+            // Si es fin de semana (sábado=6, domingo=0), seleccionar 09-20
+            if (diaSemana === 0 || diaSemana === 6) {
+                turnoSelect.value = '09-20';
+            } else {
+                turnoSelect.value = '08-20';
+            }
+        } else {
+            turnoSelect.value = '08-20';
+        }
+    }
+}
+
+// Ejecutar al cargar
+document.addEventListener('DOMContentLoaded', function() {
+    const vehiculoSelect = document.getElementById('id_vehiculo');
+    if (vehiculoSelect && vehiculoSelect.value) {
+        actualizarTurnosSegunVehiculo(vehiculoSelect);
+    }
+    
+    // También ejecutar cuando cambie la fecha
+    const fechaInput = document.querySelector('input[name="fecha"]');
+    if (fechaInput) {
+        fechaInput.addEventListener('change', function() {
+            const vehiculoSelect = document.getElementById('id_vehiculo');
+            if (vehiculoSelect && vehiculoSelect.value) {
+                actualizarTurnosSegunVehiculo(vehiculoSelect);
+            }
+        });
+    }
+});
+</script>
+<script>
+    // Validación condicional de enfermero y camillero
+    document.addEventListener('DOMContentLoaded', function() {
+        // Función para manejar campos condicionales
+        function manejarCampoCondicional(checkbox, campo) {
+            const check = document.getElementById(checkbox);
+            const field = document.getElementById(campo);
+            
+            if (check && field) {
+                // Inicializar estado
+                if (check.checked) {
+                    field.disabled = true;
+                    field.value = '';
+                    field.removeAttribute('required');
+                }
+                
+                // Cambiar estado cuando cambia el checkbox
+                check.addEventListener('change', function() {
+                    if (this.checked) {
+                        field.disabled = true;
+                        field.value = '';
+                        field.removeAttribute('required');
+                    } else {
+                        field.disabled = false;
+                        field.setAttribute('required', 'required');
+                    }
+                });
+            }
+        }
+        
+        // Aplicar a ambos campos
+        manejarCampoCondicional('id_no_aplica_enfermero', 'id_enfermero');
+        manejarCampoCondicional('id_no_aplica_camillero', 'id_camillero');
+    });
+</script>
 {% endblock %}

@@ -17,22 +17,27 @@ class BitacoraPasosSimple {
     cargarDatosVehiculos() {
         const vehiculoSelect = document.getElementById('id_vehiculo');
         if (vehiculoSelect) {
-            this.vehiculosData = {};
+            // Recopilar datos de kilometraje de todas las opciones
             Array.from(vehiculoSelect.options).forEach(option => {
                 if (option.value) {
+                    // Extraer patente del texto de la opción
+                    const patente = option.value;
+                    // Obtener kilometraje del atributo data-km
                     const km = option.getAttribute('data-km') || 0;
-                    this.vehiculosData[option.value] = parseInt(km) || 0;
+                    this.vehiculosData[patente] = parseInt(km) || 0;
                 }
             });
             
             // Configurar evento change
             vehiculoSelect.addEventListener('change', (e) => {
                 this.actualizarInfoVehiculo(e.target.value);
+                this.actualizarKilometrajeInicial(e.target.value);
             });
             
             // Actualizar al inicio si hay un vehículo seleccionado
             if (vehiculoSelect.value) {
                 this.actualizarInfoVehiculo(vehiculoSelect.value);
+                this.actualizarKilometrajeInicial(vehiculoSelect.value);
             }
         }
     }
@@ -43,10 +48,14 @@ class BitacoraPasosSimple {
         // Actualizar display de kilometraje
         const kmSpan = document.getElementById('km-actual');
         if (kmSpan) kmSpan.textContent = `${kmActual} km`;
-        
-        // Prellenar KM inicio si está vacío
+    }
+    
+    actualizarKilometrajeInicial(vehiculoId) {
+        const kmActual = this.vehiculosData[vehiculoId] || 0;
         const kmInput = document.getElementById('id_km_inicio');
-        if (kmInput && !kmInput.value) {
+        
+        // Solo actualizar si el campo está vacío o si estamos en el paso 2
+        if (kmInput && (kmInput.value === '' || this.pasoActual === 2)) {
             kmInput.value = kmActual;
         }
     }
@@ -72,6 +81,15 @@ class BitacoraPasosSimple {
         if (this.validarPasoActual()) {
             this.ocultarPaso(this.pasoActual);
             this.pasoActual++;
+            
+            // Si vamos al paso 2, actualizar kilometraje
+            if (this.pasoActual === 2) {
+                const vehiculoSelect = document.getElementById('id_vehiculo');
+                if (vehiculoSelect && vehiculoSelect.value) {
+                    this.actualizarKilometrajeInicial(vehiculoSelect.value);
+                }
+            }
+            
             this.mostrarPaso(this.pasoActual);
             this.actualizarInterfaz();
         }
@@ -173,10 +191,12 @@ class BitacoraPasosSimple {
             }
         }
         
-        // Validar confirmación
-        const checkConfirm = document.getElementById('check-confirmacion');
-        if (checkConfirm && !checkConfirm.checked) {
-            return false;
+        // Validar confirmación (solo en paso 2)
+        if (this.pasoActual === 2) {
+            const checkConfirm = document.getElementById('check-confirmacion');
+            if (checkConfirm && !checkConfirm.checked) {
+                return false;
+            }
         }
         
         return true;

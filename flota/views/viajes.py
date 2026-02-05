@@ -1,3 +1,5 @@
+from django import forms
+from django.forms import formset_factory
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib import messages
@@ -5,9 +7,23 @@ from django.db.models import Sum
 from django.http import HttpResponse
 from django.utils import timezone
 import xlwt
-from ..models import HojaRuta, CargaCombustible, FallaReportada, AlertaMantencion, Viaje, Vehiculo, Usuario, Paciente, ViajePaciente
-from ..forms import HojaRutaForm, CargaCombustibleForm, FallaReportadaForm, ViajeForm
+from ..models import HojaRuta, CargaCombustible, FallaReportada, AlertaMantencion, Viaje, Vehiculo, Usuario, PacienteTraslado
+from ..forms import HojaRutaForm, CargaCombustibleForm, FallaReportadaForm, ViajeForm, PacienteFormSet
 from .utilidades import es_conductor_o_admin, es_administrador
+from datetime import datetime, timedelta
+
+
+TIPOS_SERVICIO = [
+    ('Llamado', 'Llamado'),
+    ('Rescate de Paciente', 'Rescate de Paciente'),
+    ('A Urgencia HBO', 'A Urgencia HBO'),
+    ('Exámenes', 'Exámenes'),
+    ('Alta a Domicilio', 'Alta a Domicilio'),
+    ('Interconsulta', 'Interconsulta'),
+    ('Horas a especialista', 'Horas a especialista'),
+    ('Imagen', 'Imagen'),
+    ('Otro', 'Otro'),
+]
 
 
 @login_required
@@ -95,32 +111,23 @@ def cerrar_hoja_ruta(request, id):
 @login_required
 @user_passes_test(es_conductor_o_admin)
 def registrar_bitacora(request):
-    """
-    RF_15: Registrar bitácora (Hoja de Ruta) - VERSIÓN SIMPLIFICADA
-    Ahora solo crea la hoja de ruta, luego redirige a agregar_viaje para el primer viaje
-    """
     if request.method == 'POST':
         form = HojaRutaForm(request.POST)
         
         if form.is_valid():
             try:
-                # 1. Guardar Hoja de Ruta SOLAMENTE
                 hoja_ruta = form.save(commit=False)
                 hoja_ruta.conductor = request.user
                 hoja_ruta.save()
                 
-                # 2. Determinar si es camioneta para pasar contexto a la siguiente vista
                 es_camioneta = False
                 if hoja_ruta.vehiculo and hoja_ruta.vehiculo.tipo_carroceria == 'Camioneta':
                     es_camioneta = True
                 
-                # 3. Guardar flag en sesión para que agregar_viaje sepa que es hoja nueva
                 request.session['hoja_nueva_id'] = hoja_ruta.id
                 request.session['es_camioneta'] = es_camioneta
                 
                 messages.success(request, f'Hoja de ruta creada exitosamente. Ahora registre el primer viaje.')
-                
-                # 4. Redirigir a agregar_viaje para el primer viaje
                 return redirect('agregar_viaje', id=hoja_ruta.id)
                 
             except Exception as e:
@@ -128,158 +135,86 @@ def registrar_bitacora(request):
                 traceback.print_exc()
                 messages.error(request, f'Error al guardar: {str(e)}')
         else:
-            # Mostrar errores detallados
             for field, errors in form.errors.items():
                 for error in errors:
                     messages.error(request, f'{field}: {error}')
     else:
         form = HojaRutaForm()
     
+    # Preparar datos para el template
+    vehiculos = Vehiculo.objects.filter(
+        estado__in=['Disponible', 'En uso']
+    ).order_by('patente')
+    
+    # Crear lista de vehículos con patente, modelo y kilometraje
+    vehiculos_info = [
+        {
+            'patente': v.patente,
+            'texto': f"{v.patente} - {v.marca} {v.modelo} ({v.tipo_carroceria}) - {v.kilometraje_actual} km",
+            'kilometraje': v.kilometraje_actual,
+            'es_camioneta': v.tipo_carroceria == 'Camioneta'
+        }
+        for v in vehiculos
+    ]
+    
     return render(request, 'flota/registrar_bitacora_conductor.html', {
-        'form': form
+        'form': form,
+        'vehiculos': vehiculos,
+        'vehiculos_info': vehiculos_info
     })
 
 
 @login_required
 @user_passes_test(es_conductor_o_admin)
 def agregar_viaje(request, id):
-    """
-    Versión modificada con campos de personal médico en el viaje
-    """
-    hoja_ruta = get_object_or_404(HojaRuta, id=id)
+    hoja = get_object_or_404(HojaRuta, id=id)
     
-    # Verificar si es una hoja recién creada (primer viaje)
-    es_hoja_nueva = request.session.get('hoja_nueva_id') == id
-    es_camioneta = hoja_ruta.vehiculo.tipo_carroceria == 'Camioneta' if hoja_ruta.vehiculo else False
-    
-    # Si es hoja nueva y es camioneta, pre-poblar algunos datos
-    initial_data = {}
-    if es_hoja_nueva and es_camioneta:
-        # Para camionetas, pre-poblar con valores por defecto
-        initial_data = {
-            'tipo_servicio': 'Otros',
-            'km_inicio_viaje': hoja_ruta.km_inicio or hoja_ruta.vehiculo.kilometraje_actual
-        }
-        # Limpiar la sesión
-        if 'hoja_nueva_id' in request.session:
-            del request.session['hoja_nueva_id']
-        if 'es_camioneta' in request.session:
-            del request.session['es_camioneta']
-    
+    # Calcular KM sugerido
+    ultimo_viaje = hoja.viajes.order_by('-km_llegada').first()
+    km_sugerido = ultimo_viaje.km_llegada if ultimo_viaje and ultimo_viaje.km_llegada else hoja.km_inicio
+
     if request.method == 'POST':
-        form = ViajeForm(request.POST, hoja_ruta=hoja_ruta)
+        form = ViajeForm(request.POST)
+        paciente_formset = PacienteFormSet(request.POST)
+        
         if form.is_valid():
             viaje = form.save(commit=False)
-            viaje.hoja_ruta = hoja_ruta
+            viaje.hoja_ruta = hoja
             
-            # Establecer campos vacíos para camionetas
-            if es_camioneta:
-                viaje.medico = ''
-                viaje.enfermero = ''
-                viaje.tens = ''
-                viaje.camillero = ''
-                viaje.sin_enfermero = True
-                viaje.sin_camillero = True
-            
-            viaje.save()
-
-            # --- Pacientes adicionales ---
-            pacientes_extra_rut = request.POST.getlist('pacientes_extra_rut[]')
-            pacientes_extra_nombre = request.POST.getlist('pacientes_extra_nombre[]')
-            pacientes_extra_servicio = request.POST.getlist('pacientes_extra_servicio[]')
-            for rut, nombre, servicio in zip(pacientes_extra_rut, pacientes_extra_nombre, pacientes_extra_servicio):
-                rut = (rut or '').strip()
-                nombre = (nombre or '').strip()
-                
-                if not rut and not nombre:
-                    continue
-                
-                if rut:
-                    paciente, _ = Paciente.objects.get_or_create(
-                        rut=rut,
-                        defaults={'nombre': nombre or rut}
-                    )
-                    if nombre and paciente.nombre != nombre:
-                        paciente.nombre = nombre
-                        paciente.save(update_fields=['nombre'])
-                else:
-                    paciente = Paciente.objects.create(
-                        rut=f"SIN-RUT-{timezone.now().timestamp()}",
-                        nombre=nombre
-                    )
-                
-                ViajePaciente.objects.create(
-                    viaje=viaje, 
-                    paciente=paciente,
-                    tipo_servicio=servicio
-                )
-                
-            # Actualizar vehículo con el KM más alto registrado
-            vehiculo = hoja_ruta.vehiculo
-            if viaje.km_fin_viaje > vehiculo.kilometraje_actual:
-                vehiculo.kilometraje_actual = viaje.km_fin_viaje
-                vehiculo.save()
-                
-                # Alertas por kilometraje
-                if vehiculo.umbral_mantencion > 0 and vehiculo.kilometraje_para_mantencion <= 1000:
-                    if not AlertaMantencion.objects.filter(
-                        vehiculo=vehiculo, vigente=True,
-                        descripcion__icontains='Próximo mantenimiento por km'
-                    ).exists():
-                        AlertaMantencion.objects.create(
-                            vehiculo=vehiculo,
-                            descripcion=f'Próximo mantenimiento por km ({vehiculo.kilometraje_para_mantencion} km restantes)',
-                            valor_umbral=vehiculo.kilometraje_actual,
-                        )
-            
-            # Actualizar KM de la hoja de ruta
-            primer_viaje = hoja_ruta.viajes.order_by('hora_salida', 'km_inicio_viaje').first()
-            ultimo_viaje = hoja_ruta.viajes.order_by('hora_salida', 'km_inicio_viaje').last()
-            
-            if primer_viaje:
-                hoja_ruta.km_inicio = primer_viaje.km_inicio_viaje
-            
-            if ultimo_viaje:
-                hoja_ruta.km_fin = ultimo_viaje.km_fin_viaje
-            
-            hoja_ruta.save()
-
-            # Mensaje diferente si es primer viaje
-            if es_hoja_nueva:
-                messages.success(request, f'Primer viaje registrado: {viaje.km_recorridos_calculados} km recorridos. Puede agregar más viajes o cerrar el turno.')
+            # Validación de integridad lógica básica antes de guardar
+            if viaje.km_salida < km_sugerido:
+                messages.error(request, f'Error: KM salida ({viaje.km_salida}) es menor al anterior ({km_sugerido}).')
             else:
-                messages.success(request, f'Viaje registrado: {viaje.km_recorridos_calculados} km recorridos')
-            
-            return redirect('agregar_viaje', id=hoja_ruta.id)
-        else:
-            messages.error(request, 'No se pudo registrar el viaje. Verifique los errores arriba del formulario.')
-            print("Errores formulario viaje:", form.errors)
-
+                # Validar el formset de pacientes
+                if paciente_formset.is_valid():
+                    viaje.save()  # Guardamos viaje primero para tener ID
+                    
+                    # Guardar pacientes
+                    pacientes = paciente_formset.save(commit=False)
+                    for paciente in pacientes:
+                        paciente.viaje = viaje
+                        paciente.save()
+                    
+                    messages.success(request, 'Viaje y pacientes registrados correctamente.')
+                    return redirect('agregar_viaje', id=hoja.id)
+                else:
+                    messages.error(request, 'Error en los datos de los pacientes.')
     else:
-        # Pre-llenado inteligente para el siguiente viaje
-        ultimo_viaje = hoja_ruta.viajes.last()
-        
-        if ultimo_viaje:
-            initial_data['km_inicio_viaje'] = ultimo_viaje.km_fin_viaje
-        else:
-            # Si es el PRIMER viaje, sugerimos el kilometraje actual del vehículo
-            initial_data['km_inicio_viaje'] = hoja_ruta.vehiculo.kilometraje_actual
-            
-        form = ViajeForm(hoja_ruta=hoja_ruta, initial=initial_data)
-    
-    # Calcular resumen
-    total_km_viajes = sum(v.km_recorridos_calculados for v in hoja_ruta.viajes.all())
-    
-    return render(request, 'flota/agregar_viaje.html', {
-        'form': form,
-        'hoja_ruta': hoja_ruta,
-        'viajes_existentes': hoja_ruta.viajes.all(),
-        'total_km_viajes': total_km_viajes,
-        'es_hoja_nueva': es_hoja_nueva,
-        'es_camioneta': es_camioneta
-    })
+        form = ViajeForm(initial={
+            'km_salida': km_sugerido,
+            'hora_salida': timezone.now().strftime('%H:%M')
+        })
+        paciente_formset = PacienteFormSet()
 
-    
+    context = {
+        'hoja': hoja,
+        'form': form,
+        'paciente_formset': paciente_formset,
+        'ultimos_viajes': hoja.viajes.all().order_by('-id')[:5]
+    }
+    return render(request, 'flota/agregar_viaje.html', context)
+
+
 @login_required
 def listar_bitacoras(request):
     # Filtro base según rol de usuario

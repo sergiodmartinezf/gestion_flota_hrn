@@ -1,11 +1,12 @@
 import re
 from django import forms
+from django.forms import formset_factory, inlineformset_factory
 from django.contrib.auth.forms import UserCreationForm
 from datetime import datetime
 from .models import (
     Usuario, Vehiculo, Proveedor, OrdenCompra, OrdenTrabajo,
-    Presupuesto, Arriendo, HojaRuta, Viaje, CargaCombustible,
-    Mantenimiento, FallaReportada, CuentaPresupuestaria
+    Presupuesto, Arriendo, HojaRuta, Viaje, PacienteTraslado, CargaCombustible,
+    Mantenimiento, FallaReportada, CuentaPresupuestaria, TIPOS_SERVICIO
 )
 
 
@@ -177,147 +178,105 @@ class ProveedorForm(forms.ModelForm):
             'activo': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
         }
 
-# --- HojaRutaForm simplificado (SOLO campos de HojaRuta):
+
 class HojaRutaForm(forms.ModelForm):
     class Meta:
         model = HojaRuta
-        fields = [
-            'fecha', 'turno', 'vehiculo', 'km_inicio', 'observaciones'
-        ]
+        fields = ['vehiculo', 'fecha', 'turno', 'km_inicio', 
+                  'medico_derivador', 'tens', 
+                  'enfermero', 'no_aplica_enfermero', 
+                  'camillero', 'no_aplica_camillero']
         widgets = {
-            'fecha': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}),
-            'turno': forms.Select(attrs={'class': 'form-control'}),
-            'vehiculo': forms.Select(attrs={'class': 'form-control'}),
+            'vehiculo': forms.Select(attrs={'class': 'form-select'}),
+            'fecha': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
+            'turno': forms.Select(attrs={'class': 'form-select'}),
             'km_inicio': forms.NumberInput(attrs={'class': 'form-control'}),
-            'observaciones': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
+            'medico_derivador': forms.TextInput(attrs={'class': 'form-control'}),
+            'tens': forms.TextInput(attrs={'class': 'form-control'}),
+            'enfermero': forms.TextInput(attrs={'class': 'form-control'}),
+            'camillero': forms.TextInput(attrs={'class': 'form-control'}),
+            'no_aplica_enfermero': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'no_aplica_camillero': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
         }
     
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        
-        # Auto-completar fecha actual
+        # Establecer fecha actual por defecto
         if not self.instance.pk:
             self.fields['fecha'].initial = datetime.now().date()
         
-        # Filtrar vehículos disponibles
-        self.fields['vehiculo'].queryset = Vehiculo.objects.filter(
-            estado__in=['Disponible', 'En uso']
-        ).order_by('patente')
-
-    # REMOVER las validaciones de personal médico - no pertenecen aquí
+        # Hacer médico y tens obligatorios
+        self.fields['medico_derivador'].required = True
+        self.fields['tens'].required = True
+        
+        # Configurar validación condicional con JavaScript
+        self.fields['enfermero'].widget.attrs.update({
+            'data-dependent': 'no_aplica_enfermero',
+            'class': 'form-control campo-condicional'
+        })
+        self.fields['camillero'].widget.attrs.update({
+            'data-dependent': 'no_aplica_camillero',
+            'class': 'form-control campo-condicional'
+        })
+    
     def clean(self):
         cleaned_data = super().clean()
         
-        # Solo validaciones relacionadas con HojaRuta
-        km_inicio = cleaned_data.get('km_inicio')
-        if km_inicio is not None and km_inicio < 0:
-            self.add_error('km_inicio', 'El kilometraje no puede ser negativo')
+        # Validar obligatoriedad condicional
+        no_aplica_enfermero = cleaned_data.get('no_aplica_enfermero')
+        enfermero = cleaned_data.get('enfermero')
+        no_aplica_camillero = cleaned_data.get('no_aplica_camillero')
+        camillero = cleaned_data.get('camillero')
+        
+        if not no_aplica_enfermero and not enfermero:
+            self.add_error('enfermero', 'Debe indicar un Enfermero o marcar "No aplica".')
+        
+        if not no_aplica_camillero and not camillero:
+            self.add_error('camillero', 'Debe indicar un Camillero o marcar "No aplica".')
+        
+        # Validar turno para camionetas
+        vehiculo = cleaned_data.get('vehiculo')
+        turno = cleaned_data.get('turno')
+        
+        if vehiculo and turno:
+            if vehiculo.tipo_carroceria == 'Camioneta' and turno != '08-17':
+                self.add_error('turno', 'Las camionetas solo pueden operar en turno administrativo (08:00 a 17:00).')
         
         return cleaned_data
-        
 
-# --- ViajeForm expandido con campos de personal médico:
+
 class ViajeForm(forms.ModelForm):
     class Meta:
         model = Viaje
-        fields = [
-            'hora_salida', 'hora_llegada_destino', 'hora_salida_destino', 'hora_llegada',
-            'destino', 'direccion_especifica', 
-            'rut_paciente', 'nombre_paciente', 'tipo_servicio',
-            'km_inicio_viaje', 'km_fin_viaje',
-            # Nuevos campos:
-            'medico', 'enfermero', 'tens', 'camillero',
-            'sin_enfermero', 'sin_camillero'
-        ]
+        fields = ['hora_salida', 'km_salida', 'categoria_traslado', 'detalle_origen_alta', 'observaciones']
         widgets = {
-            'destino': forms.Select(attrs={'class': 'form-select', 'onchange': 'toggleDireccion(this.value)'}),
-            'direccion_especifica': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Calle, Número, Comuna'}),
             'hora_salida': forms.TimeInput(attrs={'class': 'form-control', 'type': 'time'}),
-            'hora_llegada': forms.TimeInput(attrs={'class': 'form-control', 'type': 'time'}),
-            'hora_llegada_destino': forms.TimeInput(attrs={'class': 'form-control', 'type': 'time'}),
-            'hora_salida_destino': forms.TimeInput(attrs={'class': 'form-control', 'type': 'time'}),
-            'medico': forms.TextInput(attrs={'class': 'form-control campo-ambulancia', 'placeholder': 'Nombre del Médico'}),
-            'enfermero': forms.TextInput(attrs={'class': 'form-control campo-ambulancia', 'placeholder': 'Nombre Enfermero/a'}),
-            'tens': forms.TextInput(attrs={'class': 'form-control campo-ambulancia', 'placeholder': 'Nombre TENS'}),
-            'camillero': forms.TextInput(attrs={'class': 'form-control campo-ambulancia', 'placeholder': 'Nombre Camillero'}),
-            'sin_enfermero': forms.CheckboxInput(attrs={'class': 'form-check-input', 'onchange': 'togglePersonal("enfermero")'}),
-            'sin_camillero': forms.CheckboxInput(attrs={'class': 'form-check-input', 'onchange': 'togglePersonal("camillero")'}),
+            'km_salida': forms.NumberInput(attrs={'class': 'form-control'}),
+            'categoria_traslado': forms.Select(attrs={'class': 'form-select'}),
+            'detalle_origen_alta': forms.Select(attrs={'class': 'form-select'}), # Se muestra/oculta con JS
+            'observaciones': forms.Textarea(attrs={'class': 'form-control', 'rows': 2}),
         }
-    
-    def __init__(self, *args, **kwargs):
-        self.hoja_ruta = kwargs.pop('hoja_ruta', None)
-        super().__init__(*args, **kwargs)
 
-        # Por decisión de dominio: al registrar viajes los conductores ya están de regreso,
-        # por lo que la hora de llegada debe ser obligatoria en el flujo normal de viajes.
-        if 'hora_llegada' in self.fields:
-            self.fields['hora_llegada'].required = True
-        
-        if self.hoja_ruta:
-            # KM inicio por defecto = KM final del último viaje o KM inicio de la hoja
-            ultimo_viaje = self.hoja_ruta.viajes.last()
-            if ultimo_viaje:
-                self.fields['km_inicio_viaje'].initial = ultimo_viaje.km_fin_viaje
-            else:
-                self.fields['km_inicio_viaje'].initial = self.hoja_ruta.km_inicio
-    
-    def clean(self):
-        cleaned_data = super().clean()
-        destino = cleaned_data.get('destino')
-        direccion = cleaned_data.get('direccion_especifica')
-        hora_salida = cleaned_data.get('hora_salida')
-        hora_llegada = cleaned_data.get('hora_llegada')
-        km_inicio = cleaned_data.get('km_inicio_viaje')
-        km_fin = cleaned_data.get('km_fin_viaje')
-        hoja_ruta = self.hoja_ruta
-        
-        # 1. Validación de Hora
-        if hora_salida and hora_llegada:
-            if hora_salida == hora_llegada:
-                self.add_error('hora_llegada', 'La hora de llegada no puede ser igual a la de salida.')
+class PacienteTrasladoForm(forms.ModelForm):
+    class Meta:
+        model = PacienteTraslado
+        fields = ['nombre', 'rut', 'destino_tipo', 'direccion_especifica', 'prevision']
+        widgets = {
+            'nombre': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Nombre Paciente/Pasajero'}),
+            'rut': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'RUT'}),
+            'destino_tipo': forms.Select(attrs={'class': 'form-select destino-selector'}), # Clase para JS
+            'direccion_especifica': forms.TextInput(attrs={'class': 'form-control direccion-input', 'placeholder': 'Especifique dirección'}),
+            'prevision': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Tipo Servicio/Prev.'}),
+        }
 
-        # 2. Validación de Kilometraje
-        if km_inicio is not None and km_fin is not None:
-            if km_fin <= km_inicio:
-                self.add_error('km_fin_viaje', 
-                              f'El kilometraje final ({km_fin}) debe ser MAYOR al inicial ({km_inicio}).')
-
-        # 3. Validación de Continuidad
-        if hoja_ruta:
-            ultimo_viaje = hoja_ruta.viajes.order_by('hora_salida').last()
-            if ultimo_viaje and km_inicio != ultimo_viaje.km_fin_viaje:
-                # Solo advertencia, no error
-                pass 
-
-        # REQ: Si destino es Domicilio, dirección es obligatoria
-        if destino == 'Domicilio' and not direccion:
-            self.add_error('direccion_especifica', 'Al seleccionar Domicilio, debe especificar la dirección exacta.')
-        
-        # 4. Validaciones de personal médico según tipo de vehículo
-        if hoja_ruta and hoja_ruta.vehiculo:
-            # Solo validar si es ambulancia (no camioneta)
-            if hoja_ruta.vehiculo.tipo_carroceria != 'Camioneta':
-                # Médico Obligatorio
-                if not cleaned_data.get('medico'):
-                    self.add_error('medico', 'El Médico Derivador es obligatorio para ambulancias.')
-                
-                # TENS Obligatorio
-                if not cleaned_data.get('tens'):
-                    self.add_error('tens', 'El TENS es obligatorio para ambulancias.')
-
-                # Enfermero/a (Obligatorio salvo que se marque sin_enfermero)
-                sin_enf = cleaned_data.get('sin_enfermero')
-                enf = cleaned_data.get('enfermero')
-                if not sin_enf and not enf:
-                    self.add_error('enfermero', 'Debe indicar Enfermero/a o marcar "No aplica".')
-
-                # Camillero (Obligatorio salvo que se marque sin_camillero)
-                sin_cam = cleaned_data.get('sin_camillero')
-                cam = cleaned_data.get('camillero')
-                if not sin_cam and not cam:
-                    self.add_error('camillero', 'Debe indicar Camillero o marcar "No aplica".')
-            
-        return cleaned_data
+# Factory para gestionar multiples pacientes dentro del mismo formulario de Viaje
+PacienteFormSet = inlineformset_factory(
+    Viaje, 
+    PacienteTraslado, 
+    form=PacienteTrasladoForm,
+    extra=1,    # Mostrar 1 vacío por defecto
+    can_delete=True
+)
 
 
 class CargaCombustibleForm(forms.ModelForm):
