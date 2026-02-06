@@ -2,7 +2,7 @@ from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
 from django.utils import timezone
 from decimal import Decimal
-from ..models import Vehiculo, AlertaMantencion, CuentaPresupuestaria
+from ..models import Vehiculo, AlertaMantencion, CuentaPresupuestaria, Mantenimiento, Presupuesto
 from .utilidades import verificar_presupuesto_vehiculo
 
 # API para obtener el kilometraje de los vehículos
@@ -17,9 +17,20 @@ def api_vehiculos_kilometraje(request):
 
 @login_required
 def api_alertas_count(request):
-    """API para obtener el conteo de alertas activas"""
-    count = AlertaMantencion.objects.filter(vigente=True).count()
-    return JsonResponse({'count': count})
+    """API para obtener el conteo de alertas activas (mantenimiento no pausadas + presupuesto >= 80%)."""
+    # Alertas de mantenimiento vigentes, excluyendo pausadas (vehículo en taller con mantenimiento activo)
+    ids_pausadas = set()
+    for a in AlertaMantencion.objects.filter(vigente=True).select_related('vehiculo'):
+        if a.vehiculo.estado == 'En mantenimiento' and Mantenimiento.objects.filter(
+            vehiculo=a.vehiculo, estado__in=['En taller', 'Esperando repuestos'], fecha_salida__isnull=True
+        ).exists():
+            ids_pausadas.add(a.id)
+    count_mant = AlertaMantencion.objects.filter(vigente=True).exclude(id__in=ids_pausadas).count()
+    # Alertas de presupuesto (porcentaje ejecutado >= 80%)
+    presupuestos_alerta = Presupuesto.objects.filter(activo=True).exclude(monto_asignado=0)
+    count_presupuesto = sum(1 for p in presupuestos_alerta if p.porcentaje_ejecutado >= 80)
+    total = count_mant + count_presupuesto
+    return JsonResponse({'count': total, 'mantenimiento': count_mant, 'presupuesto': count_presupuesto})
 
 
 # API para verificar presupuesto desde JavaScript

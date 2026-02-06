@@ -3,14 +3,19 @@
 <div class="container-fluid">
     <h2 class="mb-4"><i class="bi bi-journal-text"></i> Bitácoras</h2>
 
-    <!-- Botón para registrar nueva bitácora -->
-    {% if user.rol == 'Conductor' %}
+    <!-- Botones -->
     <div class="mb-3">
+        {% if user.rol == 'Conductor' %}
         <a href="{% url 'registrar_bitacora' %}" class="btn btn-success">
             <i class="bi bi-plus-circle"></i> Nueva Bitácora
         </a>
+        {% endif %}
+        {% if user.rol == 'Administrador' or user.rol == 'Visualizador' %}
+        <a href="{% url 'exportar_traslados_form' %}" class="btn btn-outline-primary">
+            <i class="bi bi-download"></i> Exportar traslados
+        </a>
+        {% endif %}
     </div>
-    {% endif %}
 
     <!-- Filtros -->
     <div class="card mb-4">
@@ -55,9 +60,6 @@
                             <th>Vehículo</th>
                             <th>Conductor</th>
                             <th>Turno</th>
-                            <th>Personal Médico</th>
-                            <th>Km Inicio</th>
-                            <th>Km Fin</th>
                             <th>Km Recorridos</th>
                             <th>Acciones</th>
                         </tr>
@@ -72,16 +74,6 @@
                             </td>
                             <td>{{ bitacora.conductor.nombre_completo }}</td>
                             <td>{{ bitacora.get_turno_display }}</td>
-                            <td>
-                                <small>
-                                    {% if bitacora.medico %}Méd: {{ bitacora.medico }}{% endif %}<br>
-                                    {% if bitacora.enfermero %}Enf: {{ bitacora.enfermero }}{% endif %}<br>
-                                    {% if bitacora.tens %}TENS: {{ bitacora.tens }}{% endif %}<br>
-                                    {% if bitacora.camillero %}Cam: {{ bitacora.camillero }}{% endif %}
-                                </small>
-                            </td>
-                            <td>{{ bitacora.km_inicio }}</td>
-                            <td>{{ bitacora.km_fin }}</td>
                             <td>{{ bitacora.km_recorridos }}</td>
                             <td>
                                 <a href="{% url 'detalle_bitacora' bitacora.id %}" class="btn btn-sm btn-info me-1"

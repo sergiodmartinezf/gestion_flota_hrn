@@ -1,104 +1,98 @@
+# flota/admin.py
 from django.contrib import admin
-from .models import (
-    Usuario, 
-    Proveedor, 
-    CuentaPresupuestaria, 
-    OrdenCompra,
-    Vehiculo, 
-    Presupuesto, 
-    OrdenTrabajo, 
-    Mantenimiento,
-    Arriendo, 
-    HojaRuta, 
-    Viaje, 
-    CargaCombustible,
-    FallaReportada, 
-    AlertaMantencion
-)
+from .models import *
+
+class ViajePacienteInline(admin.TabularInline):
+    model = PacienteTraslado
+    extra = 1
 
 @admin.register(Usuario)
 class UsuarioAdmin(admin.ModelAdmin):
-    list_display = ('rut', 'nombre_completo', 'rol', 'activo', 'email')
-    search_fields = ('rut', 'nombre', 'apellido')
-    list_filter = ('rol', 'activo')
+    list_display = ('rut', 'nombre', 'apellido', 'rol', 'activo')
+    search_fields = ('rut', 'nombre', 'apellido', 'email')
+
+@admin.register(Vehiculo)
+class VehiculoAdmin(admin.ModelAdmin):
+    list_display = ('patente', 'marca', 'modelo', 'tipo_carroceria', 'estado', 'kilometraje_actual')
+    list_filter = ('tipo_carroceria', 'estado', 'criticidad')
+    search_fields = ('patente', 'marca', 'modelo')
+
+@admin.register(HojaRuta)
+class HojaRutaAdmin(admin.ModelAdmin):
+    list_display = ('id', 'vehiculo', 'conductor', 'fecha', 'turno', 'km_inicio')
+    list_filter = ('fecha', 'turno', 'vehiculo')
+    date_hierarchy = 'fecha'
+
+@admin.register(Viaje)
+class ViajeAdmin(admin.ModelAdmin):
+    list_display = ('id', 'hoja_ruta', 'hora_salida', 'categoria_traslado')
+    list_filter = ('categoria_traslado', 'hoja_ruta__fecha')
+    inlines = [ViajePacienteInline]
+
+@admin.register(PacienteTraslado)
+class PacienteTrasladoAdmin(admin.ModelAdmin):
+    list_display = ('viaje', 'nombre', 'destino_tipo', 'prevision')
+    list_filter = ('destino_tipo',)
+    search_fields = ('nombre', 'rut')
+
+@admin.register(CargaCombustible)
+class CargaCombustibleAdmin(admin.ModelAdmin):
+    list_display = ('fecha', 'patente_vehiculo', 'litros', 'costo_total')
+    list_filter = ('fecha', 'patente_vehiculo')
+    date_hierarchy = 'fecha'
+
+@admin.register(FallaReportada)
+class FallaReportadaAdmin(admin.ModelAdmin):
+    list_display = ('fecha_reporte', 'vehiculo', 'tipo_reporte', 'nivel_urgencia')
+    list_filter = ('tipo_reporte', 'nivel_urgencia', 'vehiculo')
+    date_hierarchy = 'fecha_reporte'
+
+@admin.register(AlertaMantencion)
+class AlertaMantencionAdmin(admin.ModelAdmin):
+    list_display = ('vehiculo', 'descripcion', 'valor_umbral', 'vigente', 'generado_en')
+    list_filter = ('vigente', 'vehiculo')
+    date_hierarchy = 'generado_en'
+
+@admin.register(Mantenimiento)
+class MantenimientoAdmin(admin.ModelAdmin):
+    list_display = ('vehiculo', 'tipo_mantencion', 'fecha_ingreso', 'estado', 'costo_total_real')
+    list_filter = ('tipo_mantencion', 'estado', 'vehiculo')
+    date_hierarchy = 'fecha_ingreso'
+
+@admin.register(Arriendo)
+class ArriendoAdmin(admin.ModelAdmin):
+    list_display = ('vehiculo_arrendado', 'vehiculo_reemplazado', 'fecha_inicio', 'fecha_fin', 'estado')
+    list_filter = ('estado', 'proveedor')
+    date_hierarchy = 'fecha_inicio'
+
+@admin.register(OrdenCompra)
+class OrdenCompraAdmin(admin.ModelAdmin):
+    list_display = ('nro_oc', 'fecha_emision', 'proveedor', 'monto_total', 'estado')
+    list_filter = ('estado', 'proveedor', 'fecha_emision')
+    search_fields = ('nro_oc', 'id_licitacion', 'folio_sigfe')
+    date_hierarchy = 'fecha_emision'
+
+@admin.register(OrdenTrabajo)
+class OrdenTrabajoAdmin(admin.ModelAdmin):
+    list_display = ('nro_ot', 'fecha_solicitud', 'vehiculo', 'proveedor')
+    list_filter = ('fecha_solicitud', 'vehiculo', 'proveedor')
+    search_fields = ('nro_ot', 'descripcion')
+    date_hierarchy = 'fecha_solicitud'
 
 @admin.register(Proveedor)
 class ProveedorAdmin(admin.ModelAdmin):
-    list_display = ('rut_empresa', 'nombre_fantasia', 'es_taller', 'es_arrendador', 'telefono')
+    list_display = ('nombre_fantasia', 'rut_empresa', 'es_taller', 'es_arrendador', 'activo')
+    list_filter = ('es_taller', 'es_arrendador', 'es_proveedor_base', 'activo')
     search_fields = ('nombre_fantasia', 'rut_empresa')
-    list_filter = ('es_taller', 'es_arrendador')
+
+@admin.register(Presupuesto)
+class PresupuestoAdmin(admin.ModelAdmin):
+    list_display = ('anio', 'cuenta', 'vehiculo', 'monto_asignado', 'monto_ejecutado', 'disponible', 'activo')
+    list_filter = ('anio', 'activo', 'cuenta')
+    search_fields = ('cuenta__codigo', 'cuenta__nombre')
 
 @admin.register(CuentaPresupuestaria)
 class CuentaPresupuestariaAdmin(admin.ModelAdmin):
     list_display = ('codigo', 'nombre')
     search_fields = ('codigo', 'nombre')
-    ordering = ('codigo',)
-
-@admin.register(OrdenCompra)
-class OrdenCompraAdmin(admin.ModelAdmin):
-    list_display = ('nro_oc', 'proveedor', 'vehiculo', 'fecha_emision', 'monto_total', 'estado', 'folio_sigfe')
-    list_filter = ('estado', 'fecha_emision')
-    search_fields = ('nro_oc', 'proveedor__nombre_fantasia', 'vehiculo__patente', 'id_licitacion')
-    date_hierarchy = 'fecha_emision'
-
-@admin.register(Vehiculo)
-class VehiculoAdmin(admin.ModelAdmin):
-    list_display = ('patente', 'marca', 'modelo', 'tipo_carroceria', 'estado', 'criticidad', 'kilometraje_actual')
-    list_filter = ('estado', 'tipo_carroceria', 'criticidad', 'es_samu', 'tipo_propiedad')
-    search_fields = ('patente', 'marca', 'modelo')
-
-@admin.register(Presupuesto)
-class PresupuestoAdmin(admin.ModelAdmin):
-    list_display = ('anio', 'cuenta', 'vehiculo_o_general', 'monto_asignado', 'porcentaje_ejecutado')
-    list_filter = ('anio', 'cuenta')
-    
-    def vehiculo_o_general(self, obj):
-        return obj.vehiculo if obj.vehiculo else "Flota General"
-    vehiculo_o_general.short_description = "Asignación"
-
-@admin.register(OrdenTrabajo)
-class OrdenTrabajoAdmin(admin.ModelAdmin):
-    list_display = ('nro_ot', 'vehiculo', 'proveedor', 'fecha_solicitud')
-    search_fields = ('nro_ot', 'vehiculo__patente')
-
-@admin.register(Mantenimiento)
-class MantenimientoAdmin(admin.ModelAdmin):
-    list_display = ('id', 'vehiculo', 'tipo_mantencion', 'fecha_ingreso', 'estado', 'costo_total_real')
-    list_filter = ('estado', 'tipo_mantencion')
-    search_fields = ('vehiculo__patente', 'descripcion_trabajo')
-    date_hierarchy = 'fecha_ingreso'
-
-@admin.register(Arriendo)
-class ArriendoAdmin(admin.ModelAdmin):
-    list_display = ('proveedor', 'vehiculo_reemplazado', 'fecha_inicio', 'fecha_fin', 'estado', 'costo_diario')
-    list_filter = ('estado',)
-    search_fields = ('proveedor__nombre_fantasia', 'vehiculo_reemplazado__patente')
-
-@admin.register(HojaRuta)
-class HojaRutaAdmin(admin.ModelAdmin):
-    list_display = ('id', 'vehiculo', 'fecha', 'conductor', 'turno', 'medico', 'km_recorridos')
-    list_filter = ('fecha', 'turno')
-    search_fields = ('vehiculo__patente', 'conductor__nombre', 'conductor__apellido', 'medico')
-
-@admin.register(Viaje)
-class ViajeAdmin(admin.ModelAdmin):
-    list_display = ('hoja_ruta', 'hora_salida', 'destino', 'tipo_servicio', 'rut_paciente')
-    list_filter = ('tipo_servicio',)
-    search_fields = ('destino', 'rut_paciente')
-
-@admin.register(CargaCombustible)
-class CargaCombustibleAdmin(admin.ModelAdmin):
-    list_display = ('patente_vehiculo', 'fecha', 'litros', 'costo_total', 'nro_boleta')
-    list_filter = ('fecha',)
-    search_fields = ('patente_vehiculo__patente', 'nro_boleta')
-
-@admin.register(FallaReportada)
-class FallaReportadaAdmin(admin.ModelAdmin):
-    list_display = ('vehiculo', 'fecha_reporte', 'nivel_urgencia', 'conductor')
-    list_filter = ('nivel_urgencia', 'fecha_reporte')
-
-@admin.register(AlertaMantencion)
-class AlertaMantencionAdmin(admin.ModelAdmin):
-    list_display = ('vehiculo', 'descripcion', 'generado_en', 'vigente')
-    list_filter = ('vigente',)
     

@@ -30,10 +30,17 @@
 
                         {% if user.rol == 'Conductor' or user.rol == 'Administrador' %}
                         <li>
-                            <a href="{% if user.rol == 'Administrador' %}{% url 'listar_bitacoras' %}{% else %}{% url 'registrar_bitacora' %}{% endif %}">
+                            <a href="{% if user.rol == 'Administrador' %}{% url 'listar_bitacoras' %}{% else %}{% url 'bitacora_inteligente' %}{% endif %}">
                                 <i class="bi bi-journal-text"></i> Bitácora
                             </a>
                         </li>
+                        {% if user.rol == 'Conductor' %}
+                        <li>
+                            <a href="{% url 'listar_bitacoras' %}">
+                                <i class="bi bi-clock-history"></i> Historial
+                            </a>
+                        </li>
+                        {% endif %}
                         <li>
                             <a href="{% if user.rol == 'Administrador' %}{% url 'listar_cargas_combustible' %}{% else %}{% url 'registrar_carga_combustible' %}{% endif %}">
                                 <i class="bi bi-fuel-pump"></i> Combustible
@@ -48,6 +55,7 @@
 
                         {% if user.rol == 'Administrador' or user.rol == 'Visualizador' %}
                         <li><a href="{% url 'listar_mantenimientos' %}"><i class="bi bi-tools"></i> Mantenimientos</a></li>
+                        <li><a href="{% url 'calendario_mantenciones' %}"><i class="bi bi-calendar"></i> Calendario</a></li>
                         <li><a href="{% url 'listar_presupuestos' %}"><i class="bi bi-cash-stack"></i> Presupuestos</a></li>
                         <li><a href="{% url 'listar_arriendos' %}"><i class="bi bi-file-earmark-text"></i> Arriendos</a></li>
                         {% if user.rol == 'Administrador' %}
@@ -56,8 +64,8 @@
                         <li><a href="{% url 'listar_ordenes_compra' %}"><i class="bi bi-cart-check"></i> Órdenes de Compra</a></li>
                         <li><a href="{% url 'listar_ordenes_trabajo' %}"><i class="bi bi-wrench"></i> Órdenes de Trabajo</a></li>
                         <li><a href="{% url 'alertas_mantenimiento' %}"><i class="bi bi-bell"></i> Alertas {% if user.is_authenticated %}<span id="alertas-badge" class="badge bg-danger" style="display: none;"></span>{% endif %}</a></li>
-                        <li><a href="{% url 'calendario_mantenciones' %}"><i class="bi bi-calendar"></i> Calendario</a></li>
                         <li><a href="{% url 'reporte_costos' %}"><i class="bi bi-graph-up"></i> Reportes</a></li>
+                        <li><a href="{% url 'panel_control' %}"><i class="bi bi-bar-chart-line"></i> Panel de control</a></li>
                         {% endif %}
                         <hr>
                         <li><a href="{% url 'logout' %}"><i class="bi bi-box-arrow-right"></i> Cerrar Sesión</a></li>

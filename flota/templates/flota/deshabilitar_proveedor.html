@@ -15,7 +15,7 @@
     <div class="card-body">
         <h5>{{ proveedor.nombre_fantasia }}</h5>
         <p><strong>RUT:</strong> {{ proveedor.rut_empresa }}</p>
-        <p><strong>Giro:</strong> {{ proveedor.giro }}</p>
+        {# Campo giro eliminado del modelo Proveedor #}
         <p><strong>Teléfono:</strong> {{ proveedor.telefono|default:"-" }}</p>
         <p><strong>Email:</strong> {{ proveedor.email_contacto|default:"-" }}</p>
     </div>

@@ -139,3 +139,80 @@
     from { opacity: 0; transform: translateY(10px); }
     to { opacity: 1; transform: translateY(0); }
 }
+
+.barra-control-turno {
+    background-color: #f8f9fa;
+    border-radius: 8px;
+    border: 1px solid #dee2e6;
+    padding: 15px;
+    margin-bottom: 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.info-turno-resumen {
+    font-size: 1.1em;
+    color: #495057;
+}
+
+/* Ocultar pasos cuando no sean aplicables */
+.viaje-paso[style*="display: none"] {
+    display: none !important;
+}
+
+/* Estilos para badges de tipo de vehículo */
+.badge.tipo-vehiculo-camioneta {
+    background-color: #198754 !important;
+}
+
+.badge.tipo-vehiculo-ambulancia {
+    background-color: #0d6efd !important;
+}
+
+/* Estilo para pasos ocultos */
+.viaje-paso.oculto {
+    display: none !important;
+}
+
+/* Estilos específicos para badges */
+.badge.bg-success::before {
+    content: "🚚 ";
+}
+
+.badge.bg-primary::before {
+    content: "🚑 ";
+}
+
+/* Estilos para campos de tiempo */
+input[type="time"] {
+    padding: 0.5rem;
+    font-size: 1rem;
+}
+
+/* Estilos para selects */
+select.form-control, select.form-select {
+    padding: 0.5rem;
+    font-size: 1rem;
+}
+
+/* Estilos específicos para el formulario de viaje */
+#contenedor-direccion {
+    transition: all 0.3s ease;
+}
+
+/* Asegurar que los campos required tengan indicador visual */
+.required-field::after {
+    content: " *";
+    color: red;
+}
+
+.is-invalid {
+    border-color: #dc3545 !important;
+    background-color: #fff8f8 !important;
+}
+
+.is-invalid:focus {
+    box-shadow: 0 0 0 0.25rem rgba(220, 53, 69, 0.25) !important;
+}

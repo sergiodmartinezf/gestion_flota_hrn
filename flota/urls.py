@@ -29,6 +29,8 @@ urlpatterns = [
     path('vehiculos/estado/<str:patente>/', views.actualizar_estado_vehiculo, name='actualizar_estado_vehiculo'),
     
     # Bitácoras y viajes (RF_15-17)
+    path('bitacora/acceso-inteligente/', views.acceso_bitacora, name='bitacora_inteligente'),
+    path('bitacora/cerrar/<int:id>/', views.cerrar_hoja_ruta, name='cerrar_hoja_ruta'),
     path('bitacoras/registrar/', views.registrar_bitacora, name='registrar_bitacora'),
     path('bitacoras/listar/', views.listar_bitacoras, name='listar_bitacoras'),
     path('bitacoras/modificar/<int:id>/', views.modificar_bitacora, name='modificar_bitacora'),
@@ -39,9 +41,8 @@ urlpatterns = [
     path('incidentes/listar/', views.listar_incidentes, name='listar_incidentes'),
     path('bitacoras/<int:id>/agregar-viaje/', views.agregar_viaje, name='agregar_viaje'),
     
-    # Mantenimiento (RF_18-23)
-    path('mantenimientos/preventivo/', views.programar_mantenimiento_preventivo, name='programar_mantenimiento_preventivo'),
-    path('mantenimientos/correctivo/', views.registrar_mantenimiento_correctivo, name='registrar_mantenimiento_correctivo'),
+    # Mantenimiento (RF_18-23): registro unificado desde calendario (preventivo y correctivo)
+    path('mantenimientos/programar/', views.programar_mantenimiento, name='programar_mantenimiento'),
     path('mantenimientos/listar/', views.listar_mantenimientos, name='listar_mantenimientos'),
     path('mantenimientos/calendario/', views.calendario_mantenciones, name='calendario_mantenciones'),
     # Con parámetros
@@ -59,10 +60,11 @@ urlpatterns = [
     path('presupuestos/modificar/<int:id>/', views.modificar_presupuesto, name='modificar_presupuesto'),
     path('presupuestos/deshabilitar/<int:id>/', views.deshabilitar_presupuesto, name='deshabilitar_presupuesto'),
     
-    # Reportes (RF_24-25, 28)
+    # Reportes (RF_24-25, 28) y Panel de control
     path('reportes/costos/', views.reporte_costos, name='reporte_costos'),
     path('reportes/disponibilidad/', views.reporte_disponibilidad, name='reporte_disponibilidad'),
     path('reportes/historial/<str:patente>/', views.reporte_historial_unidad, name='reporte_historial_unidad'),
+    path('reportes/panel/', views.panel_control, name='panel_control'),
     
     # Arriendo (RF_26)
     path('arriendos/registrar/', views.registrar_arriendo, name='registrar_arriendo'),
@@ -97,6 +99,7 @@ urlpatterns = [
     path('api/orden-trabajo/<int:id>/', views.api_orden_trabajo, name='api_orden_trabajo'),
     
     # Exportaciones
+    path('exportar/traslados/', views.exportar_traslados_form, name='exportar_traslados_form'),
     path('exportar/viajes/', views.exportar_consolidado_viajes, name='exportar_viajes'),
     
     # APIs

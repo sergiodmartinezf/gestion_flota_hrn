@@ -102,7 +102,7 @@
                                 <th>Hora Salida</th>
                                 <th>Hora Llegada</th>
                                 <th>Destino</th>
-                                <th>Paciente</th>
+                                <th>Paciente(s)</th>
                                 <th>Tipo</th>
                                 <th>KM Inicio</th>
                                 <th>KM Fin</th>
@@ -117,11 +117,25 @@
                                     <td>{{ viaje.destino|truncatechars:30 }}</td>
                                     <td>
                                         {% if viaje.nombre_paciente %}
-                                            {{ viaje.nombre_paciente }}<br>
-                                            <small class="text-muted">{{ viaje.rut_paciente|default:"" }}</small>
-                                        {% else %}
-                                            -
+                                            <div>
+                                                {{ viaje.nombre_paciente }}<br>
+                                                <small class="text-muted">{{ viaje.rut_paciente|default:"" }}</small>
+                                            </div>
                                         {% endif %}
+                                        {% for vp in viaje.pacientes_adicionales.all %}
+                                            <div class="mt-1">
+                                                <small>
+                                                    {{ vp.paciente.nombre }}
+                                                    {% if vp.paciente.rut %}
+                                                        <span class="text-muted">({{ vp.paciente.rut }})</span>
+                                                    {% endif %}
+                                                </small>
+                                            </div>
+                                        {% empty %}
+                                            {% if not viaje.nombre_paciente %}
+                                                -
+                                            {% endif %}
+                                        {% endfor %}
                                     </td>
                                     <td><span class="badge bg-info">{{ viaje.tipo_servicio }}</span></td>
                                     <td>{{ viaje.km_inicio_viaje }} km</td>
