@@ -805,6 +805,10 @@ class Viaje(models.Model):
     hora_llegada = models.TimeField(null=True, blank=True)
     km_salida = models.PositiveIntegerField()
     km_llegada = models.PositiveIntegerField(null=True, blank=True)
+
+    # Horas específicas para Hospital Base Osorno
+    hora_salida_hbo = models.TimeField(null=True, blank=True, verbose_name="Hora Salida HBO")
+    hora_llegada_hbo = models.TimeField(null=True, blank=True, verbose_name="Hora Llegada HBO")
     
     # Categorización del Viaje
     categoria_traslado = models.CharField(max_length=20, choices=TIPO_TRASLADO_CATEGORIA)
@@ -837,6 +841,10 @@ class Viaje(models.Model):
         if self.km_llegada and self.km_salida:
             return max(0, self.km_llegada - self.km_salida)
         return 0
+
+    def tiene_destino_hbo(self):
+        """Verifica si algún paciente tiene destino HBO"""
+        return self.pacientes.filter(destino_tipo='HBO').exists()
 
 
 class PacienteTraslado(models.Model):

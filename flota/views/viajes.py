@@ -118,11 +118,17 @@ def registrar_bitacora(request):
             try:
                 hoja_ruta = form.save(commit=False)
                 hoja_ruta.conductor = request.user
+                
+                # Si es camioneta, asegurarnos de que los campos estén vacíos
+                if hoja_ruta.vehiculo.tipo_carroceria == 'Camioneta':
+                    hoja_ruta.no_aplica_enfermero = True
+                    hoja_ruta.no_aplica_camillero = True
+                    hoja_ruta.enfermero = ''
+                    hoja_ruta.camillero = ''
+                
                 hoja_ruta.save()
                 
-                es_camioneta = False
-                if hoja_ruta.vehiculo and hoja_ruta.vehiculo.tipo_carroceria == 'Camioneta':
-                    es_camioneta = True
+                es_camioneta = hoja_ruta.vehiculo.tipo_carroceria == 'Camioneta'
                 
                 request.session['hoja_nueva_id'] = hoja_ruta.id
                 request.session['es_camioneta'] = es_camioneta
@@ -135,6 +141,7 @@ def registrar_bitacora(request):
                 traceback.print_exc()
                 messages.error(request, f'Error al guardar: {str(e)}')
         else:
+            # Mostrar errores del formulario
             for field, errors in form.errors.items():
                 for error in errors:
                     messages.error(request, f'{field}: {error}')
@@ -157,12 +164,11 @@ def registrar_bitacora(request):
         for v in vehiculos
     ]
     
-    return render(request, 'flota/registrar_bitacora_conductor.html', {
+    return render(request, 'flota/registrar_hoja_ruta.html', {
         'form': form,
         'vehiculos': vehiculos,
         'vehiculos_info': vehiculos_info
     })
-
 
 @login_required
 @user_passes_test(es_conductor_o_admin)
@@ -175,19 +181,19 @@ def agregar_viaje(request, id):
 
     if request.method == 'POST':
         form = ViajeForm(request.POST)
-        paciente_formset = PacienteFormSet(request.POST)
+        # Usar request.POST y request.FILES para el formset
+        paciente_formset = PacienteFormSet(request.POST, request.FILES)
         
         if form.is_valid():
             viaje = form.save(commit=False)
             viaje.hoja_ruta = hoja
             
-            # Validación de integridad lógica básica antes de guardar
+            # Validación de KM
             if viaje.km_salida < km_sugerido:
                 messages.error(request, f'Error: KM salida ({viaje.km_salida}) es menor al anterior ({km_sugerido}).')
             else:
-                # Validar el formset de pacientes
                 if paciente_formset.is_valid():
-                    viaje.save()  # Guardamos viaje primero para tener ID
+                    viaje.save()  # Guardar viaje primero
                     
                     # Guardar pacientes
                     pacientes = paciente_formset.save(commit=False)
@@ -195,7 +201,12 @@ def agregar_viaje(request, id):
                         paciente.viaje = viaje
                         paciente.save()
                     
-                    messages.success(request, 'Viaje y pacientes registrados correctamente.')
+                    # Guardar también los que se marcaron para eliminar
+                    for form in paciente_formset.deleted_forms:
+                        if form.instance.pk:
+                            form.instance.delete()
+                    
+                    messages.success(request, 'Viaje registrado correctamente.')
                     return redirect('agregar_viaje', id=hoja.id)
                 else:
                     messages.error(request, 'Error en los datos de los pacientes.')
@@ -204,7 +215,8 @@ def agregar_viaje(request, id):
             'km_salida': km_sugerido,
             'hora_salida': timezone.now().strftime('%H:%M')
         })
-        paciente_formset = PacienteFormSet()
+        # Formset vacío inicialmente
+        paciente_formset = PacienteFormSet(queryset=PacienteTraslado.objects.none())
 
     context = {
         'hoja': hoja,
@@ -212,7 +224,7 @@ def agregar_viaje(request, id):
         'paciente_formset': paciente_formset,
         'ultimos_viajes': hoja.viajes.all().order_by('-id')[:5]
     }
-    return render(request, 'flota/agregar_viaje.html', context)
+    return render(request, 'flota/registrar_viaje.html', context)
 
 
 @login_required

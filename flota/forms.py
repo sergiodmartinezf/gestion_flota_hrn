@@ -180,12 +180,19 @@ class ProveedorForm(forms.ModelForm):
 
 
 class HojaRutaForm(forms.ModelForm):
+    observaciones = forms.CharField(
+        widget=forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
+        required=False,
+        label="Observaciones"
+    )
+    
     class Meta:
         model = HojaRuta
         fields = ['vehiculo', 'fecha', 'turno', 'km_inicio', 
                   'medico_derivador', 'tens', 
                   'enfermero', 'no_aplica_enfermero', 
-                  'camillero', 'no_aplica_camillero']
+                  'camillero', 'no_aplica_camillero',
+                  'observaciones']
         widgets = {
             'vehiculo': forms.Select(attrs={'class': 'form-select'}),
             'fecha': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
@@ -205,7 +212,7 @@ class HojaRutaForm(forms.ModelForm):
         if not self.instance.pk:
             self.fields['fecha'].initial = datetime.now().date()
         
-        # Hacer médico y tens obligatorios
+        # Hacer médico y tens obligatorios por defecto
         self.fields['medico_derivador'].required = True
         self.fields['tens'].required = True
         
@@ -222,33 +229,92 @@ class HojaRutaForm(forms.ModelForm):
     def clean(self):
         cleaned_data = super().clean()
         
-        # Validar obligatoriedad condicional
-        no_aplica_enfermero = cleaned_data.get('no_aplica_enfermero')
-        enfermero = cleaned_data.get('enfermero')
-        no_aplica_camillero = cleaned_data.get('no_aplica_camillero')
-        camillero = cleaned_data.get('camillero')
-        
-        if not no_aplica_enfermero and not enfermero:
-            self.add_error('enfermero', 'Debe indicar un Enfermero o marcar "No aplica".')
-        
-        if not no_aplica_camillero and not camillero:
-            self.add_error('camillero', 'Debe indicar un Camillero o marcar "No aplica".')
-        
-        # Validar turno para camionetas
+        # Obtener todos los valores necesarios
         vehiculo = cleaned_data.get('vehiculo')
         turno = cleaned_data.get('turno')
+        medico_derivador = cleaned_data.get('medico_derivador')
+        tens = cleaned_data.get('tens')
+        no_aplica_enfermero = cleaned_data.get('no_aplica_enfermero', False)
+        enfermero = cleaned_data.get('enfermero')
+        no_aplica_camillero = cleaned_data.get('no_aplica_camillero', False)
+        camillero = cleaned_data.get('camillero')
         
-        if vehiculo and turno:
-            if vehiculo.tipo_carroceria == 'Camioneta' and turno != '08-17':
+        # Si no hay vehículo, no podemos validar más
+        if not vehiculo:
+            return cleaned_data
+        
+        es_camioneta = vehiculo.tipo_carroceria == 'Camioneta'
+        
+        # Validación específica para camionetas
+        if es_camioneta:
+            # Camionetas solo pueden tener turno administrativo
+            if turno and turno != '08-17':
                 self.add_error('turno', 'Las camionetas solo pueden operar en turno administrativo (08:00 a 17:00).')
+            
+            # Para camionetas, no se requiere personal médico
+            # Marcar automáticamente como "no aplica"
+            cleaned_data['no_aplica_enfermero'] = True
+            cleaned_data['no_aplica_camillero'] = True
+            
+            # Limpiar campos si existen
+            if enfermero:
+                cleaned_data['enfermero'] = ''
+            if camillero:
+                cleaned_data['camillero'] = ''
+        
+        # Validación para ambulancias (no camionetas)
+        else:
+            # Médico y TENS son obligatorios para ambulancias
+            if not medico_derivador:
+                self.add_error('medico_derivador', 'El médico derivador es obligatorio para ambulancias.')
+            
+            if not tens:
+                self.add_error('tens', 'El TENS es obligatorio para ambulancias.')
+            
+            # Validar enfermero (condicional)
+            if not no_aplica_enfermero and not enfermero:
+                self.add_error('enfermero', 'Debe indicar un Enfermero o marcar "No aplica".')
+            
+            # Validar camillero (condicional)
+            if not no_aplica_camillero and not camillero:
+                self.add_error('camillero', 'Debe indicar un Camillero o marcar "No aplica".')
+            
+            # Si se marca "no aplica", asegurarse de que el campo esté vacío
+            if no_aplica_enfermero and enfermero:
+                cleaned_data['enfermero'] = ''
+            if no_aplica_camillero and camillero:
+                cleaned_data['camillero'] = ''
         
         return cleaned_data
 
 
 class ViajeForm(forms.ModelForm):
+    hora_llegada = forms.TimeField(
+        widget=forms.TimeInput(attrs={'class': 'form-control', 'type': 'time'}),
+        required=False,
+        label="Hora de Llegada"
+    )
+    km_llegada = forms.IntegerField(
+        widget=forms.NumberInput(attrs={'class': 'form-control'}),
+        required=False,
+        label="KM Llegada"
+    )
+    hora_salida_hbo = forms.TimeField(
+        widget=forms.TimeInput(attrs={'class': 'form-control', 'type': 'time'}),
+        required=False,
+        label="Hora Salida HBO"
+    )
+    hora_llegada_hbo = forms.TimeField(
+        widget=forms.TimeInput(attrs={'class': 'form-control', 'type': 'time'}),
+        required=False,
+        label="Hora Llegada HBO"
+    )
+
     class Meta:
         model = Viaje
-        fields = ['hora_salida', 'km_salida', 'categoria_traslado', 'detalle_origen_alta', 'observaciones']
+        fields = ['hora_salida', 'hora_llegada', 'km_salida', 'km_llegada', 
+                  'categoria_traslado', 'detalle_origen_alta', 
+                  'hora_salida_hbo', 'hora_llegada_hbo', 'observaciones']
         widgets = {
             'hora_salida': forms.TimeInput(attrs={'class': 'form-control', 'type': 'time'}),
             'km_salida': forms.NumberInput(attrs={'class': 'form-control'}),
@@ -274,8 +340,10 @@ PacienteFormSet = inlineformset_factory(
     Viaje, 
     PacienteTraslado, 
     form=PacienteTrasladoForm,
-    extra=1,    # Mostrar 1 vacío por defecto
-    can_delete=True
+    extra=0,    # CERO formularios por defecto - el usuario agrega manualmente
+    can_delete=True,
+    min_num=0,  # Mínimo 0 pacientes
+    validate_min=True
 )
 
 
