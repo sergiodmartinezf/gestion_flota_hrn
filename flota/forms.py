@@ -803,22 +803,23 @@ class ArriendoForm(forms.ModelForm):
         if fecha_inicio and fecha_fin and fecha_fin < fecha_inicio:
             raise forms.ValidationError("La fecha de fin no puede ser anterior a la fecha de inicio.")
         
-        # Validar que o bien se seleccione un vehículo arrendado existente, o se proporcione uno nuevo
-        vehiculo_arrendado = cleaned_data.get('vehiculo_arrendado')
-        nueva_patente = cleaned_data.get('nueva_patente')
-        
-        if not vehiculo_arrendado and not nueva_patente:
-            raise forms.ValidationError(
-                "Debe seleccionar un vehículo arrendado existente o proporcionar los datos de uno nuevo."
-            )
-        
-        if nueva_patente:
-            # Verificar que la patente no exista ya
-            if Vehiculo.objects.filter(patente=nueva_patente).exists():
-                raise forms.ValidationError(f"Ya existe un vehículo con la patente {nueva_patente} en el sistema.")
+        # Solo validar en creación, no en edición
+        if not self.instance.pk:  # Si es nuevo arriendo
+            vehiculo_arrendado = cleaned_data.get('vehiculo_arrendado')
+            nueva_patente = cleaned_data.get('nueva_patente')
+            
+            if not vehiculo_arrendado and not nueva_patente:
+                raise forms.ValidationError(
+                    "Debe seleccionar un vehículo arrendado existente o proporcionar los datos de uno nuevo."
+                )
+            
+            if nueva_patente:
+                # Verificar que la patente no exista ya
+                if Vehiculo.objects.filter(patente=nueva_patente).exists():
+                    raise forms.ValidationError(f"Ya existe un vehículo con la patente {nueva_patente} en el sistema.")
         
         return cleaned_data
-    
+
     def save(self, commit=True):
         arriendo = super().save(commit=False)
         

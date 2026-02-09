@@ -32,18 +32,25 @@ def listar_flota(request):
     # Filtros
     estado_filter = request.GET.get('estado')
     tipo_filter = request.GET.get('tipo_carroceria')
+    propiedad_filter = request.GET.get('tipo_propiedad')
+    criticidad_filter = request.GET.get('criticidad')
     
     if estado_filter:
         vehiculos = vehiculos.filter(estado=estado_filter)
     if tipo_filter:
         vehiculos = vehiculos.filter(tipo_carroceria=tipo_filter)
+    if propiedad_filter:
+        vehiculos = vehiculos.filter(tipo_propiedad=propiedad_filter)
+    if criticidad_filter:
+        vehiculos = vehiculos.filter(criticidad=criticidad_filter)
     
     return render(request, 'flota/listar_flota.html', {
         'vehiculos': vehiculos,
         'estado_filter': estado_filter,
         'tipo_filter': tipo_filter,
+        'propiedad_filter': propiedad_filter,
+        'criticidad_filter': criticidad_filter,
     })
-
 
 # RF_08: Visualizar ficha de unidad
 @login_required

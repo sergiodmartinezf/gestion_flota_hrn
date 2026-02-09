@@ -694,6 +694,8 @@ class Arriendo(models.Model):
     
     cuenta_presupuestaria = models.ForeignKey(CuentaPresupuestaria, on_delete=models.PROTECT, null=True, blank=True)
     
+    activo = models.BooleanField(default=True, verbose_name="Activo")
+    
     class Meta:
         db_table = 'arriendo'
         verbose_name = 'Contrato de Arriendo'
@@ -723,13 +725,14 @@ class Arriendo(models.Model):
         if self.estado == 'Activo' and self.vehiculo_arrendado:
             self.vehiculo_arrendado.estado = 'Disponible'
             self.vehiculo_arrendado.save()
-            
+                
             # Marcar el vehículo propio como 'Fuera de servicio' si no lo está
             if self.vehiculo_reemplazado and self.vehiculo_reemplazado.estado != 'Baja':
-                 pass
+                self.vehiculo_reemplazado.estado = 'Fuera de servicio'
+                self.vehiculo_reemplazado.save()
 
         super().save(*args, **kwargs)
-    
+
     def __str__(self):
         return f"Arriendo {self.vehiculo_arrendado.patente} ({self.proveedor}) - Reemplaza: {self.vehiculo_reemplazado}"
 

@@ -93,19 +93,51 @@ def listar_mantenimientos(request):
             anio = timezone.now().year
         return exportar_planilla_mantenimientos_excel(anio)
     
-    patente = request.GET.get('patente')
     mantenimientos = Mantenimiento.objects.all()
     
-    if patente:
-        mantenimientos = mantenimientos.filter(vehiculo__patente=patente)
+    # Filtros
+    patente_filter = request.GET.get('patente')
+    tipo_filter = request.GET.get('tipo')
+    estado_filter = request.GET.get('estado')
+    desde_filter = request.GET.get('desde')
+    hasta_filter = request.GET.get('hasta')
+    proveedor_filter = request.GET.get('proveedor')
+    
+    if patente_filter:
+        mantenimientos = mantenimientos.filter(vehiculo__patente=patente_filter)
+    
+    if tipo_filter:
+        mantenimientos = mantenimientos.filter(tipo_mantencion=tipo_filter)
+    
+    if estado_filter:
+        mantenimientos = mantenimientos.filter(estado=estado_filter)
+    
+    if desde_filter:
+        mantenimientos = mantenimientos.filter(fecha_ingreso__gte=desde_filter)
+    
+    if hasta_filter:
+        mantenimientos = mantenimientos.filter(fecha_ingreso__lte=hasta_filter)
+    
+    if proveedor_filter:
+        mantenimientos = mantenimientos.filter(proveedor__id=proveedor_filter)
     
     mantenimientos = mantenimientos.order_by('-fecha_ingreso')
     
+    # Obtener datos para filtros
+    vehiculos = Vehiculo.objects.all().order_by('patente')
+    proveedores = Proveedor.objects.filter(es_taller=True, activo=True).order_by('nombre_fantasia')
+    
     return render(request, 'flota/listar_mantenimientos.html', {
         'mantenimientos': mantenimientos,
-        'patente_filter': patente,
+        'vehiculos': vehiculos,
+        'proveedores': proveedores,
+        'patente_filter': patente_filter,
+        'tipo_filter': tipo_filter,
+        'estado_filter': estado_filter,
+        'desde_filter': desde_filter,
+        'hasta_filter': hasta_filter,
+        'proveedor_filter': proveedor_filter,
     })
-
 
 # Cambiar estado de mantenimiento (AJAX)
 @login_required

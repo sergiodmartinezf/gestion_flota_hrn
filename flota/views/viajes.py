@@ -235,24 +235,47 @@ def listar_bitacoras(request):
     else:
         bitacoras = HojaRuta.objects.all()
 
-    messages.info(request, f'Mostrando {bitacoras.count()} bitácoras')
-
-    # Filtro por vehículo
+    # Filtros
+    desde_filtro = request.GET.get('desde')
+    hasta_filtro = request.GET.get('hasta')
+    conductor_filtro = request.GET.get('conductor')
+    estado_filtro = request.GET.get('estado')
     vehiculo_filtro = request.GET.get('vehiculo')
+
+    if desde_filtro:
+        bitacoras = bitacoras.filter(fecha__gte=desde_filtro)
+
+    if hasta_filtro:
+        bitacoras = bitacoras.filter(fecha__lte=hasta_filtro)
+
+    if conductor_filtro:
+        bitacoras = bitacoras.filter(conductor__rut=conductor_filtro)
+
+    if estado_filtro:
+        if estado_filtro == 'abierta':
+            bitacoras = bitacoras.filter(abierta=True)
+        elif estado_filtro == 'cerrada':
+            bitacoras = bitacoras.filter(abierta=False)
+
     if vehiculo_filtro:
         bitacoras = bitacoras.filter(vehiculo__patente=vehiculo_filtro)
 
     bitacoras = bitacoras.order_by('-fecha', '-creado_en')
 
-    # Obtener lista de vehículos para el filtro
+    # Obtener datos para filtros
     vehiculos = Vehiculo.objects.all().order_by('patente')
+    conductores = Usuario.objects.filter(rol='Conductor', activo=True).order_by('nombre', 'apellido')
 
     return render(request, 'flota/listar_bitacoras.html', {
         'bitacoras': bitacoras,
         'vehiculos': vehiculos,
-        'vehiculo_filtro': vehiculo_filtro
+        'conductores': conductores,
+        'vehiculo_filtro': vehiculo_filtro,
+        'desde_filtro': desde_filtro,
+        'hasta_filtro': hasta_filtro,
+        'conductor_filtro': conductor_filtro,
+        'estado_filtro': estado_filtro,
     })
-
 
 # --- NUEVA VISTA MODIFICAR BITÁCORA (REQ: Admin edita info de conductor) ---
 @login_required
@@ -341,22 +364,39 @@ def listar_cargas_combustible(request):
     else:
         cargas = CargaCombustible.objects.all()
 
-    # Filtro por vehículo
+    # Filtros
+    desde_filtro = request.GET.get('desde')
+    hasta_filtro = request.GET.get('hasta')
+    conductor_filtro = request.GET.get('conductor')
     vehiculo_filtro = request.GET.get('vehiculo')
+
+    if desde_filtro:
+        cargas = cargas.filter(fecha__gte=desde_filtro)
+
+    if hasta_filtro:
+        cargas = cargas.filter(fecha__lte=hasta_filtro)
+
+    if conductor_filtro:
+        cargas = cargas.filter(conductor__rut=conductor_filtro)
+
     if vehiculo_filtro:
         cargas = cargas.filter(patente_vehiculo__patente=vehiculo_filtro)
 
     cargas = cargas.order_by('-fecha')
 
-    # Obtener lista de vehículos para el filtro
+    # Obtener datos para filtros
     vehiculos = Vehiculo.objects.all().order_by('patente')
+    conductores = Usuario.objects.filter(rol='Conductor', activo=True).order_by('nombre', 'apellido')
 
     return render(request, 'flota/listar_cargas_combustible.html', {
         'cargas': cargas,
         'vehiculos': vehiculos,
-        'vehiculo_filtro': vehiculo_filtro
+        'conductores': conductores,
+        'vehiculo_filtro': vehiculo_filtro,
+        'desde_filtro': desde_filtro,
+        'hasta_filtro': hasta_filtro,
+        'conductor_filtro': conductor_filtro,
     })
-
 
 # RF_17: Registrar incidente (Falla Reportada)
 @login_required
@@ -411,23 +451,39 @@ def listar_incidentes(request):
     else:
         incidentes = FallaReportada.objects.all()
 
-    # Filtro por vehículo
+    # Filtros
+    desde_filtro = request.GET.get('desde')
+    hasta_filtro = request.GET.get('hasta')
+    conductor_filtro = request.GET.get('conductor')
     vehiculo_filtro = request.GET.get('vehiculo')
+
+    if desde_filtro:
+        incidentes = incidentes.filter(fecha_reporte__gte=desde_filtro)
+
+    if hasta_filtro:
+        incidentes = incidentes.filter(fecha_reporte__lte=hasta_filtro)
+
+    if conductor_filtro:
+        incidentes = incidentes.filter(conductor__rut=conductor_filtro)
+
     if vehiculo_filtro:
         incidentes = incidentes.filter(vehiculo__patente=vehiculo_filtro)
 
     incidentes = incidentes.order_by('-fecha_reporte')
 
-    # Obtener lista de vehículos para el filtro
+    # Obtener datos para filtros
     vehiculos = Vehiculo.objects.all().order_by('patente')
-    print(f"DEBUG incidentes: {vehiculos.count()} vehículos encontrados para filtro")
+    conductores = Usuario.objects.filter(rol='Conductor', activo=True).order_by('nombre', 'apellido')
 
     return render(request, 'flota/listar_incidentes.html', {
         'incidentes': incidentes,
         'vehiculos': vehiculos,
-        'vehiculo_filtro': vehiculo_filtro
+        'conductores': conductores,
+        'vehiculo_filtro': vehiculo_filtro,
+        'desde_filtro': desde_filtro,
+        'hasta_filtro': hasta_filtro,
+        'conductor_filtro': conductor_filtro,
     })
-
 
 # --- Formulario para exportar traslados con filtros ---
 @login_required

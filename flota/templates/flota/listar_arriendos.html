@@ -12,6 +12,53 @@
     </div>
     {% endif %}
 
+    <!-- Filtros -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <form method="get" class="row g-3">
+                <div class="col-md-3">
+                    <label for="estado" class="form-label">Estado:</label>
+                    <select name="estado" id="estado" class="form-select">
+                        <option value="">Todos</option>
+                        <option value="Activo" {% if estado_filter == 'Activo' %}selected{% endif %}>Activo</option>
+                        <option value="Finalizado" {% if estado_filter == 'Finalizado' %}selected{% endif %}>Finalizado</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label for="proveedor" class="form-label">Proveedor:</label>
+                    <select name="proveedor" id="proveedor" class="form-select">
+                        <option value="">Todos</option>
+                        {% for proveedor in proveedores %}
+                        <option value="{{ proveedor.id }}" {% if proveedor_filter == proveedor.id|stringformat:"i" %}selected{% endif %}>
+                            {{ proveedor.nombre_fantasia }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label for="desde" class="form-label">Desde:</label>
+                    <input type="date" name="desde" id="desde" class="form-control" value="{{ desde_filter }}">
+                </div>
+                <div class="col-md-3">
+                    <label for="hasta" class="form-label">Hasta:</label>
+                    <input type="date" name="hasta" id="hasta" class="form-control" value="{{ hasta_filter }}">
+                </div>
+                <div class="col-md-12 d-flex align-items-end">
+                    <div class="btn-group">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-funnel"></i> Filtrar
+                        </button>
+                        {% if estado_filter or proveedor_filter or desde_filter or hasta_filter %}
+                        <a href="{% url 'listar_arriendos' %}" class="btn btn-secondary">
+                            <i class="bi bi-x-circle"></i> Limpiar
+                        </a>
+                        {% endif %}
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <!-- Tabla de arriendos -->
     <div class="card">
         <div class="card-body">
@@ -41,7 +88,13 @@
                             <td>{{ arriendo.proveedor.nombre_fantasia }}</td>
                             <td>{{ arriendo.fecha_inicio|date:"d/m/Y" }}</td>
                             <td>{{ arriendo.fecha_fin|date:"d/m/Y"|default:"-" }}</td>
-                            <td>${{ arriendo.costo_total|floatformat:0|default:"-" }}</td>
+                            <td>
+                                {% if arriendo.costo_total %}
+                                    ${{ arriendo.costo_total|floatformat:0 }}
+                                {% else %}
+                                    -
+                                {% endif %}
+                            </td>
                             <td>
                                 <span class="badge {% if arriendo.estado == 'Activo' %}bg-success{% else %}bg-secondary{% endif %}">
                                     {{ arriendo.get_estado_display }}

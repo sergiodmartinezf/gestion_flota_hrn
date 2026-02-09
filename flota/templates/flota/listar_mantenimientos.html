@@ -25,16 +25,62 @@
     <div class="card mb-4">
         <div class="card-body">
             <form method="get" class="row g-3">
-                <div class="col-md-4">
-                    <label for="patente" class="form-label">Patente:</label>
-                    <input type="text" name="patente" id="patente" placeholder="Filtrar por patente" value="{{ patente_filter }}" class="form-control">
+                <div class="col-md-3">
+                    <label for="patente" class="form-label">Vehículo:</label>
+                    <select name="patente" id="patente" class="form-select">
+                        <option value="">Todos los vehículos</option>
+                        {% for vehiculo in vehiculos %}
+                        <option value="{{ vehiculo.patente }}" {% if patente_filter == vehiculo.patente %}selected{% endif %}>
+                            {{ vehiculo.patente }}
+                        </option>
+                        {% endfor %}
+                    </select>
                 </div>
-                <div class="col-md-4 d-flex align-items-end">
+                <div class="col-md-3">
+                    <label for="tipo" class="form-label">Tipo de mantenimiento:</label>
+                    <select name="tipo" id="tipo" class="form-select">
+                        <option value="">Todos los tipos</option>
+                        <option value="Preventivo" {% if tipo_filter == 'Preventivo' %}selected{% endif %}>Preventivo</option>
+                        <option value="Correctivo" {% if tipo_filter == 'Correctivo' %}selected{% endif %}>Correctivo</option>
+                        <option value="Productivo" {% if tipo_filter == 'Productivo' %}selected{% endif %}>Productivo</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label for="estado" class="form-label">Estado:</label>
+                    <select name="estado" id="estado" class="form-select">
+                        <option value="">Todos los estados</option>
+                        <option value="Programado" {% if estado_filter == 'Programado' %}selected{% endif %}>Programado</option>
+                        <option value="En taller" {% if estado_filter == 'En taller' %}selected{% endif %}>En taller</option>
+                        <option value="Esperando repuestos" {% if estado_filter == 'Esperando repuestos' %}selected{% endif %}>Esperando repuestos</option>
+                        <option value="Finalizado" {% if estado_filter == 'Finalizado' %}selected{% endif %}>Finalizado</option>
+                        <option value="Cancelado" {% if estado_filter == 'Cancelado' %}selected{% endif %}>Cancelado</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label for="desde" class="form-label">Desde:</label>
+                    <input type="date" name="desde" id="desde" class="form-control" value="{{ desde_filter }}">
+                </div>
+                <div class="col-md-3">
+                    <label for="hasta" class="form-label">Hasta:</label>
+                    <input type="date" name="hasta" id="hasta" class="form-control" value="{{ hasta_filter }}">
+                </div>
+                <div class="col-md-3">
+                    <label for="proveedor" class="form-label">Proveedor:</label>
+                    <select name="proveedor" id="proveedor" class="form-select">
+                        <option value="">Todos los proveedores</option>
+                        {% for proveedor in proveedores %}
+                        <option value="{{ proveedor.id }}" {% if proveedor_filter == proveedor.id|stringformat:"i" %}selected{% endif %}>
+                            {{ proveedor.nombre_fantasia }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-12 d-flex align-items-end">
                     <div class="btn-group">
                         <button type="submit" class="btn btn-primary">
                             <i class="bi bi-funnel"></i> Filtrar
                         </button>
-                        {% if patente_filter %}
+                        {% if patente_filter or tipo_filter or estado_filter or desde_filter or hasta_filter or proveedor_filter %}
                         <a href="{% url 'listar_mantenimientos' %}" class="btn btn-secondary">
                             <i class="bi bi-x-circle"></i> Limpiar
                         </a>

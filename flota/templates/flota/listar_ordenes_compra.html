@@ -8,7 +8,37 @@
     <div class="card mb-4">
         <div class="card-body">
             <form method="get" class="row g-3">
-                <div class="col-md-4">
+                <div class="col-md-3">
+                    <label for="desde" class="form-label">Desde:</label>
+                    <input type="date" name="desde" id="desde" class="form-control" value="{{ desde_filtro }}">
+                </div>
+                <div class="col-md-3">
+                    <label for="hasta" class="form-label">Hasta:</label>
+                    <input type="date" name="hasta" id="hasta" class="form-control" value="{{ hasta_filtro }}">
+                </div>
+                <div class="col-md-3">
+                    <label for="vehiculo" class="form-label">Vehículo:</label>
+                    <select name="vehiculo" id="vehiculo" class="form-select">
+                        <option value="">Todos</option>
+                        {% for vehiculo in vehiculos %}
+                        <option value="{{ vehiculo.patente }}" {% if vehiculo_filtro == vehiculo.patente %}selected{% endif %}>
+                            {{ vehiculo.patente }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label for="cuenta" class="form-label">Cuenta presupuestaria:</label>
+                    <select name="cuenta" id="cuenta" class="form-select">
+                        <option value="">Todas</option>
+                        {% for cuenta in cuentas %}
+                        <option value="{{ cuenta.codigo }}" {% if cuenta_filtro == cuenta.codigo %}selected{% endif %}>
+                            {{ cuenta.codigo }} - {{ cuenta.nombre }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3">
                     <label for="estado" class="form-label">Estado:</label>
                     <select name="estado" id="estado" class="form-select">
                         <option value="">Todos</option>
@@ -19,7 +49,7 @@
                         {% endfor %}
                     </select>
                 </div>
-                <div class="col-md-4">
+                <div class="col-md-3">
                     <label for="proveedor" class="form-label">Proveedor:</label>
                     <select name="proveedor" id="proveedor" class="form-select">
                         <option value="">Todos</option>
@@ -30,7 +60,7 @@
                         {% endfor %}
                     </select>
                 </div>
-                <div class="col-md-4 d-flex align-items-end">
+                <div class="col-md-12 d-flex align-items-end">
                     <div class="btn-group">
                         <button type="submit" class="btn btn-primary">
                             <i class="bi bi-funnel"></i> Filtrar

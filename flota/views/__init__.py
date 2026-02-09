@@ -78,9 +78,11 @@ from .reportes import (
 
 # Importar vistas de arriendo
 from .arriendos import (
-    registrar_arriendo,
     listar_arriendos,
-    finalizar_arriendo
+    registrar_arriendo,
+    finalizar_arriendo,
+    deshabilitar_arriendo,
+    habilitar_arriendo,
 )
 
 # Importar vistas de dashboard

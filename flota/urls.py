@@ -67,9 +67,11 @@ urlpatterns = [
     path('reportes/panel/', views.panel_control, name='panel_control'),
     
     # Arriendo (RF_26)
+    path('arriendos/', views.listar_arriendos, name='listar_arriendos'),
     path('arriendos/registrar/', views.registrar_arriendo, name='registrar_arriendo'),
-    path('arriendos/listar/', views.listar_arriendos, name='listar_arriendos'),
     path('arriendos/finalizar/<int:id>/', views.finalizar_arriendo, name='finalizar_arriendo'),
+    path('arriendos/deshabilitar/<int:id>/', views.deshabilitar_arriendo, name='deshabilitar_arriendo'),
+    path('arriendos/habilitar/<int:id>/', views.habilitar_arriendo, name='habilitar_arriendo'),
     
     # Proveedores
     path('proveedores/listar/', views.listar_proveedores, name='listar_proveedores'),
