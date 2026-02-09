@@ -169,7 +169,8 @@ class Usuario(AbstractBaseUser):
         ('Visualizador', 'Visualizador'),
     ]
     
-    rut = models.CharField(max_length=12, unique=True, primary_key=True)
+    id = models.AutoField(primary_key=True)
+    rut = models.CharField(max_length=12, unique=True)
     nombre = models.CharField(max_length=100)
     apellido = models.CharField(max_length=100)
     email = models.EmailField(unique=True)
@@ -232,6 +233,7 @@ class Proveedor(models.Model):
 
 
 class CuentaPresupuestaria(models.Model):
+    id = models.AutoField(primary_key=True)
     codigo = models.CharField(max_length=50, unique=True, help_text="Ej: 22.06.002.001")
     nombre = models.CharField(max_length=200, help_text="Ej: Mantenimiento y Reparación de Vehículos")
     descripcion = models.TextField(blank=True)
@@ -393,7 +395,8 @@ class Vehiculo(models.Model):
         ('No crítico', 'No crítico'),
     ]
     
-    patente = models.CharField(max_length=10, primary_key=True)
+    id = models.AutoField(primary_key=True)
+    patente = models.CharField(max_length=10, unique=True)
     marca = models.CharField(max_length=50)
     modelo = models.CharField(max_length=50)
     vin = models.CharField(max_length=17, blank=True)
@@ -740,6 +743,7 @@ class Arriendo(models.Model):
 # --- OPERATIVA DIARIA ---
 
 class HojaRuta(models.Model):
+    id = models.AutoField(primary_key=True)
     vehiculo = models.ForeignKey(Vehiculo, on_delete=models.PROTECT)
     conductor = models.ForeignKey(Usuario, on_delete=models.PROTECT)
     fecha = models.DateField(default=timezone.now)
@@ -802,6 +806,7 @@ class HojaRuta(models.Model):
 
 
 class Viaje(models.Model):
+    id = models.AutoField(primary_key=True)
     hoja_ruta = models.ForeignKey(HojaRuta, on_delete=models.CASCADE, related_name='viajes')
     
     hora_salida = models.TimeField()
@@ -852,6 +857,7 @@ class Viaje(models.Model):
 
 class PacienteTraslado(models.Model):
     """Modelo para soportar 0 a N pacientes por viaje"""
+    id = models.AutoField(primary_key=True)
     viaje = models.ForeignKey(Viaje, on_delete=models.CASCADE, related_name='pacientes')
     nombre = models.CharField(max_length=150)
     rut = models.CharField(max_length=12, blank=True, null=True)

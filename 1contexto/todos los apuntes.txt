@@ -1,0 +1,530 @@
+----------------------------
+PLANIFICACIÓN DE MI PRÁCTICA
+----------------------------
+
+----------------------------
+Problemática
+----------------------------
+
+La gestión de la flota en la Unidad de Movilización del Hospital de Río Negro se basa en procesos manuales y desconectados, utilizando planillas Excel y registros físicos. Esto genera falta de trazabilidad, lo que impacta negativamente en la eficiencia administrativa, la planificación y la capacidad de tomar decisiones oportunas, además de aumentar el riesgo para la atención de emergencias.
+
+----------------------------
+Propuesta
+----------------------------
+
+Se propone implementar una plataforma web integral que digitalice y centralice toda la información. Este sistema permitirá el ingreso digital de bitácoras, automatizará alertas de mantenimiento y consolidará los registros financieros, con el fin de estandarizar procesos, asegurar la trazabilidad de costos y proporcionar reportes confiables para optimizar el uso de los recursos.
+
+----------------------------
+Alcance
+----------------------------
+
+El alcance funcional abarca la digitalización de bitácoras, la gestión de mantenimiento preventiva y correctiva, y el control presupuestario mediante el registro de gastos y la visualización del consumo anual. Se incluye la generación de reportes clave y un dashboard inicial para la toma de decisiones, implementando roles de Administrador y Visualizador.
+
+----------------------------
+Objetivo General
+----------------------------
+
+-Desarrollar un software especializado de gestión de mantenimiento de vehículos para estandarizar procesos, asegurar trazabilidad y respaldar la toma de decisiones.
+
+----------------------------
+Objetivos Específicos
+----------------------------
+----------------------------
+Objetivo Específico 1
+----------------------------
+
+-Diseñar la arquitectura del sistema mediante levantamiento de requerimientos y modelado de datos para definir funcionalidades.
+
+Acividad 1: Levantamiento de requerimientos.
+
+Tarea 1: Analizar flujos de información de gestión vehicular.
+
+Tarea 2: Definir funcionalidades del sistema.
+
+Tarea 3: Establecer restricciones y alcance del sistema.
+
+Actividad 2: Modelamiento de datos.
+
+Tarea 1: Elaborar diagramas de casos de uso.
+
+Tarea 2: Elaborar modelos de datos.
+
+Tarea 3: Diseñar interfaces de usuario.
+
+----------------------------
+Objetivo Específico 2
+----------------------------
+
+-Implementar un prototipo funcional de una plataforma web que digitalice los registros de mantenimiento y consolide los costos operacionales.
+
+Acividad 1: Desarrollo del backend del sistema.
+
+Tarea 1: Configurar entorno de desarrollo.
+
+Tarea 2: Poblar base de datos del sistema.
+
+Tarea 3: Implementar funciones de registro de datos.
+
+Actividad 2: Desarrollo del frontend del sistema.
+
+Tarea 1: Desarrollar interfaz de usuario.
+
+Tarea 2: Desarrollar dashboard de indicadores clave.
+
+Tarea 3: Desarrollar generación de reportes.
+
+----------------------------
+Objetivo Específico 3
+----------------------------
+
+-Validar el funcionamiento del sistema mediante pruebas con datos reales del hospital para asegurar que las alertas, reportes e información consolidada operen correctamente.
+
+Acividad 1: Pruebas de errores.
+
+Tarea 1: Ejecutar pruebas de registro de datos.
+
+Tarea 2: Revisar reportes generados.
+
+Tarea 3: Corregir fallos encontrados.
+
+Actividad 2: Implementación y capacitación.
+
+Tarea 1: Elaborar documentación.
+
+Tarea 2: Realizar capacitación.
+
+Tarea 3: Realizar pruebas con personal.
+
+----------------------------
+Cronograma
+----------------------------
+
+-tiempo estimado: 12 semanas
+
+-semana 1:
+--OE01-A01-T01
+
+-semana 2:
+--OE01-A01-T01
+--OE01-A01-T02
+--OE01-A01-T03
+
+-semana 3:
+--OE01-A01-T02
+--OE01-A01-T03
+--OE01-A02-T01
+
+-semana 4:
+--OE01-A02-T01
+--OE01-A02-T02
+--OE01-A02-T03
+
+-semana 5:
+--OE01-A02-T03
+
+-semana 6:
+--OE02-A01-T01
+--OE02-A01-T02
+--OE02-A01-T03
+--OE03-A01-T03
+
+-semana 7:
+--OE02-A02-T01
+--OE03-A01-T03
+
+-semana 8:
+--OE02-A02-T01
+--OE03-A01-T03
+
+-semana 9:
+--OE02-A02-T02
+--OE02-A02-T03
+--OE03-A01-T03
+
+-semana 10:
+--OE03-A01-T01
+--OE03-A01-T02
+--OE03-A01-T03
+
+-semana 11:
+--OE03-A01-T03
+--OE03-A02-T01
+--OE03-A02-T02
+
+-semana 12:
+--OE03-A01-T03
+--OE03-A02-T03
+
+-------------------
+-semana actual: 12
+-------------------
+
+---------------------------------------------
+---------------------------------------------
+
+
+
+
+
+
+
+----------------------------
+IDEAS EN BASE A PLAN TRIENAL
+----------------------------
+
+NOTA: cuando decimos vehículo o unidad, nos referimos a todos los vehículos (incluye ambulancias y camioneta).
+
+el sistema deberá permitir visualizar (en cuanto al estado de la flota):
+-información de cada ambulancia 
+---idea1 (inicial): (identificación, kilometraje, historial de mantenimientos) 
+---idea2 (del excel): (Establecimiento, Tipo de carrocería, Tipo de ambulancia, Clase de ambulancia, Es o no SAMU, Función, Marca, Modelo, Número de patente, Número de motor, Kilometraje, Situación del estado (propio o no), Estado de conservación, Año de adquisición, Vida útil, Nivel de importancia (es crítico o no?), Es o no backup)
+-cantidad de ambulancias disponibles (como búsqueda filtrada).
+-ambulancias en mantenimiento.
+-ambulancias asignadas como backup.
+-historial digital estructurado de mantenimientos realizados por vehículo (fecha, tipo de mantención, proveedor, repuestos utilizados.)
+-trazar intervalos de mantenimiento preventivo (por kilometraje o tiempo)
+-seguir costo por cada mantenimiento (esto se hace en el excel)
+-consolidación de datos sobre consumo de repuestos o servicios tercerizados para análisis financiero de parque móvil.
+-datos de costos operativos por vehiculo (repuestos, servicios externos, arriendos)
+-indicadores (disponibilidad, costos, consumo de insumos, respuestos, días de arriendos)
+-costos totales por vehículo (servicios de reparación, mano de obra, repuestos).
+
+el sistema deberá permitir las siguientes acciones (para evitar problemas cuando hay alta demanda o emergencias):
+-planificación operativa.
+-asignar móviles.
+-generar reportes.
+-registrar cada ambulancia (identificación, kilometraje, historial de mantenimientos)
+-registrar insumos y repuestos de cada mantenimiento (cantidad, tipo, costo asociado)
+-registrar días de arriendo y costos asociados de ambulancias sustitutas cuando unidades propias están en mantenimiento prolongado.
+-registrar kilometraje y uso de combustible por parte de conductores.
+
+el sistema deberá manejar automáticamente lo siguiente:
+-en base a kilometraje deberían haber alertas de mantenimiento establecer umbrales programados de manera autónoma para mantenimientos preventivos e identificar patrones de desgaste acelerado.
+-generar reportes.
+
+el sistema deberá permitir obtener los siguientes reportes:
+-Estado y disponibilidad de la flota.
+-Historial y tipo de mantenimientos por unidad.
+-Costos acumulados y comparativos por móvil (incluye costos de arriendo).
+-Alertas de mantenimiento según kilometraje o fecha.
+
+cada vez que se termina un viaje, se registra bitácora
+
+
+
+---------------------------------------------
+SOBRE FUNCIONAMIENTO DE GESTIÓN DE VEHÍCULOS:
+---------------------------------------------
+
+todo este tema se actualiza manualmente
+
+3 ambulancias en parque. en caso de problemas. se arrienda. siempre se tienen 2 operativas
+
+todos los años se hace un informe si se ejecutó o no lo programado. si no se pudo, se justifica. ej, estaba en taller.
+
+cada mantencion genera orden de compra
+
+se contrasta presupuesto anual para lo preventivo con lo que paso en realidad (idealmente no varía más del 10%)
+
+Datos importantes:
+-gasto, en que se gastó, cuanto tiempo se demoró en resolverse la falla
+
+trataron de buscar software para sus necesidades (como odo y dinomax), pero al final decidieron que se creara internamente desde 0
+
+no hay gps para registrar automaticamente kilometraje. lo que queda sería que se haga manualmente en el sistema.
+-conductor debería ingresar kilometraje y combustible que se ocupó entonces.
+
+mantenciones se hacen de forma centralizada
+
+-todos los dias viernes se envían kilometrajes a encargado de mantenimiento
+-el hace la coordinación con los talleres.
+
+toda la coordinación la lleva el servicio de salud con los talleres. ellos se abastecen de la información de kilometrajes que le mandan del hospital.
+
+los conductores le reportan a laura los kilometrajes. en caso de falla, tienen que avisarle y decirle que paso. ahi laura se comunica con servicio de salud y servicio de salud se comunica con el taller.
+
+la información de los convenios son hechos por servicio que envian info a hospital
+
+de acuerdo a lo que se gastó en el año se realiza planificación anual.
+
+el servicio hace la planificación con los datos de los hospitales.
+
+de momento lo unico que digitarían los conductores sería el estado de la maquina
+-se revisa cada cosa de la maquina (que tenga agua, como están las luces, etc.)
+
+en caso de que la ambulancia no salga en un buen tiempo, se arrienda
+-por cuanto monto se arrendó
+-por cuantos días se arrendó
+
+jefe de abastecimiento es otro actor involucrado
+-envia orden de compra y felipe lo pone a la planilla
+-la orden de trabajo es útil y sería bueno tener esa información en algún lado.
+
+convenio de arriendo de ambulancias fue hecho por hospital con empresa resmed. referente de servicio de salud informa que ambulancia no va a salir en tantos días mas, y ahi laura gestiona con resmed y pum, ambulancia arrendada.
+
+para futuro sería bueno poder tener la hoja de ruta en la plataforma, pero ahi ya los conductores tendrían que digitar más
+-tiempo de traslado
+-de donde es el llamado
+-centros de costo
+
+la unidad de laura es movilización
+
+felipe está en otra unidad
+
+la plantilla que debo rellenar pide diagrama de procesos de la unidad, pero esta no tiene diagrama de procesos, asi que hay que hacerlo.
+
+plan para poder realizar diagrama
+-preguntar que unidad es esta
+--unidad de movilización
+---8 conductores y una jefatura (laura)
+-preguntar quienes están involucrados.
+
+tener en cuenta al hacer preguntas para crear bpmn
+-hacer preguntas que sugieran posibilidad de flujos alternativos.
+-hacer preguntas que determinen cierre de procesos (saber cuando se considera algo terminado)
+
+la unidad no tiene diagrama de procesos, asi que hay que hacerlo.
+
+¿qué unidad es esta?
+-unidad de movilización
+--8 conductores y una jefatura (laura)
+
+
+
+------------------
+SOBRE CONDUCTORES:
+------------------
+
+estoy asumiendo que la bitácora/hoja de ruta y la hoja de ruta son lo mismo
+
+Muchas veces se andaba con una sola ambulancia hasta que se creo el convenio de arriendo.
+
+una ambulancia queda guardada. No tiene los instrumentos (no habilidata)
+
+la camioneta es usada de 08:00 a 17:00. El conductor de camioneta maneja ambulancia en caso de que se requiera
+
+la camioneta puede ir donde sea para tramites administrativos, a diferencia de la ambulancia
+
+la ambulancia de arriendo la traen y se la llevan. Si le pasa algo, tiene seguro.
+
+a las ambulancias normales, si le pasa algo, el servicio de salud debe pagar.
+
+para mantencion lo llevan los mismos conductores. Solo es entrega. Si hay pana, ya hay que usar grúa.
+
+laura avisa cuando hay mantencion  y de que es
+
+-¿entonces todos se trasladan a osorno?
+
+
+JORNADA DE CONDUCTORES
+
+el campo turno de hoja de ruta se refiere a hora e inicio y fin
+-fin de semana y feriado es de 09 a 20 (09/20 escriben en la hoja)
+-el resto del tiempo es 08 a 20 y 20 a 08
+
+Entran a las 8:00 y salen a las 20:00
+
+Vienen a manejar ambulancias
+
+Deben recibir los vehiculos y mirarlos
+-revisan cosas como que los neumaticos estén inflados
+-la cabina sanitaria por otro lado la ven los paramedicos
+
+Luego quedan a disposicion de la urgencia y salir a los llamados
+-los llaman (131)
+
+cualquier fallo que suceda, se comunica a jefa (laura) por medio de un grupo de whatsapp.
+-si el fallo es grave (pana), entonces se notifica, y luego viene una grúa a buscar la ambulancia. 
+-en caso de que haya pana en medio de un traslado, viene otra ambulancia a buscar al paciente.
+
+realizan traslados netamente, siempre por rutas establecidas. Si le pasa algo a la ambulancia fuera de ruta, hay sanción.
+
+La enfermera ve si al paciente se traslada a un lugar más cercano dependiendo de la gravedad
+-sino, viene a rio negro nomas
+
+si el paciente está lo suficientemente grave, se lleva a hospital base osorno después
+
+se reporta que pacientes quedan en osorno con camilla o sin camilla.
+
+luego de trasladar paciente, se regresa a rio negro. Si el paciente es autovalente, entonces solo se requiere auxiliar. De otro modo se requiere familiar.
+
+luego de cada traslado, este se registra en la bitácora/hoja de ruta. incluye datos como kilometraje con el que se termino el traslado, datos de paciente, etc.
+
+Al final de la jornada:
+-se entrega la ambulancia con la cabina habilitada (limpia), llena de combustible.
+-se pone kilometraje para el siguiente que venga en el siguiente turno. Cualquier anomalia se deja en un asterisco abajo de la hoja.
+-el combustible tambien se registra. Se hace con sistema de tarjeta.
+-el detalle del combustible también se pone, junto con otros datos, en la bitácora/hoja de ruta en un apartado arriba a la derecha
+
+
+"km combustible" a que se refiere? como se registra el tema del combustible?:
+
+-para el registro de combustible se usan tarjetas para pagar a la hora de cargar.
+-Cada ambulancia tiene su tarjeta 
+-la tarjeta tiene clave
+-en la boleta resultante de la paga se tienen los litros, odómetro, etc.
+-cuando se carga combustible se pide odometro, rut del conductor y clave de tarjeta (por lo general se pide esta última)
+-Casi nadie anota los litros de combustible en la hoja de ruta
+
+
+
+------------
+SOBRE EXCEL:
+------------
+
+el enfoque está en las hojas "CATASTRO Y PLANIFICACIÓN MP" y "SEGUIMIENTO GASTO".
+
+que significa critico?
+-que es vital para el funcionamiento de hospital
+
+donde termina el vehiculo y comienzan los mantenimientos?
+-cuando se multiplican las filas (es una fila por cada mantenimiento)
+
+columna subasignacion:
+-hay un clasificador que define subtitulos (libro externo). los subtitulos resultantes estan en esta columna (subasignacion sigfe)
+
+la subasignación sigfe siempre es la misma (para un mantenimiento preventivo de ambulancia el código siempre va a ser 22.06.002.001 por ejemplo)
+-para el tema de las ruedas parece que cambia.
+
+hoja de "SEGUIMIENTO GASTO"
+-tabla superior: esto es lo que deberiamos hacer
+-tabla inferior: parte reparativa (cosas inesperadas y gastos que surgen)
+
+en columna numero de compra:
+-CC25: convenio de compra año 2025
+
+ESTADO SITUACIONAL
+-propio: es del hospital
+-a veces se arrienda
+
+vida util
+-años
+
+SAMU (servicio de atención medica de urgencia) son ambulancias en general
+
+vida util residual
+-resta entre años de vida util y años que se tiene. por eso derrepente es negativo. esto es cuando los años que se tienen sobrepasan los de vida útil
+
+valor hospital
+-convenios no centralizados. compras que se hacen en el momento. es el valor que se tiene en el momento
+
+valores en rojo en primera hoja ("CATASTRO Y PLANIFICACIÓN MP") son estimados. los valores de la segunda hoja ("SEGUIMIENTO GASTO") son los reales
+
+sobre mantenciones en primera hoja
+-el tick y verde significan que se hizo.
+-la x y blanco significa que no se hizo. 
+-la r y naranja significa que se reprogramó.
+-importante resaltar que el gasto se registra cuando se hace.
+
+AMB
+-ambulancias
+
+VEH TS
+-vehiculo de transporte (la camioneta)
+
+subasignación sigfe: sistema de gestion financiera del ministerio
+
+---------------------------
+SOBRE POTENCIAL PLATAFORMA:
+---------------------------
+
+hacer la pagina bien visualmente atractiva (monitos de los vehículos en color)
+
+lo que se quiere es tener un lugar para consulta de información de modo que se permita mejor toma de decisiones. algo centralizado, ideal gráfico, que se pueda exportar excel.
+
+ideal tener un sistema con harta info de ahi sacar cosas
+
+la idea es que la nueva plataforma REEMPLACE al excel de PLANILLA MANTENIMIENTO VEHÍCULOS
+
+existe infraestructura para poder instalar servidores
+
+quienes usarían esta plataforma?
+-laura (jefe de movilizacion, felipe (mantenimiento de equipos), otros usuarios (netamente para ver y exportar información)
+-osea, 2 administradores y el resto.
+-a fecha 17-11-25, nace idea de que los conductores también tengan un rol único, con más capacidades que lectores para registrar kilometraje y consumo de combustible, pero limitado para no poder manipular más datos.
+-a fecha 04-12-25, se complementa la idea anterior con la nueva idea de que los conductores seran capaces de ingresar directamente datos de bitacora a la plataforma, aunque tendrá que ser desde un computador en el hospital tras terminar un traslado.
+
+servicio de salud usa phoenix o kimun (a fecha 28-11-25 se decide no contemplar integración con esos sistemas)
+
+---------------------------------
+REUNIÓN TENIDA EL 20 DE NOVIEMBRE
+---------------------------------
+
+cosas importante a seguir
+-fecha de ingreso, este falla mucho, esta ha estado tantas horas fuera, en promedio este no se usa que representa tal.
+-hacer gestion sobre tema de mantenciones, y alertas sobre mantención. elementos visuales (que sea fácil, que sea facilmente accesible)
+
+como alimentamos de datos este sistema?
+
+director sugiere hablar con conductores
+-esto es hablar con usuarios y tomar notas (que hace? como lo hace?)
+-de ahi se toma nota para armar
+
+actores
+-jefe de los coonductores
+-encargado de mantenciones
+-ejecuta la mantencion
+-el que lleva el vehiculo a mantención
+
+todos los usuarios campos y atributos con limitaciones de acceso. a ellos hay que facilitarle la vida.
+
+hay que hacer el ejercicio donde un día se ve el proceso. quien participa, que hacen.
+-como los choferes van a registrar el tema?
+
+un buen programador hace un levantamiento de procesos con todos los involucrados.
+
+por ahora, al director le interesa que pasa con los que están en terreno.
+
+sugerencia
+-pararme del escritorio, pedir que me presenten a los conductores, y empezar a preguntar qué hacen.
+
+
+
+----------------------------
+COSAS EXTRAA
+----------------------------
+
+a laura le llegó la información de que hubo una pana el día 24-11-2025. comentaba como idea que con un software como el que voy a hacer debería poder saber que esa ambulancia se encuentra en pana.
+
+laura envía los días viernes el kilometraje de los vehículos al SSO. entonces es una vez a la semana.
+
+dudas que pude resolver:
+
+laura
+--como le llega la información de los kilometrajes a laura?: 
+
+whatsapp o telefono.
+
+--que información contiene el reporte de fallas?: 
+
+por medio de telefono o whatsapp o en persona, la información contenida es simple (se perdio tal check, perdió fuerza)
+
+--notifica esas fallas a SSO?: 
+
+via correo electronico al jefe de mantenimiento de moviles. le da la misma información que los conductores le dan
+
+----recibe respuesta del sso despues de eso?: 
+
+el jefe de mantenimiento procede a coordinar con los 2 talleres para que la maquina entre a taller, y le dicen que entra tal día a tal hora. hay que llevar la ambulancia de forma manual.
+
+--de donde se obtiene el dato de que una ambulancia no va a estar disponible por harto tiempo (lo cual llevaría a arriendo)?: 
+
+se informa también por correo. los mantenimietos preventivos son el mismo día por lo general. con los correctivos varía.
+
+
+felipe
+-de donde obtiene los datos que usa para poblar el excel?:
+---la información (monto, acción) sale de la orden de compra y la orden de trabajo. la planificación preventiva se hace también a principio de año.
+
+el presupuesto lo arman la misma gente de aqui en la oficina
+
+laura
+-que pasa con la bitácora/hoja de ruta? para donde va?
+---le llega a laura. por lo general una vez a la semana las va a buscar. a veces las recoge en cuanto pasa a saludar, a veces se la vienen a dejar.
+-donde queda registrada la información de arriendo?
+---llena checklist de como esta la ambulancia, le manda chacklist a jefe de abastecimiento, y este después envía orden de compra arriendo.
+
+como se determina cada cuantos kilometros debe hacerse mantención?
+-cada 10000 en las mercedes y la camioneta
+-cada 15000 la ford
+-depende del umbral que te dicen al adquirir el vehículo y dependiendo del uso (si se usa mucho, el umbral baja (mantenciones más seguidas), aunque es dificil que el umbral cambie con el tiempo)

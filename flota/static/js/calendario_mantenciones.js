@@ -2,21 +2,17 @@
 let vehiculosKilometraje = {};
 let calendar;
 
-// Cargar kilometraje de vehículos
-function cargarKilometrajeVehiculos() {
-    fetch('/api/vehiculos-kilometraje/')
-        .then(response => response.json())
-        .then(data => {
-            vehiculosKilometraje = data;
-        })
-        .catch(error => console.error('Error al cargar kilometraje:', error));
-}
-
-// Actualizar kilometraje en formulario de programar
-function actualizarKilometrajeProgramar(patente) {
+// Función para actualizar kilometraje basado en el vehículo seleccionado
+function actualizarKilometrajeProgramar() {
+    const selectVehiculo = document.getElementById('programar_vehiculo');
     const kmInput = document.getElementById('programar_km_al_ingreso');
-    if (kmInput && vehiculosKilometraje[patente] !== undefined) {
-        kmInput.value = vehiculosKilometraje[patente];
+    
+    if (selectVehiculo && kmInput) {
+        const selectedOption = selectVehiculo.options[selectVehiculo.selectedIndex];
+        const kilometraje = selectedOption.getAttribute('data-kilometraje');
+        if (kilometraje) {
+            kmInput.value = kilometraje;
+        }
     }
 }
 
@@ -29,8 +25,6 @@ function enviarProgramar() {
 }
 
 document.addEventListener('DOMContentLoaded', function() {
-    cargarKilometrajeVehiculos();
-    
     var calendarEl = document.getElementById('calendar');
     var eventsUrl = calendarEl.getAttribute('data-events-url');
     
@@ -91,12 +85,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const selectVehiculo = document.getElementById('programar_vehiculo');
     if (selectVehiculo) {
         selectVehiculo.addEventListener('change', function() {
-            const selectedOption = this.options[this.selectedIndex];
-            const kilometraje = selectedOption.getAttribute('data-kilometraje');
-            const kmInput = document.getElementById('programar_km_al_ingreso');
-            if (kmInput && kilometraje) {
-                kmInput.value = kilometraje;
-            }
+            actualizarKilometrajeProgramar();
         });
     }
 });

@@ -49,16 +49,30 @@ class UsuarioForm(forms.ModelForm):
     
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        # Si es una edición (instance existe), hacer password no obligatorio y RUT readonly
+        # Si es una edición (instance existe), hacer password no obligatorio
         if self.instance.pk:
             self.fields['password'].required = False
             self.fields['password_confirm'].required = False
             self.fields['password'].help_text = 'Dejar en blanco para mantener la contraseña actual'
-            # El RUT es la primary key, no debe ser editable
+            # El RUT NO es readonly porque ya no es PK, pero lo mantenemos readonly visualmente
+            # El valor se preservará mediante initial y clean_rut()
             self.fields['rut'].widget.attrs['readonly'] = True
+            # Establecer el valor inicial para que se envíe en POST
+            self.fields['rut'].initial = self.instance.rut
         else:
             self.fields['password'].required = True
             self.fields['password_confirm'].required = True
+    
+    def clean_rut(self):
+        """Asegurar que el RUT no cambie en ediciones"""
+        rut = self.cleaned_data.get('rut')
+        # Si el campo está readonly, puede venir vacío en POST, usar el valor de la instancia
+        if not rut and self.instance.pk:
+            rut = self.instance.rut
+        # Si se intenta cambiar el RUT en una edición, mantener el original
+        if self.instance.pk and rut and self.instance.rut != rut:
+            return self.instance.rut
+        return rut
     
     def clean_password(self):
         password = self.cleaned_data.get('password')
@@ -155,9 +169,23 @@ class VehiculoForm(forms.ModelForm):
     
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        # Si es una edición, hacer patente readonly (es la primary key)
+        # Si es una edición, patente NO es readonly porque no es PK
+        # Pero podría serlo por lógica de negocio (la patente no debería cambiar)
         if self.instance.pk:
-            self.fields['patente'].widget.attrs['readonly'] = True
+            self.fields['patente'].widget.attrs['readonly'] = True  # Mantener readonly visual
+            # Establecer el valor inicial para que se envíe en POST
+            self.fields['patente'].initial = self.instance.patente
+    
+    def clean_patente(self):
+        """Asegurar que la patente no cambie en ediciones"""
+        patente = self.cleaned_data.get('patente')
+        # Si el campo está readonly, puede venir vacío en POST, usar el valor de la instancia
+        if not patente and self.instance.pk:
+            patente = self.instance.patente
+        # Si se intenta cambiar la patente en una edición, mantener la original
+        if self.instance.pk and patente and self.instance.patente != patente:
+            return self.instance.patente
+        return patente
 
 
 class ProveedorForm(forms.ModelForm):
@@ -747,7 +775,7 @@ class ArriendoForm(forms.ModelForm):
             'fecha_fin', 
             'costo_diario', 
             'motivo',
-            'nro_orden_compra',
+            'nro_orden_compra',  # ESTO ES UNA FOREIGNKEY, no CharField
             'cuenta_presupuestaria'
         ]
         widgets = {
@@ -757,9 +785,12 @@ class ArriendoForm(forms.ModelForm):
             'vehiculo_arrendado': forms.Select(attrs={'class': 'form-select'}),
             'vehiculo_reemplazado': forms.Select(attrs={'class': 'form-select'}),
             'proveedor': forms.Select(attrs={'class': 'form-select'}),
-            'nro_orden_compra': forms.Select(attrs={'class': 'form-select'}),
+            'nro_orden_compra': forms.Select(attrs={'class': 'form-select'}),  # Cambiado de TextInput a Select
             'cuenta_presupuestaria': forms.Select(attrs={'class': 'form-select'}),
             'costo_diario': forms.NumberInput(attrs={'class': 'form-control'}),
+        }
+        labels = {
+            'nro_orden_compra': 'Orden de Compra asociada',
         }
 
     def __init__(self, *args, **kwargs):
@@ -781,6 +812,11 @@ class ArriendoForm(forms.ModelForm):
             es_arrendador=True, 
             activo=True
         ).order_by('nombre_fantasia')
+        
+        # Filtrar órdenes de compra (solo las emitidas)
+        self.fields['nro_orden_compra'].queryset = OrdenCompra.objects.filter(
+            estado='EMITIDA'
+        ).order_by('-fecha_emision')
         
         # Formatear fechas
         if self.instance and self.instance.pk:
@@ -858,16 +894,19 @@ class OrdenCompraForm(forms.ModelForm):
         widget=forms.TextInput(attrs={'class': 'form-control'}),
         help_text="Estado exacto de Mercado Público"
     )
+    
     class Meta:
         model = OrdenCompra
         fields = [
-            'nro_oc', 'fecha_emision', 'proveedor', 
+            'nro_oc', 'descripcion', 'fecha_emision', 'proveedor',  # Agregué 'descripcion'
             'monto_neto', 'impuesto', 'monto_total',
             'id_licitacion', 'folio_sigfe', 'estado',
-            'archivo_adjunto', 'cuenta_presupuestaria', 'orden_trabajo', 'vehiculo'
+            'archivo_adjunto', 'tipo_adquisicion',  # Agregué 'tipo_adquisicion'
+            'cuenta_presupuestaria', 'orden_trabajo', 'vehiculo'
         ]
         widgets = {
             'nro_oc': forms.TextInput(attrs={'class': 'form-control'}),
+            'descripcion': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),  # Nuevo
             'fecha_emision': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
             'proveedor': forms.Select(attrs={'class': 'form-control'}),
             'monto_neto': forms.NumberInput(attrs={'class': 'form-control', 'step': '1', 'min': '0'}),
@@ -875,15 +914,22 @@ class OrdenCompraForm(forms.ModelForm):
             'monto_total': forms.NumberInput(attrs={'class': 'form-control', 'step': '1', 'min': '0'}),
             'id_licitacion': forms.TextInput(attrs={'class': 'form-control'}),
             'folio_sigfe': forms.TextInput(attrs={'class': 'form-control'}),
-            #'estado': forms.TextInput(attrs={'class': 'form-control'}),
+            'estado': forms.TextInput(attrs={'class': 'form-control'}),  # Ahora sí en widgets
             'archivo_adjunto': forms.FileInput(attrs={'class': 'form-control'}),
+            'tipo_adquisicion': forms.Select(attrs={'class': 'form-control'}),  # Nuevo
             'cuenta_presupuestaria': forms.Select(attrs={'class': 'form-control'}),
             'orden_trabajo': forms.Select(attrs={'class': 'form-control'}),
             'vehiculo': forms.Select(attrs={'class': 'form-control'}),
         }
+        help_texts = {
+            'estado': 'Estado exacto de Mercado Público. Se normalizará automáticamente.',
+            'vehiculo': 'Vehículo asociado a esta orden de compra (opcional)',
+        }
     
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        
+        # Formatear fecha
         if self.instance.pk and self.instance.fecha_emision:
             self.fields['fecha_emision'].widget.attrs['value'] = self.instance.fecha_emision.strftime('%Y-%m-%d')
         
@@ -895,14 +941,15 @@ class OrdenCompraForm(forms.ModelForm):
                 self.fields['proveedor'].initial = ot.proveedor
             except (OrdenTrabajo.DoesNotExist, ValueError):
                 pass
-
-        if self.instance.pk:
-            self.fields['estado'].initial = self.instance.estado
+        
+        # Si no se proporciona estado, establecer uno por defecto
+        if not self.instance.pk:
+            self.fields['estado'].initial = 'EMITIDA'
     
     def clean_estado(self):
-        """Asegurar que el estado esté normalizado"""
-        from .models import normalizar_estado_oc
+        """Normalizar el estado usando la función del modelo"""
         estado = self.cleaned_data.get('estado')
+        from .models import normalizar_estado_oc
         return normalizar_estado_oc(estado)
 
     def save(self, commit=True):
