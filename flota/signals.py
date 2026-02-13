@@ -5,64 +5,63 @@ from decimal import Decimal
 from .models import Mantenimiento, Presupuesto, CargaCombustible, Arriendo, OrdenCompra
 
 @receiver(pre_save, sender=Mantenimiento)
-def validar_presupuesto_antes_de_guardar(sender, instance, **kwargs):
+def validar_cierre_administrativo_mantenimiento(sender, instance, **kwargs):
     """
-    Valida que haya presupuesto suficiente antes de guardar un mantenimiento.
-    Solo aplica para mantenimientos finalizados o que están siendo finalizados.
+    Valida condiciones de cierre administrativo: Finalizado requiere OC y presupuesto suficiente.
+    La ejecución presupuestaria se hace solo vía Mantenimiento.ejecutar_cierre_presupuestario().
     """
-    if instance.estado == 'Finalizado' and instance.costo_total_real > 0:
-        if instance.cuenta_presupuestaria and instance.vehiculo:
-            # Buscar presupuesto específico del vehículo
-            presupuesto = Presupuesto.objects.filter(
-                cuenta=instance.cuenta_presupuestaria,
-                vehiculo=instance.vehiculo,
-                anio=instance.fecha_ingreso.year,
-                activo=True
-            ).first()
-            
-            # Si no hay específico, buscar global
-            if not presupuesto:
-                presupuesto = Presupuesto.objects.filter(
-                    cuenta=instance.cuenta_presupuestaria,
-                    vehiculo__isnull=True,
-                    anio=instance.fecha_ingreso.year,
-                    activo=True
-                ).first()
-            
-            if presupuesto:
-                if not presupuesto.tiene_saldo_suficiente(instance.costo_total_real):
-                    raise ValueError(
-                        f"Presupuesto insuficiente. Disponible: ${presupuesto.disponible:.0f}, "
-                        f"Requerido: ${instance.costo_total_real:.0f}"
-                    )
-            else:
-                raise ValueError(
-                    f"No hay presupuesto asignado para la cuenta {instance.cuenta_presupuestaria.codigo} "
-                    f"en el año {instance.fecha_ingreso.year}"
-                )
+    if instance.estado != 'Finalizado':
+        return
+    # Obligatorio: Orden de Compra asociada
+    if not instance.orden_compra_id:
+        raise ValueError(
+            "No se puede cerrar un mantenimiento sin Orden de Compra asociada."
+        )
+    if (instance.costo_total_real or 0) <= 0:
+        raise ValueError(
+            "No se puede cerrar un mantenimiento sin costos reales."
+        )
+    if not instance.cuenta_presupuestaria or not instance.vehiculo:
+        return
+    presupuesto = Presupuesto.objects.filter(
+        cuenta=instance.cuenta_presupuestaria,
+        vehiculo=instance.vehiculo,
+        anio=instance.fecha_ingreso.year,
+        activo=True
+    ).first()
+    if not presupuesto:
+        presupuesto = Presupuesto.objects.filter(
+            cuenta=instance.cuenta_presupuestaria,
+            vehiculo__isnull=True,
+            anio=instance.fecha_ingreso.year,
+            activo=True
+        ).first()
+    if not presupuesto:
+        raise ValueError(
+            f"No hay presupuesto asignado para la cuenta {instance.cuenta_presupuestaria.codigo} "
+            f"en el año {instance.fecha_ingreso.year}."
+        )
+    if not presupuesto.tiene_saldo_suficiente(instance.costo_total_real):
+        raise ValueError(
+            f"Presupuesto insuficiente. Disponible: ${presupuesto.disponible:.0f}, "
+            f"Requerido: ${instance.costo_total_real:.0f}"
+        )
 
-@receiver(post_save, sender=Mantenimiento)
 @receiver(post_delete, sender=Mantenimiento)
-def actualizar_presupuesto_mantenimiento(sender, instance, **kwargs):
+def actualizar_presupuesto_al_borrar_mantenimiento(sender, instance, **kwargs):
     """
-    Cuando se guarda/borra un mantenimiento, buscar el presupuesto asociado y recalcular.
-    Solo para mantenimientos finalizados.
+    Al borrar un mantenimiento finalizado, recalcular presupuesto afectado.
+    La ejecución en guardado se hace solo vía Mantenimiento.ejecutar_cierre_presupuestario().
     """
     if instance.estado != 'Finalizado' or not instance.cuenta_presupuestaria:
         return
-
-    # Buscar presupuesto compatible (mismo año, misma cuenta, mismo vehículo si aplica)
     anio = instance.fecha_ingreso.year
-    
-    # Intentar buscar presupuesto específico del vehículo
     presupuestos = Presupuesto.objects.filter(
         cuenta=instance.cuenta_presupuestaria,
         anio=anio,
         vehiculo=instance.vehiculo,
         activo=True
     )
-    
-    # Si no hay específico, buscar general (si aplica lógica de bolsa común)
     if not presupuestos.exists():
         presupuestos = Presupuesto.objects.filter(
             cuenta=instance.cuenta_presupuestaria,
@@ -70,7 +69,6 @@ def actualizar_presupuesto_mantenimiento(sender, instance, **kwargs):
             vehiculo__isnull=True,
             activo=True
         )
-
     for p in presupuestos:
         recalcular_monto_ejecutado(p)
 
@@ -130,13 +128,20 @@ def recalcular_monto_ejecutado(presupuesto):
     )['total'] or Decimal('0')
     total += gastos_arriendo
 
-    # 4. Sumar Órdenes de Compra activas (no anuladas)
-    # Las OCs representan compromisos presupuestarios
+    # 4. Sumar Órdenes de Compra activas (no anuladas) que NO estén asociadas
+    # a un mantenimiento finalizado (evitar doble ejecución: el gasto ya está en gastos_mant).
     from django.db.models import Q
     
-    # Determinar vehículo para filtrar OCs
+    ids_oc_ya_contabilizadas = set(
+        Mantenimiento.objects.filter(
+            estado='Finalizado',
+            cuenta_presupuestaria=cuenta,
+            fecha_ingreso__year=anio,
+            orden_compra_id__isnull=False
+        ).values_list('orden_compra_id', flat=True).distinct()
+    )
+    
     if vehiculo:
-        # Buscar OCs del vehículo específico (directamente o a través de OT)
         ocs = OrdenCompra.objects.filter(
             cuenta_presupuestaria=cuenta,
             fecha_emision__year=anio
@@ -144,11 +149,13 @@ def recalcular_monto_ejecutado(presupuesto):
             Q(vehiculo=vehiculo) | Q(orden_trabajo__vehiculo=vehiculo)
         )
     else:
-        # Para presupuesto global, sumar todas las OCs
         ocs = OrdenCompra.objects.filter(
             cuenta_presupuestaria=cuenta,
             fecha_emision__year=anio
         ).exclude(estado='Anulada')
+    
+    if ids_oc_ya_contabilizadas:
+        ocs = ocs.exclude(id__in=ids_oc_ya_contabilizadas)
     
     gastos_oc = ocs.aggregate(
         total=Sum('monto_total')

@@ -1,0 +1,8 @@
+"id","anio","tipo_presupuesto","monto_asignado","monto_ejecutado","activo","cuenta_id","vehiculo_id"
+1,2025,"Preventivo",6280000,2944861,True,1,1
+3,2025,"Preventivo",8980000,0,True,1,2
+5,2025,"Preventivo",3760000,973539,True,1,3
+7,2025,"Preventivo",2440000,0,True,3,4
+8,2025,"Operativo",2000000,1869558,True,4,4
+9,2025,"Operativo",31105393,31105393,True,2,NULL
+10,2025,"Operativo",1869558,1869558,True,4,NULL

@@ -29,9 +29,16 @@ class ViajeAdmin(admin.ModelAdmin):
     list_filter = ('categoria_traslado', 'hoja_ruta__fecha')
     inlines = [ViajePacienteInline]
 
+@admin.register(PacienteViaje)
+class PacienteViajeAdmin(admin.ModelAdmin):
+    list_display = ('nombre', 'rut', 'prevision', 'creado_en')
+    search_fields = ('nombre', 'rut')
+    ordering = ('nombre',)
+
+
 @admin.register(PacienteTraslado)
 class PacienteTrasladoAdmin(admin.ModelAdmin):
-    list_display = ('viaje', 'nombre', 'destino_tipo', 'prevision')
+    list_display = ('viaje', 'nombre', 'rut', 'destino_tipo', 'prevision', 'paciente_viaje')
     list_filter = ('destino_tipo',)
     search_fields = ('nombre', 'rut')
 
@@ -43,8 +50,8 @@ class CargaCombustibleAdmin(admin.ModelAdmin):
 
 @admin.register(FallaReportada)
 class FallaReportadaAdmin(admin.ModelAdmin):
-    list_display = ('fecha_reporte', 'vehiculo', 'tipo_reporte', 'nivel_urgencia')
-    list_filter = ('tipo_reporte', 'nivel_urgencia', 'vehiculo')
+    list_display = ('fecha_reporte', 'vehiculo', 'nivel_urgencia')
+    list_filter = ('nivel_urgencia', 'vehiculo')
     date_hierarchy = 'fecha_reporte'
 
 @admin.register(AlertaMantencion)

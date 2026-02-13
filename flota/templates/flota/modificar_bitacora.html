@@ -1,5 +1,4 @@
 {% extends 'base.html' %}
-
 {% load static %}
 
 {% block title %}Modificar Bitácora - Gestión de Flota{% endblock %}
@@ -7,7 +6,7 @@
 {% block content %}
 <h2 class="mb-4"><i class="bi bi-journal-text"></i> Modificar Bitácora #{{ hoja.id }}</h2>
 
-<form method="post">
+<form method="post" id="form-modificar-bitacora">
     {% csrf_token %}
     <div class="row">
         <div class="col-md-6">
@@ -28,30 +27,39 @@
                 {{ form.km_inicio }}
             </div>
             <div class="mb-3">
-                <label for="{{ form.km_fin.id_for_label }}" class="form-label">Kilometraje Fin *</label>
+                <label for="{{ form.km_fin.id_for_label }}" class="form-label">Kilometraje Fin</label>
                 {{ form.km_fin }}
+                <small class="form-text text-muted">Opcional. Se actualiza al cerrar la hoja.</small>
             </div>
         </div>
         <div class="col-md-6">
             <div class="mb-3">
-                <label for="{{ form.medico.id_for_label }}" class="form-label">Médico</label>
-                {{ form.medico }}
+                <label for="{{ form.medico_derivador.id_for_label }}" class="form-label">Médico derivador *</label>
+                {{ form.medico_derivador }}
+            </div>
+            <div class="mb-3">
+                <label for="{{ form.tens.id_for_label }}" class="form-label">TENS *</label>
+                {{ form.tens }}
             </div>
             <div class="mb-3">
                 <label for="{{ form.enfermero.id_for_label }}" class="form-label">Enfermero/a</label>
                 {{ form.enfermero }}
             </div>
             <div class="mb-3">
-                <label for="{{ form.tens.id_for_label }}" class="form-label">TENS</label>
-                {{ form.tens }}
+                <div class="form-check">
+                    {{ form.no_aplica_enfermero }}
+                    <label class="form-check-label" for="{{ form.no_aplica_enfermero.id_for_label }}">No aplica Enfermero</label>
+                </div>
             </div>
             <div class="mb-3">
                 <label for="{{ form.camillero.id_for_label }}" class="form-label">Camillero</label>
                 {{ form.camillero }}
             </div>
             <div class="mb-3">
-                <label for="{{ form.observaciones.id_for_label }}" class="form-label">Observaciones</label>
-                {{ form.observaciones }}
+                <div class="form-check">
+                    {{ form.no_aplica_camillero }}
+                    <label class="form-check-label" for="{{ form.no_aplica_camillero.id_for_label }}">No aplica Camillero</label>
+                </div>
             </div>
         </div>
     </div>
@@ -63,6 +71,5 @@
 {% endblock %}
 
 {% block extra_js %}
-<script src="{% static 'js/validaciones.js' %}"></script>
 <script src="{% static 'js/modificar_bitacora.js' %}"></script>
 {% endblock %}

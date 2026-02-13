@@ -8,7 +8,10 @@ document.addEventListener('DOMContentLoaded', function() {
     // 3. Configurar validación del formulario
     configurarValidacionFormulario();
     
-    // 4. Configurar observador de cambios en pacientes
+    // 4. Establecer valor por defecto de km_llegada si está vacío
+    setDefaultKmLlegada();
+    
+    // 5. Configurar observador de cambios en pacientes
     const pacientesContainer = document.getElementById('pacientes-container');
     if (pacientesContainer) {
         const observer = new MutationObserver(function() {
@@ -21,7 +24,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    // 5. Verificar horas HBO inicialmente
+    // 6. Verificar horas HBO inicialmente
     setTimeout(toggleHorasHBO, 100);
 });
 
@@ -110,6 +113,24 @@ function initFormsetPacientes() {
 // Configura el comportamiento de una fila de paciente
 function initRowListeners(rowElement) {
     if (!rowElement) return;
+    
+    // 0. Lista desplegable "Paciente de traslados anteriores": autocompletar nombre, RUT y previsión
+    const pacienteAnteriorSelect = rowElement.querySelector('.paciente-anterior-select');
+    if (pacienteAnteriorSelect) {
+        pacienteAnteriorSelect.addEventListener('change', function() {
+            const opt = this.options[this.selectedIndex];
+            if (!opt || !opt.value) return;
+            const nombre = opt.getAttribute('data-nombre') || '';
+            const rut = opt.getAttribute('data-rut') || '';
+            const prevision = opt.getAttribute('data-prevision') || '';
+            const nombreInput = rowElement.querySelector('input[name*="-nombre"]') || rowElement.querySelector('.paciente-nombre');
+            const rutInput = rowElement.querySelector('input[name*="-rut"]') || rowElement.querySelector('.paciente-rut');
+            const previsionInput = rowElement.querySelector('input[name*="-prevision"]') || rowElement.querySelector('.paciente-prevision');
+            if (nombreInput) nombreInput.value = nombre;
+            if (rutInput) rutInput.value = rut;
+            if (previsionInput) previsionInput.value = prevision;
+        });
+    }
     
     // 1. Lógica Destino -> Dirección
     const destinoSelect = rowElement.querySelector('.destino-selector');
@@ -209,41 +230,90 @@ function toggleHorasHBO() {
     }
 }
 
-// 4. Configurar validación del formulario
+// 4. Establecer valor por defecto de km_llegada = km_salida + 1
+function setDefaultKmLlegada() {
+    const kmSalida = document.querySelector('[name="km_salida"]');
+    const kmLlegada = document.querySelector('[name="km_llegada"]');
+    if (kmSalida && kmLlegada && !kmLlegada.value) {
+        const salida = parseInt(kmSalida.value);
+        if (!isNaN(salida)) {
+            kmLlegada.value = salida + 1;
+        }
+    }
+}
+
+// 5. Configurar validación del formulario (incluye control de KM)
 function configurarValidacionFormulario() {
+    const kmSalida = document.querySelector('[name="km_salida"]');
+    const kmLlegada = document.querySelector('[name="km_llegada"]');
+
+    // --- Validación en tiempo real de KM ---
+    if (kmSalida && kmLlegada) {
+        function validarKmEnTiempoReal() {
+            const salida = parseInt(kmSalida.value);
+            const llegada = parseInt(kmLlegada.value);
+            if (!isNaN(salida) && !isNaN(llegada) && llegada < salida) {
+                kmLlegada.value = salida;  // Corregir automáticamente
+                kmLlegada.classList.add('is-invalid');
+            } else {
+                kmLlegada.classList.remove('is-invalid');
+            }
+        }
+
+        kmSalida.addEventListener('input', validarKmEnTiempoReal);
+        kmLlegada.addEventListener('input', validarKmEnTiempoReal);
+
+        // Forzar corrección si el valor ya es inválido al cargar
+        validarKmEnTiempoReal();
+    }
+
+    // --- Validación al enviar el formulario ---
     const form = document.getElementById('form-viaje');
     if (form) {
         // Agregar novalidate para desactivar validación nativa del navegador
         form.setAttribute('novalidate', 'novalidate');
         
         form.addEventListener('submit', function(event) {
-            // Validar campos requeridos
-            const requiredFields = form.querySelectorAll('[required]');
+            // Remover alertas previas
+            const oldAlert = form.parentNode.querySelector('.alert-danger');
+            if (oldAlert) oldAlert.remove();
+
             let formIsValid = true;
             const errorMessages = [];
             
+            // 1. Validar campos requeridos visibles
+            const requiredFields = form.querySelectorAll('[required]');
             requiredFields.forEach(field => {
-                // Solo validar campos visibles
                 if (field.offsetParent !== null && !field.value.trim()) {
                     field.classList.add('is-invalid');
                     formIsValid = false;
                     
-                    // Obtener nombre del campo
-                    const fieldName = field.name || field.id || 'Campo';
                     const label = form.querySelector(`label[for="${field.id}"]`) || field.previousElementSibling;
-                    const labelText = label ? label.textContent : fieldName;
-                    
+                    const labelText = label ? label.textContent.trim() : (field.name || 'Campo');
                     errorMessages.push(`${labelText} es obligatorio`);
                 } else if (field.offsetParent !== null) {
                     field.classList.remove('is-invalid');
                 }
             });
             
-            // Validar que haya al menos un paciente
+            // 2. Validar que haya al menos un paciente/pasajero
             const pacienteRows = document.querySelectorAll('.paciente-row');
             if (pacienteRows.length === 0) {
                 formIsValid = false;
                 errorMessages.push('Debe agregar al menos un paciente/pasajero');
+            }
+            
+            // 3. Validar KM Llegada no menor que KM Salida
+            if (kmLlegada && kmLlegada.value.trim() !== '') {
+                const salida = parseInt(kmSalida.value);
+                const llegada = parseInt(kmLlegada.value);
+                if (!isNaN(salida) && !isNaN(llegada) && llegada < salida) {
+                    formIsValid = false;
+                    errorMessages.push('El KM de llegada no puede ser menor que el KM de salida');
+                    kmLlegada.classList.add('is-invalid');
+                } else {
+                    kmLlegada.classList.remove('is-invalid');
+                }
             }
             
             // Mostrar errores si los hay
@@ -251,7 +321,6 @@ function configurarValidacionFormulario() {
                 event.preventDefault();
                 event.stopPropagation();
                 
-                // Mostrar mensaje de error
                 const errorDiv = document.createElement('div');
                 errorDiv.className = 'alert alert-danger mt-3';
                 errorDiv.innerHTML = `
@@ -274,4 +343,3 @@ function configurarValidacionFormulario() {
         });
     }
 }
-

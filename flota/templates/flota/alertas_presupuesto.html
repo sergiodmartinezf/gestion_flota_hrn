@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load moneda_clp %}
 
 {% block title %}Alertas de Presupuesto - Gestión de Flota{% endblock %}
 
@@ -23,11 +24,17 @@
     <tbody>
         {% for item in alertas %}
         <tr>
-            <td><strong>{{ item.presupuesto.vehiculo.patente }}</strong></td>
+            <td>
+                {% if item.presupuesto.vehiculo %}
+                    <strong>{{ item.presupuesto.vehiculo.patente }}</strong>
+                {% else %}
+                    <span class="text-muted">Flota General</span>
+                {% endif %}
+            </td>
             <td>{{ item.presupuesto.anio }}</td>
-            <td>{{ item.presupuesto.categoria }}</td>
+            <td>{{ item.presupuesto.get_tipo_presupuesto_display }}</td>
             <td><span class="badge bg-danger">{{ item.porcentaje|floatformat:1 }}%</span></td>
-            <td>${{ item.monto_restante|floatformat:0 }}</td>
+            <td>${{ item.monto_restante|clp }}</td>
         </tr>
         {% endfor %}
     </tbody>

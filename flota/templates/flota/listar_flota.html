@@ -16,6 +16,7 @@
     <div class="card mb-4">
         <div class="card-body">
             <form method="get" class="row g-3">
+                <!-- Estado -->
                 <div class="col-md-3">
                     <label for="estado" class="form-label">Estado:</label>
                     <select name="estado" id="estado" class="form-select">
@@ -27,15 +28,21 @@
                         <option value="Baja" {% if estado_filter == 'Baja' %}selected{% endif %}>Baja</option>
                     </select>
                 </div>
+    
+                <!-- Tipo de Carrocería (dinámico) -->
                 <div class="col-md-3">
                     <label for="tipo_carroceria" class="form-label">Tipo de Carrocería:</label>
                     <select name="tipo_carroceria" id="tipo_carroceria" class="form-select">
                         <option value="">Todos los tipos</option>
-                        {% for tipo in vehiculos.first.get_tipo_carroceria_display.tipo_carroceria %}
-                        <option value="{{ tipo.0 }}" {% if tipo_filter == tipo.0 %}selected{% endif %}>{{ tipo.1 }}</option>
+                        {% for valor, etiqueta in tipos_carroceria %}
+                            <option value="{{ valor }}" {% if tipo_filter == valor %}selected{% endif %}>
+                                {{ etiqueta }}
+                            </option>
                         {% endfor %}
                     </select>
                 </div>
+    
+                <!-- Tipo de Propiedad -->
                 <div class="col-md-3">
                     <label for="tipo_propiedad" class="form-label">Tipo de Propiedad:</label>
                     <select name="tipo_propiedad" id="tipo_propiedad" class="form-select">
@@ -44,6 +51,8 @@
                         <option value="Arrendado" {% if propiedad_filter == 'Arrendado' %}selected{% endif %}>Arrendado</option>
                     </select>
                 </div>
+    
+                <!-- Criticidad -->
                 <div class="col-md-3">
                     <label for="criticidad" class="form-label">Criticidad:</label>
                     <select name="criticidad" id="criticidad" class="form-select">
@@ -52,6 +61,8 @@
                         <option value="No crítico" {% if criticidad_filter == 'No crítico' %}selected{% endif %}>No crítico</option>
                     </select>
                 </div>
+    
+                <!-- Botones -->
                 <div class="col-md-12 d-flex align-items-end">
                     <div class="btn-group">
                         <button type="submit" class="btn btn-primary">

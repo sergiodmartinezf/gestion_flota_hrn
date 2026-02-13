@@ -2,7 +2,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib import messages
 from django.utils import timezone
-from ..models import Arriendo, Mantenimiento, Vehiculo, Proveedor  # Agregué Proveedor
+from ..models import Arriendo, Mantenimiento, Vehiculo, Proveedor
 from ..forms import ArriendoForm
 from .utilidades import es_administrador
 
@@ -70,7 +70,14 @@ def registrar_arriendo(request):
     else:
         form = ArriendoForm()
     
-    return render(request, 'flota/registrar_arriendo.html', {'form': form})
+    vehiculos_arrendados_existentes = Vehiculo.objects.filter(
+        tipo_propiedad='Arrendado'
+    ).exists()
+
+    return render(request, 'flota/registrar_arriendo.html', {
+        'form': form,
+        'vehiculos_arrendados_existentes': vehiculos_arrendados_existentes,
+    })
 
 @login_required
 @user_passes_test(es_administrador)

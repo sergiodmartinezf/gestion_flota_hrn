@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load moneda_clp %}
 
 {% block content %}
 <div class="container-fluid">
@@ -108,7 +109,7 @@
                             <td><strong>{{ orden.nro_oc }}</strong></td>
                             <td>{{ orden.fecha_emision|date:"d/m/Y" }}</td>
                             <td>{{ orden.proveedor.nombre_fantasia }}</td>
-                            <td class="text-end">${{ orden.monto_total|floatformat:0 }}</td>
+                            <td class="text-end">${{ orden.monto_total|clp }}</td>
                             <td><span class="badge bg-info">{{ orden.estado }}</span></td>
                             <td>
                                 <a href="{% url 'detalle_orden_compra' orden.id %}" class="btn btn-sm btn-info me-1"

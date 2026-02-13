@@ -9,12 +9,13 @@ document.addEventListener('DOMContentLoaded', function() {
             errores.push(...validarFecha(document.getElementById('id_fecha')?.value, 'fecha', true));
             errores.push(...validarSeleccion(document.getElementById('id_turno')?.value, 'turno', true));
             errores.push(...validarEnteroPositivo(document.getElementById('id_km_inicio')?.value, 'kilometraje inicio', 0, 9999999, true));
-            errores.push(...validarEnteroPositivo(document.getElementById('id_km_fin')?.value, 'kilometraje fin', 0, 9999999, true));
+            errores.push(...validarEnteroPositivo(document.getElementById('id_km_fin')?.value, 'kilometraje fin', 0, 9999999, false));
 
-            // Validar que km_fin >= km_inicio
+            // Validar que km_fin >= km_inicio (si ambos están informados)
             const kmInicio = parseInt(document.getElementById('id_km_inicio')?.value || 0);
-            const kmFin = parseInt(document.getElementById('id_km_fin')?.value || 0);
-            if (kmFin < kmInicio) {
+            const kmFinVal = document.getElementById('id_km_fin')?.value;
+            const kmFin = kmFinVal !== '' && kmFinVal != null ? parseInt(kmFinVal) : null;
+            if (kmFin !== null && kmFin < kmInicio) {
                 errores.push('El kilometraje fin debe ser mayor o igual al kilometraje inicio');
             }
 

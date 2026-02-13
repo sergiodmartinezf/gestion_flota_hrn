@@ -6,8 +6,9 @@ from django.contrib import messages
 from django.db.models import Sum
 from django.http import HttpResponse
 from django.utils import timezone
-import xlwt
-from ..models import HojaRuta, CargaCombustible, FallaReportada, AlertaMantencion, Viaje, Vehiculo, Usuario, PacienteTraslado
+from openpyxl import Workbook
+from openpyxl.styles import Font
+from ..models import HojaRuta, CargaCombustible, FallaReportada, AlertaMantencion, Viaje, Vehiculo, Usuario, PacienteTraslado, PacienteViaje
 from ..forms import HojaRutaForm, CargaCombustibleForm, FallaReportadaForm, ViajeForm, PacienteFormSet
 from .utilidades import es_conductor_o_admin, es_administrador
 from datetime import datetime, timedelta
@@ -83,14 +84,15 @@ def cerrar_hoja_ruta(request, id):
                 messages.error(request, f"El KM final ({km_final}) no puede ser menor al inicial ({hoja.km_inicio}).")
                 return redirect('agregar_viaje', id=hoja.id)
 
-            # Validar contra el último viaje si existe
-            ultimo_viaje = hoja.viajes.order_by('km_fin_viaje').last()
-            if ultimo_viaje and km_final < ultimo_viaje.km_fin_viaje:
-                messages.warning(request, f"Atención: El KM de cierre es menor al del último viaje registrado ({ultimo_viaje.km_fin_viaje}).")
+            # Validar contra el último viaje si existe (Viaje usa km_llegada, no km_fin_viaje)
+            ultimo_viaje = hoja.viajes.order_by('-km_llegada').first()
+            if ultimo_viaje and ultimo_viaje.km_llegada and km_final < ultimo_viaje.km_llegada:
+                messages.warning(request, f"Atención: El KM de cierre es menor al del último viaje registrado ({ultimo_viaje.km_llegada}).")
             
-            # Guardar cierre
+            # Guardar cierre y marcar hoja como cerrada
             hoja.km_fin = km_final
-            hoja.save()
+            hoja.abierta = False
+            hoja.save(update_fields=['km_fin', 'abierta'])
             
             # Actualizar KM del vehículo también para asegurar sincronía
             vehiculo = hoja.vehiculo
@@ -113,47 +115,21 @@ def cerrar_hoja_ruta(request, id):
 def registrar_bitacora(request):
     if request.method == 'POST':
         form = HojaRutaForm(request.POST)
-        
         if form.is_valid():
-            try:
-                hoja_ruta = form.save(commit=False)
-                hoja_ruta.conductor = request.user
-                
-                # Si es camioneta, asegurarnos de que los campos estén vacíos
-                if hoja_ruta.vehiculo.tipo_carroceria == 'Camioneta':
-                    hoja_ruta.no_aplica_enfermero = True
-                    hoja_ruta.no_aplica_camillero = True
-                    hoja_ruta.enfermero = ''
-                    hoja_ruta.camillero = ''
-                
-                hoja_ruta.save()
-                
-                es_camioneta = hoja_ruta.vehiculo.tipo_carroceria == 'Camioneta'
-                
-                request.session['hoja_nueva_id'] = hoja_ruta.id
-                request.session['es_camioneta'] = es_camioneta
-                
-                messages.success(request, f'Hoja de ruta creada exitosamente. Ahora registre el primer viaje.')
-                return redirect('agregar_viaje', id=hoja_ruta.id)
-                
-            except Exception as e:
-                import traceback
-                traceback.print_exc()
-                messages.error(request, f'Error al guardar: {str(e)}')
+            hoja_ruta = form.save(commit=False)
+            hoja_ruta.conductor = request.user
+            hoja_ruta.save()
+            messages.success(request, 'Hoja de ruta creada exitosamente.')
+            return redirect('agregar_viaje', id=hoja_ruta.id)
         else:
-            # Mostrar errores del formulario
+            # Mostrar errores de forma clara
             for field, errors in form.errors.items():
                 for error in errors:
-                    messages.error(request, f'{field}: {error}')
+                    messages.error(request, f"{field}: {error}")
     else:
         form = HojaRutaForm()
-    
-    # Preparar datos para el template
-    vehiculos = Vehiculo.objects.filter(
-        estado__in=['Disponible', 'En uso']
-    ).order_by('patente')
-    
-    # Crear lista de vehículos con patente, modelo y kilometraje
+
+    vehiculos = Vehiculo.objects.filter(estado__in=['Disponible', 'En uso']).order_by('patente')
     vehiculos_info = [
         {
             'patente': v.patente,
@@ -163,12 +139,12 @@ def registrar_bitacora(request):
         }
         for v in vehiculos
     ]
-    
     return render(request, 'flota/registrar_hoja_ruta.html', {
         'form': form,
         'vehiculos': vehiculos,
         'vehiculos_info': vehiculos_info
     })
+
 
 @login_required
 @user_passes_test(es_conductor_o_admin)
@@ -195,10 +171,16 @@ def agregar_viaje(request, id):
                 if paciente_formset.is_valid():
                     viaje.save()  # Guardar viaje primero
                     
-                    # Guardar pacientes
+                    # Guardar pacientes y actualizar tabla maestra PacienteViaje
                     pacientes = paciente_formset.save(commit=False)
                     for paciente in pacientes:
                         paciente.viaje = viaje
+                        if paciente.rut and paciente.nombre:
+                            pv, _ = PacienteViaje.objects.get_or_create(
+                                rut=paciente.rut.strip(),
+                                defaults={'nombre': paciente.nombre, 'prevision': paciente.prevision or ''}
+                            )
+                            paciente.paciente_viaje = pv
                         paciente.save()
                     
                     # Guardar también los que se marcaron para eliminar
@@ -218,11 +200,25 @@ def agregar_viaje(request, id):
         # Formset vacío inicialmente
         paciente_formset = PacienteFormSet(queryset=PacienteTraslado.objects.none())
 
+    # En viajes.py, dentro de agregar_viaje (GET)
+    if request.method == 'GET':
+        km_sugerido = ultimo_viaje.km_llegada if ultimo_viaje and ultimo_viaje.km_llegada else hoja.km_inicio
+        initial_data = {
+            'km_salida': km_sugerido,
+            'km_llegada': km_sugerido + 1 if km_sugerido is not None else None,
+            'hora_salida': timezone.now().strftime('%H:%M')
+        }
+        form = ViajeForm(initial=initial_data)
+
+    # Lista de pacientes de traslados anteriores para el desplegable
+    pacientes_anteriores = PacienteViaje.objects.all().order_by('nombre')[:300]
+    
     context = {
         'hoja': hoja,
         'form': form,
         'paciente_formset': paciente_formset,
-        'ultimos_viajes': hoja.viajes.all().order_by('-id')[:5]
+        'ultimos_viajes': hoja.viajes.all().order_by('-id')[:5],
+        'pacientes_anteriores': pacientes_anteriores,
     }
     return render(request, 'flota/registrar_viaje.html', context)
 
@@ -302,18 +298,17 @@ def modificar_bitacora(request, id):
 @login_required
 def detalle_bitacora(request, id):
     hoja = get_object_or_404(HojaRuta, id=id)
-    viajes = hoja.viajes.all()
+    viajes = hoja.viajes.prefetch_related('pacientes').all()
     
-    # Calcular totales
+    # Calcular totales con atributos reales del modelo (km_salida, km_llegada)
     total_km_viajes = sum(v.km_recorridos_calculados for v in viajes)
     
-    # Calcular KM final de la hoja (máximo KM de los viajes)
+    # KM final de la hoja: el mayor km_llegada de los viajes o el ya guardado en la hoja
     if viajes.exists():
-        km_fin_hoja = max(v.km_fin_viaje for v in viajes)
-        hoja.km_fin = km_fin_hoja
-        hoja.save(update_fields=['km_fin'])
+        km_llegadas = [v.km_llegada for v in viajes if v.km_llegada is not None]
+        km_fin_hoja = max(km_llegadas) if km_llegadas else hoja.km_fin or hoja.km_inicio
     else:
-        km_fin_hoja = hoja.km_inicio
+        km_fin_hoja = hoja.km_fin or hoja.km_inicio
 
     return render(request, 'flota/detalle_bitacora.html', {
         'hoja': hoja,
@@ -409,16 +404,10 @@ def registrar_incidente(request):
                 falla = form.save(commit=False)
                 falla.conductor = request.user
                 falla.save()
-                
-                # Crear alerta: por falla (km >= umbral) o por reporte de desempeño del conductor
+
+                # Crear alerta por falla cuando se supera el umbral de mantención
                 vehiculo = falla.vehiculo
-                if falla.tipo_reporte == 'Desempeño':
-                    AlertaMantencion.objects.create(
-                        vehiculo=vehiculo,
-                        descripcion=f'Reporte de desempeño del conductor: {falla.descripcion}',
-                        valor_umbral=vehiculo.kilometraje_actual,
-                    )
-                elif vehiculo.umbral_mantencion > 0 and vehiculo.kilometraje_actual >= vehiculo.umbral_mantencion:
+                if vehiculo.umbral_mantencion > 0 and vehiculo.kilometraje_actual >= vehiculo.umbral_mantencion:
                     AlertaMantencion.objects.create(
                         vehiculo=vehiculo,
                         descripcion=f'Falla reportada: {falla.descripcion}',
@@ -497,27 +486,27 @@ def exportar_traslados_form(request):
     })
 
 
-# --- NUEVA VISTA EXPORTAR VIAJES (REQ: Exportar datos consolidados) ---
+# --- EXPORTAR VIAJES CONSOLIDADO (openpyxl, una fila por paciente) ---
 @login_required
 def exportar_consolidado_viajes(request):
-    # Filtros opcionales: desde, hasta, vehiculo, conductor
     desde = request.GET.get('desde')
     hasta = request.GET.get('hasta')
     vehiculo_filtro = request.GET.get('vehiculo')
     conductor_filtro = request.GET.get('conductor')
 
-    viajes = Viaje.objects.select_related('hoja_ruta', 'hoja_ruta__vehiculo', 'hoja_ruta__conductor').all()
+    viajes = Viaje.objects.select_related(
+        'hoja_ruta', 'hoja_ruta__vehiculo', 'hoja_ruta__conductor'
+    ).prefetch_related('pacientes').all()
+
     if desde:
         try:
-            from datetime import datetime as dt
-            fecha_desde = dt.strptime(desde, '%Y-%m-%d').date()
+            fecha_desde = datetime.strptime(desde, '%Y-%m-%d').date()
             viajes = viajes.filter(hoja_ruta__fecha__gte=fecha_desde)
         except ValueError:
             pass
     if hasta:
         try:
-            from datetime import datetime as dt
-            fecha_hasta = dt.strptime(hasta, '%Y-%m-%d').date()
+            fecha_hasta = datetime.strptime(hasta, '%Y-%m-%d').date()
             viajes = viajes.filter(hoja_ruta__fecha__lte=fecha_hasta)
         except ValueError:
             pass
@@ -527,34 +516,67 @@ def exportar_consolidado_viajes(request):
         viajes = viajes.filter(hoja_ruta__conductor__rut=conductor_filtro)
     viajes = viajes.order_by('-hoja_ruta__fecha')
 
-    response = HttpResponse(content_type='application/ms-excel')
-    response['Content-Disposition'] = f'attachment; filename="consolidado_traslados_{timezone.now().date()}.xls"'
+    wb = Workbook()
+    ws = wb.active
+    ws.title = 'Traslados'
 
-    wb = xlwt.Workbook(encoding='utf-8')
-    ws = wb.add_sheet('Traslados')
+    headers = [
+        'Fecha', 'Vehículo', 'Conductor', 'Turno', 'Hora Salida', 'Hora Llegada',
+        'Destino', 'Paciente', 'RUT Paciente', 'Tipo Servicio', 'Kms Viaje'
+    ]
+    for col_num, header in enumerate(headers, 1):
+        cell = ws.cell(row=1, column=col_num, value=header)
+        cell.font = Font(bold=True)
 
-    # Encabezados
-    headers = ['Fecha', 'Vehículo', 'Conductor', 'Turno', 'Hora Salida', 'Hora Llegada',
-               'Destino', 'Paciente', 'RUT Paciente', 'Tipo Servicio', 'Kms Viaje']
+    row_num = 2
+    for viaje in viajes:
+        hoja = viaje.hoja_ruta
+        fecha_str = hoja.fecha.strftime('%d-%m-%Y')
+        vehiculo_patente = hoja.vehiculo.patente
+        conductor_nombre = hoja.conductor.nombre_completo
+        turno = hoja.turno
+        hora_salida = viaje.hora_salida.strftime('%H:%M')
+        hora_llegada = viaje.hora_llegada.strftime('%H:%M') if viaje.hora_llegada else '-'
+        km_viaje = viaje.km_recorridos_calculados
 
-    for col_num, header in enumerate(headers):
-        ws.write(0, col_num, header, xlwt.easyxf('font: bold on'))
+        pacientes = list(viaje.pacientes.all())
+        if not pacientes:
+            ws.cell(row=row_num, column=1, value=fecha_str)
+            ws.cell(row=row_num, column=2, value=vehiculo_patente)
+            ws.cell(row=row_num, column=3, value=conductor_nombre)
+            ws.cell(row=row_num, column=4, value=turno)
+            ws.cell(row=row_num, column=5, value=hora_salida)
+            ws.cell(row=row_num, column=6, value=hora_llegada)
+            ws.cell(row=row_num, column=7, value='-')
+            ws.cell(row=row_num, column=8, value='Sin pacientes')
+            ws.cell(row=row_num, column=9, value='')
+            ws.cell(row=row_num, column=10, value='')
+            ws.cell(row=row_num, column=11, value=km_viaje)
+            row_num += 1
+        else:
+            for p in pacientes:
+                destino_display = p.get_destino_tipo_display()
+                if p.direccion_especifica and p.destino_tipo == 'DOMICILIO':
+                    destino_display += f" - {p.direccion_especifica}"
+                ws.cell(row=row_num, column=1, value=fecha_str)
+                ws.cell(row=row_num, column=2, value=vehiculo_patente)
+                ws.cell(row=row_num, column=3, value=conductor_nombre)
+                ws.cell(row=row_num, column=4, value=turno)
+                ws.cell(row=row_num, column=5, value=hora_salida)
+                ws.cell(row=row_num, column=6, value=hora_llegada)
+                ws.cell(row=row_num, column=7, value=destino_display)
+                ws.cell(row=row_num, column=8, value=p.nombre)
+                ws.cell(row=row_num, column=9, value=p.rut or '')
+                ws.cell(row=row_num, column=10, value=p.prevision or '')
+                ws.cell(row=row_num, column=11, value=km_viaje)
+                row_num += 1
 
-    # Datos
-
-    for row_num, viaje in enumerate(viajes, 1):
-        ws.write(row_num, 0, viaje.hoja_ruta.fecha.strftime('%d-%m-%Y'))
-        ws.write(row_num, 1, viaje.hoja_ruta.vehiculo.patente)
-        ws.write(row_num, 2, viaje.hoja_ruta.conductor.nombre_completo)
-        ws.write(row_num, 3, viaje.hoja_ruta.turno)
-        ws.write(row_num, 4, viaje.hora_salida.strftime('%H:%M'))
-        ws.write(row_num, 5, viaje.hora_llegada.strftime('%H:%M') if viaje.hora_llegada else '-')
-        ws.write(row_num, 6, viaje.destino)
-        ws.write(row_num, 7, viaje.nombre_paciente)
-        ws.write(row_num, 8, viaje.rut_paciente)
-        ws.write(row_num, 9, viaje.tipo_servicio)
-        ws.write(row_num, 10, viaje.km_recorridos_calculados)
-
+    response = HttpResponse(
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
+    response['Content-Disposition'] = (
+        f'attachment; filename="consolidado_traslados_{timezone.now().date()}.xlsx"'
+    )
     wb.save(response)
     return response
     

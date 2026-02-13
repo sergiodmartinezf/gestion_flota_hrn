@@ -76,7 +76,6 @@
                     <div class="text-danger small">{{ form.anio_adquisicion.errors }}</div>
                 {% endif %}
             </div>
-            <!-- AÑADE ESTOS DOS CAMPOS FALTANTES -->
             <div class="mb-3">
                 <label for="{{ form.vida_util.id_for_label }}" class="form-label">Vida Útil (años)</label>
                 {{ form.vida_util }}
@@ -101,7 +100,7 @@
                     <div class="text-danger small">{{ form.tipo_carroceria.errors }}</div>
                 {% endif %}
             </div>
-            <div class="mb-3">
+            <div class="mb-3" id="grupo-clase-ambulancia">
                 <label for="{{ form.clase_ambulancia.id_for_label }}" class="form-label">Clase Ambulancia</label>
                 {{ form.clase_ambulancia }}
                 {% if form.clase_ambulancia.errors %}
@@ -130,13 +129,6 @@
                 {% endif %}
             </div>
             <div class="mb-3">
-                <label for="{{ form.tipo_propiedad.id_for_label }}" class="form-label">Tipo Propiedad *</label>
-                {{ form.tipo_propiedad }}
-                {% if form.tipo_propiedad.errors %}
-                    <div class="text-danger small">{{ form.tipo_propiedad.errors }}</div>
-                {% endif %}
-            </div>
-            <div class="mb-3">
                 <label for="{{ form.criticidad.id_for_label }}" class="form-label">Criticidad *</label>
                 {{ form.criticidad }}
                 {% if form.criticidad.errors %}
@@ -162,4 +154,21 @@
     <button type="submit" class="btn btn-primary">Registrar</button>
     <a href="{% url 'listar_flota' %}" class="btn btn-secondary">Cancelar</a>
 </form>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const tipoCarroceriaSelect = document.getElementById('{{ form.tipo_carroceria.id_for_label }}');
+    const grupoClaseAmbulancia = document.getElementById('grupo-clase-ambulancia');
+
+    function actualizarClaseAmbulancia() {
+        if (!tipoCarroceriaSelect || !grupoClaseAmbulancia) return;
+        const esAmbulancia = tipoCarroceriaSelect.value === 'Ambulancia';
+        grupoClaseAmbulancia.style.display = esAmbulancia ? 'block' : 'none';
+    }
+
+    if (tipoCarroceriaSelect) {
+        tipoCarroceriaSelect.addEventListener('change', actualizarClaseAmbulancia);
+        actualizarClaseAmbulancia();
+    }
+});
+</script>
 {% endblock %}

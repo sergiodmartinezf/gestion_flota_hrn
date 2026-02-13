@@ -1,6 +1,7 @@
 {% extends 'base.html' %}
 
 {% load static %}
+{% load moneda_clp %}
 
 {% block title %}Dashboard - Gestión de Flota{% endblock %}
 
@@ -36,7 +37,7 @@
         <div class="card card-stat" style="border-left-color: #dc3545;">
             <div class="card-body">
                 <h5 class="card-title">Costo Mensual</h5>
-                <h2>${{ costo_mensual_total|floatformat:0 }}</h2>
+                <h2>${{ costo_mensual_total|clp }}</h2>
             </div>
         </div>
     </div>

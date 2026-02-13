@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load moneda_clp %}
 
 {% block title %}Alertas de Mantenimiento - Gestión de Flota{% endblock %}
 
@@ -7,45 +8,92 @@
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h2><i class="bi bi-bell"></i> Alertas de Mantenimiento</h2>
         {% if alertas %}
-        <form method="post" style="display: inline;">
-            {% csrf_token %}
-            <input type="hidden" name="action" value="marcar_revisadas">
-            <button type="submit" class="btn btn-success" onclick="return confirm('¿Marcar todas las alertas como revisadas?')">
-                <i class="bi bi-check-all"></i> Marcar Todas como Revisadas
-            </button>
-        </form>
+            <form method="post" style="display: inline;">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="marcar_revisadas">
+                <button type="submit" class="btn btn-success" onclick="return confirm('¿Marcar todas las alertas como revisadas?')">
+                    <i class="bi bi-check-all"></i> Marcar Todas como Revisadas
+                </button>
+            </form>
         {% endif %}
     </div>
 
-{% if alertas %}
-<div class="alert alert-warning">
-    <strong>{{ alertas|length }}</strong> alerta(s) activa(s)
-</div>
+    {# Sección de alertas de mantenimiento #}
+    {% if alertas %}
+        <div class="alert alert-warning">
+            <strong>{{ alertas|length }}</strong> alerta(s) de mantenimiento activa(s)
+        </div>
 
-<table class="table table-striped">
-    <thead>
-        <tr>
-            <th>Vehículo</th>
-            <th>Descripción</th>
-            <th>Valor Umbral</th>
-            <th>Fecha Generación</th>
-        </tr>
-    </thead>
-    <tbody>
-        {% for alerta in alertas %}
-        <tr>
-            <td><strong>{{ alerta.vehiculo.patente }}</strong></td>
-            <td>{{ alerta.descripcion }}</td>
-            <td>{{ alerta.valor_umbral }} km</td>
-            <td>{{ alerta.generado_en|date:"d/m/Y H:i" }}</td>
-        </tr>
-        {% endfor %}
-    </tbody>
-</table>
-{% else %}
-<div class="alert alert-success">
-    No hay alertas de mantenimiento activas.
-</div>
-{% endif %}
+        <table class="table table-striped mb-4">
+            <thead>
+                <tr>
+                    <th>Vehículo</th>
+                    <th>Descripción</th>
+                    <th>Valor Umbral</th>
+                    <th>Fecha Generación</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for alerta in alertas %}
+                <tr>
+                    <td><strong>{{ alerta.vehiculo.patente }}</strong></td>
+                    <td>{{ alerta.descripcion }}</td>
+                    <td>{{ alerta.valor_umbral }} km</td>
+                    <td>{{ alerta.generado_en|date:"d/m/Y H:i" }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <div class="alert alert-success mb-4">
+            No hay alertas de mantenimiento activas.
+        </div>
+    {% endif %}
+
+    {# Sección de alertas de presupuesto #}
+    <h3 class="mt-4"><i class="bi bi-cash-stack"></i> Alertas de Presupuesto</h3>
+
+    {% if alertas_presupuesto %}
+        <div class="alert alert-warning mt-3">
+            <strong>{{ alertas_presupuesto|length }}</strong> presupuesto(s) con más del 80% ejecutado
+        </div>
+
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>Vehículo</th>
+                    <th>Año</th>
+                    <th>Cuenta SIGFE</th>
+                    <th>% Ejecutado</th>
+                    <th>Monto Restante</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in alertas_presupuesto %}
+                <tr>
+                    <td>
+                        {% if item.presupuesto.vehiculo %}
+                            <strong>{{ item.presupuesto.vehiculo.patente }}</strong>
+                        {% else %}
+                            <span class="text-muted">Flota General</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ item.presupuesto.anio }}</td>
+                    <td>
+                        {{ item.presupuesto.cuenta.codigo }}
+                        <br>
+                        <small class="text-muted">{{ item.presupuesto.cuenta.nombre|truncatechars:40 }}</small>
+                    </td>
+                    <td><span class="badge bg-danger">{{ item.porcentaje|floatformat:1 }}%</span></td>
+                    <td>${{ item.monto_restante|clp }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <div class="alert alert-success mt-3">
+            No hay alertas de presupuesto activas.
+        </div>
+    {% endif %}
 {% endblock %}
 

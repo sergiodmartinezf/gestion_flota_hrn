@@ -1,5 +1,6 @@
 {% extends 'base.html' %}
 {% load static %}
+{% load moneda_clp %}
 {% block content %}
 <div class="container-fluid">
     <h2 class="mb-4"><i class="bi bi-tools"></i> Mantenimientos</h2>
@@ -42,7 +43,6 @@
                         <option value="">Todos los tipos</option>
                         <option value="Preventivo" {% if tipo_filter == 'Preventivo' %}selected{% endif %}>Preventivo</option>
                         <option value="Correctivo" {% if tipo_filter == 'Correctivo' %}selected{% endif %}>Correctivo</option>
-                        <option value="Productivo" {% if tipo_filter == 'Productivo' %}selected{% endif %}>Productivo</option>
                     </select>
                 </div>
                 <div class="col-md-3">
@@ -140,7 +140,7 @@
                                 </span>
                                 {% endif %}
                             </td>
-                            <td>${{ mantenimiento.costo_total_real|floatformat:0|default:"0" }}</td>
+                            <td>${{ mantenimiento.costo_total_real|clp|default:"0" }}</td>
                             <td>
                                 {% if user.rol == 'Administrador' %}
                                 {% if mantenimiento.estado == 'Programado' or mantenimiento.estado == 'En taller' %}

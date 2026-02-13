@@ -7,19 +7,44 @@
 
 <div class="alert alert-info">
     <i class="bi bi-info-circle"></i>
-    Registra un vehículo arrendado que reemplazará temporalmente a un vehículo propio en reparación.
+    1) Elige si usar un vehículo arrendado existente o registrar uno nuevo.
+    2) Indica qué vehículo propio está siendo reemplazado.
 </div>
 
 <form method="post">
     {% csrf_token %}
-    
+
+    <!-- Paso 1: Origen del vehículo arrendado -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <h5 class="card-title">1. Origen del vehículo arrendado</h5>
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="modo_vehiculo_arriendo" id="modo_existente"
+                       value="existente" {% if vehiculos_arrendados_existentes %}checked{% else %}disabled{% endif %}>
+                <label class="form-check-label" for="modo_existente">
+                    Usar vehículo arrendado registrado anteriormente
+                    {% if not vehiculos_arrendados_existentes %}
+                        <span class="text-muted">(no hay vehículos arrendados registrados)</span>
+                    {% endif %}
+                </label>
+            </div>
+            <div class="form-check mt-2">
+                <input class="form-check-input" type="radio" name="modo_vehiculo_arriendo" id="modo_nuevo"
+                       value="nuevo" {% if not vehiculos_arrendados_existentes %}checked{% endif %}>
+                <label class="form-check-label" for="modo_nuevo">
+                    Registrar nuevo vehículo de arriendo
+                </label>
+            </div>
+        </div>
+    </div>
+
     <div class="row">
         <div class="col-md-6">
-            <h5 class="border-bottom pb-2">Vehículo Propio (Reemplazado)</h5>
+            <h5 class="border-bottom pb-2">2. Vehículo Propio a Reemplazar</h5>
             <div class="mb-3">
-                <label for="{{ form.vehiculo_reemplazado.id_for_label }}" class="form-label">Vehículo a reemplazar *</label>
+                <label for="{{ form.vehiculo_reemplazado.id_for_label }}" class="form-label">Vehículo propio *</label>
                 {{ form.vehiculo_reemplazado }}
-                <div class="form-text">Selecciona el vehículo propio que está fuera de servicio.</div>
+                <div class="form-text">Selecciona el vehículo propio que está fuera de servicio y será reemplazado.</div>
                 {% if form.vehiculo_reemplazado.errors %}
                     <div class="text-danger small">{{ form.vehiculo_reemplazado.errors }}</div>
                 {% endif %}
@@ -28,13 +53,13 @@
             <div class="mb-3">
                 <label for="{{ form.motivo.id_for_label }}" class="form-label">Motivo del arriendo *</label>
                 {{ form.motivo }}
-                <div class="form-text">Ej: "Ambulancia HR-PG-25 en pana de motor - Estimado 15 días en taller"</div>
+                <div class="form-text">Ej: "Ambulancia HR-PG-25 en pana de motor - Estimado 15 días en taller".</div>
                 {% if form.motivo.errors %}
                     <div class="text-danger small">{{ form.motivo.errors }}</div>
                 {% endif %}
             </div>
 
-            <h5 class="border-bottom pb-2 mt-4">Proveedor</h5>
+            <h5 class="border-bottom pb-2 mt-4">3. Proveedor</h5>
             <div class="mb-3">
                 <label for="{{ form.proveedor.id_for_label }}" class="form-label">Proveedor (Arrendador) *</label>
                 {{ form.proveedor }}
@@ -43,19 +68,11 @@
                     <div class="text-danger small">{{ form.proveedor.errors }}</div>
                 {% endif %}
             </div>
-
-            <div class="mb-3">
-                <label for="{{ form.nro_orden_compra.id_for_label }}" class="form-label">N° Orden de Compra (opcional)</label>
-                {{ form.nro_orden_compra }}
-                {% if form.nro_orden_compra.errors %}
-                    <div class="text-danger small">{{ form.nro_orden_compra.errors }}</div>
-                {% endif %}
-            </div>
         </div>
         
         <div class="col-md-6">
-            <h5 class="border-bottom pb-2">Vehículo Arrendado</h5>
-            <div class="mb-3">
+            <h5 class="border-bottom pb-2">4. Vehículo Arrendado</h5>
+            <div class="mb-3" id="bloque-vehiculo-existente">
                 <label for="{{ form.vehiculo_arrendado.id_for_label }}" class="form-label">Vehículo arrendado existente *</label>
                 {{ form.vehiculo_arrendado }}
                 <div class="form-text">Selecciona un vehículo arrendado ya registrado en el sistema.</div>
@@ -64,11 +81,11 @@
                 {% endif %}
             </div>
 
-            <div class="mb-3">
+            <div class="mb-3" id="bloque-nuevo-vehiculo-header">
                 <h6>O crear nuevo vehículo arrendado:</h6>
             </div>
 
-            <div class="mb-3">
+            <div class="mb-3" id="bloque-nuevo-vehiculo-patente">
                 <label for="{{ form.nueva_patente.id_for_label }}" class="form-label">Nueva patente (opcional)</label>
                 {{ form.nueva_patente }}
                 <div class="form-text">Si el vehículo no está registrado, ingrese su patente aquí.</div>
@@ -78,7 +95,7 @@
             </div>
 
             <div class="row">
-                <div class="col-md-6">
+                <div class="col-md-6" id="bloque-nuevo-vehiculo-marca">
                     <div class="mb-3">
                         <label for="{{ form.nueva_marca.id_for_label }}" class="form-label">Marca (opcional)</label>
                         {{ form.nueva_marca }}
@@ -87,7 +104,7 @@
                         {% endif %}
                     </div>
                 </div>
-                <div class="col-md-6">
+                <div class="col-md-6" id="bloque-nuevo-vehiculo-modelo">
                     <div class="mb-3">
                         <label for="{{ form.nueva_modelo.id_for_label }}" class="form-label">Modelo (opcional)</label>
                         {{ form.nueva_modelo }}
@@ -98,7 +115,7 @@
                 </div>
             </div>
 
-            <h5 class="border-bottom pb-2 mt-4">Condiciones del Arriendo</h5>
+            <h5 class="border-bottom pb-2 mt-4">5. Condiciones del Arriendo</h5>
             <div class="row">
                 <div class="col-md-6">
                     <div class="mb-3">
@@ -129,13 +146,6 @@
                 {% endif %}
             </div>
 
-            <div class="mb-3">
-                <label for="{{ form.cuenta_presupuestaria.id_for_label }}" class="form-label">Cuenta Presupuestaria</label>
-                {{ form.cuenta_presupuestaria }}
-                {% if form.cuenta_presupuestaria.errors %}
-                    <div class="text-danger small">{{ form.cuenta_presupuestaria.errors }}</div>
-                {% endif %}
-            </div>
         </div>
     </div>
     
@@ -158,4 +168,57 @@
         <a href="{% url 'listar_arriendos' %}" class="btn btn-secondary">Cancelar</a>
     </div>
 </form>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const radioExistente = document.getElementById('modo_existente');
+    const radioNuevo = document.getElementById('modo_nuevo');
+
+    const bloqueVehiculoExistente = document.getElementById('bloque-vehiculo-existente');
+    const bloqueNuevoHeader = document.getElementById('bloque-nuevo-vehiculo-header');
+    const bloqueNuevoPatente = document.getElementById('bloque-nuevo-vehiculo-patente');
+    const bloqueNuevoMarca = document.getElementById('bloque-nuevo-vehiculo-marca');
+    const bloqueNuevoModelo = document.getElementById('bloque-nuevo-vehiculo-modelo');
+
+    const campoVehiculoExistente = document.getElementById('{{ form.vehiculo_arrendado.id_for_label }}');
+    const campoNuevaPatente = document.getElementById('{{ form.nueva_patente.id_for_label }}');
+    const campoNuevaMarca = document.getElementById('{{ form.nueva_marca.id_for_label }}');
+    const campoNuevaModelo = document.getElementById('{{ form.nueva_modelo.id_for_label }}');
+
+    function actualizarModo() {
+        const usarExistente = radioExistente && radioExistente.checked;
+
+        if (bloqueVehiculoExistente) {
+            bloqueVehiculoExistente.style.display = usarExistente ? 'block' : 'none';
+        }
+        if (bloqueNuevoHeader) {
+            bloqueNuevoHeader.style.display = usarExistente ? 'none' : 'block';
+        }
+        if (bloqueNuevoPatente) {
+            bloqueNuevoPatente.style.display = usarExistente ? 'none' : 'block';
+        }
+        if (bloqueNuevoMarca) {
+            bloqueNuevoMarca.style.display = usarExistente ? 'none' : 'block';
+        }
+        if (bloqueNuevoModelo) {
+            bloqueNuevoModelo.style.display = usarExistente ? 'none' : 'block';
+        }
+
+        if (campoVehiculoExistente) {
+            campoVehiculoExistente.required = usarExistente;
+        }
+        if (campoNuevaPatente) {
+            campoNuevaPatente.required = !usarExistente;
+        }
+    }
+
+    if (radioExistente) {
+        radioExistente.addEventListener('change', actualizarModo);
+    }
+    if (radioNuevo) {
+        radioNuevo.addEventListener('change', actualizarModo);
+    }
+
+    actualizarModo();
+});
+</script>
 {% endblock %}

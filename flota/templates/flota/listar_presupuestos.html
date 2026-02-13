@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load moneda_clp %}
 
 {% block title %}Listar Presupuestos - Gestión de Flota{% endblock %}
 
@@ -12,15 +13,22 @@
             <form method="get" class="row g-3">
                 <div class="col-md-4">
                     <label for="anio" class="form-label">Año:</label>
-                    <input type="number" name="anio" id="anio" class="form-control" placeholder="Filtrar por año"
-                           value="{{ request.GET.anio }}">
+                    <select name="anio" id="anio" class="form-select">
+                        <option value="">Todos los años</option>
+                        {% for year in years_range %}
+                            <option value="{{ year }}"
+                                {% if anio_filter|stringformat:"s" == year|stringformat:"s" %}selected{% endif %}>
+                                {{ year }}
+                            </option>
+                        {% endfor %}
+                    </select>
                 </div>
                 <div class="col-md-4">
                     <label for="vehiculo" class="form-label">Vehículo:</label>
                     <select name="vehiculo" id="vehiculo" class="form-select">
                         <option value="">Todos los vehículos</option>
                         {% for v in vehiculos %}
-                            <option value="{{ v.patente }}" {% if request.GET.vehiculo == v.patente %}selected{% endif %}>
+                            <option value="{{ v.patente }}" {% if vehiculo_filter == v.patente %}selected{% endif %}>
                                 {{ v.patente }}
                             </option>
                         {% endfor %}
@@ -48,8 +56,8 @@
         <a href="{% url 'alertas_presupuesto' %}" class="btn btn-warning">
             <i class="bi bi-exclamation-triangle"></i> Ver Alertas
         </a>
-        <a href="?{% if mostrar_deshabilitados %}mostrar_deshabilitados=false{% else %}mostrar_deshabilitados=true{% endif %}{% if request.GET.anio %}&anio={{ request.GET.anio }}{% endif %}{% if request.GET.vehiculo %}&vehiculo={{ request.GET.vehiculo }}{% endif %}"
-           class="btn {% if mostrar_deshabilitados %}btn-secondary{% else %}btn-outline-secondary{% endif %}">
+        <a href="?{% if mostrar_deshabilitados %}mostrar_deshabilitados=false{% else %}mostrar_deshabilitados=true{% endif %}{% if anio_filter %}&anio={{ anio_filter }}{% endif %}{% if vehiculo_filter %}&vehiculo={{ vehiculo_filter }}{% endif %}"
+        class="btn {% if mostrar_deshabilitados %}btn-secondary{% else %}btn-outline-secondary{% endif %}">
             <i class="bi {% if mostrar_deshabilitados %}bi-eye-slash{% else %}bi-eye{% endif %}"></i>
             {% if mostrar_deshabilitados %}Ocultar{% else %}Mostrar{% endif %} Deshabilitados
         </a>
@@ -90,10 +98,10 @@
                                 <small>{{ p.cuenta.codigo }}</small><br>
                                 <span class="small text-muted">{{ p.cuenta.nombre|truncatechars:30 }}</span>
                             </td>
-                            <td class="text-end">${{ p.monto_asignado|floatformat:0 }}</td>
-                            <td class="text-end">${{ p.monto_ejecutado|floatformat:0 }}</td>
+                            <td class="text-end">${{ p.monto_asignado|clp }}</td>
+                            <td class="text-end">${{ p.monto_ejecutado|clp }}</td>
                             <td class="text-end">
-                                ${{ p.disponible|floatformat:0 }}
+                                ${{ p.disponible|clp }}
                             </td>
                             <td>
                                 <div class="d-flex align-items-center">
@@ -133,9 +141,9 @@
                     <tfoot class="table-secondary">
                         <tr>
                             <th colspan="3" class="text-end">Totales:</th>
-                            <th class="text-end">${{ total_asignado|floatformat:0 }}</th>
-                            <th class="text-end">${{ total_ejecutado|floatformat:0 }}</th>
-                            <th class="text-end">${{ total_disponible|floatformat:0 }}</th>
+                            <th class="text-end">${{ total_asignado|clp }}</th>
+                            <th class="text-end">${{ total_ejecutado|clp }}</th>
+                            <th class="text-end">${{ total_disponible|clp }}</th>
                             <th colspan="2"></th>
                         </tr>
                     </tfoot>

@@ -548,7 +548,6 @@ class Mantenimiento(models.Model):
     TIPOS_MANTENCION = [
         ('Preventivo', 'Preventivo'),
         ('Correctivo', 'Correctivo'),
-        ('Productivo', 'Productivo'),
     ]
     
     ESTADOS = [
@@ -594,45 +593,83 @@ class Mantenimiento(models.Model):
         db_table = 'mantenimiento'
         verbose_name = 'Mantenimiento'
         verbose_name_plural = 'Mantenimientos'
-    
+
+    def puede_cerrar_administrativamente(self):
+        """
+        Verifica si el mantenimiento cumple las condiciones para cierre administrativo
+        (normativa hospitalaria: estado Finalizado requiere OC y costos reales).
+        """
+        if self.estado != 'Finalizado':
+            return False
+        if not self.orden_compra_id:
+            return False
+        if (self.costo_total_real or 0) <= 0:
+            return False
+        return True
+
+    def _obtener_presupuesto_para_cierre(self):
+        """Obtiene el presupuesto aplicable (vehículo o flota global). No modifica nada."""
+        if not self.cuenta_presupuestaria or not self.vehiculo:
+            return None
+        anio = self.fecha_ingreso.year
+        presupuesto = Presupuesto.objects.filter(
+            cuenta=self.cuenta_presupuestaria,
+            vehiculo=self.vehiculo,
+            anio=anio,
+            activo=True
+        ).first()
+        if not presupuesto:
+            presupuesto = Presupuesto.objects.filter(
+                cuenta=self.cuenta_presupuestaria,
+                vehiculo__isnull=True,
+                anio=anio,
+                activo=True
+            ).first()
+        return presupuesto
+
+    def ejecutar_cierre_presupuestario(self):
+        """
+        Único punto de ejecución presupuestaria por mantenimiento.
+        Valida: OC asociada, estado Finalizado, costos reales > 0, presupuesto existe y con saldo.
+        Dispara recálculo del presupuesto afectado (idempotente por recálculo desde BD).
+        """
+        if self.estado != 'Finalizado':
+            return
+        if not self.orden_compra_id:
+            raise ValueError(
+                "No se puede ejecutar presupuesto: el mantenimiento debe tener Orden de Compra asociada."
+            )
+        if (self.costo_total_real or 0) <= 0:
+            return
+        presupuesto = self._obtener_presupuesto_para_cierre()
+        if not presupuesto:
+            raise ValueError(
+                f"No hay presupuesto asignado para la cuenta {self.cuenta_presupuestaria.codigo} "
+                f"en el año {self.fecha_ingreso.year}."
+            )
+        if not presupuesto.tiene_saldo_suficiente(self.costo_total_real):
+            raise ValueError(
+                f"Presupuesto insuficiente. Disponible: ${presupuesto.disponible:.0f}, "
+                f"Requerido: ${self.costo_total_real:.0f}"
+            )
+        from .signals import recalcular_monto_ejecutado
+        recalcular_monto_ejecutado(presupuesto)
+
     def save(self, *args, **kwargs):
-        is_new = self.pk is None
-        
         # Auto-calcular total real si no se provee
         if self.costo_mano_obra or self.costo_repuestos:
             self.costo_total_real = self.costo_mano_obra + self.costo_repuestos
-        
-        # Guardar primero para obtener PK si es nuevo
-        super().save(*args, **kwargs)
-        
-        # Gestionar presupuesto si hay cuenta presupuestaria
-        if self.cuenta_presupuestaria and self.vehiculo and self.estado == 'Finalizado':
-            try:
-                presupuesto = Presupuesto.objects.get(
-                    cuenta=self.cuenta_presupuestaria,
-                    vehiculo=self.vehiculo,
-                    anio=self.fecha_ingreso.year,
-                    activo=True
+        # Bloqueos de cierre administrativo (sin atajos desde otras vistas/formularios)
+        if self.estado == 'Finalizado':
+            if not self.orden_compra_id:
+                raise ValidationError(
+                    "No se puede cerrar administrativamente un mantenimiento sin Orden de Compra asociada."
                 )
-                
-                # Solo consumir presupuesto si el mantenimiento está finalizado
-                if self.costo_total_real > 0:
-                    # El signal se encargará de actualizar el monto ejecutado
-                    # Asegurarse de que no se duplique
-                    pass
-                    
-            except Presupuesto.DoesNotExist:
-                # Intentar con presupuesto global si no hay específico
-                try:
-                    presupuesto = Presupuesto.objects.get(
-                        cuenta=self.cuenta_presupuestaria,
-                        vehiculo__isnull=True,
-                        anio=self.fecha_ingreso.year,
-                        activo=True
-                    )
-                except Presupuesto.DoesNotExist:
-                    # No hay presupuesto asignado
-                    pass
+            if (self.costo_total_real or 0) <= 0:
+                raise ValidationError(
+                    "No se puede cerrar administrativamente un mantenimiento sin costos reales."
+                )
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return f"{self.tipo_mantencion} {self.vehiculo.patente} - {self.fecha_ingreso}"
@@ -775,14 +812,27 @@ class HojaRuta(models.Model):
         return f"HR {self.vehiculo.patente} - {self.fecha} - {self.conductor.nombre_completo}"
     
     def clean(self):
-        if self.vehiculo.tipo_carroceria == 'Camioneta' and self.turno != '08-17':
-            raise ValidationError("Las camionetas solo pueden operar en turno administrativo (08:00 - 17:00).")
-        
-        # Validar obligatoriedad condicional
+        # Si no hay vehículo, no podemos continuar; el formulario ya mostrará error
+        if not self.vehiculo_id:
+            return
+
+        if self.vehiculo.tipo_carroceria == 'Camioneta':
+            if self.turno != '08-17':
+                raise ValidationError({
+                    'turno': 'Las camionetas solo pueden operar en turno administrativo (08:00 a 17:00).'
+                })
+            # Para camionetas, el resto de la validación no aplica
+            return
+
+        # Validaciones para ambulancias (no camionetas)
+        if not self.medico_derivador:
+            raise ValidationError({'medico_derivador': 'El médico derivador es obligatorio para ambulancias.'})
+        if not self.tens:
+            raise ValidationError({'tens': 'El TENS es obligatorio para ambulancias.'})
         if not self.no_aplica_enfermero and not self.enfermero:
-             raise ValidationError("Debe indicar un Enfermero o marcar 'No aplica'.")
+            raise ValidationError({'enfermero': 'Debe indicar un Enfermero o marcar "No aplica".'})
         if not self.no_aplica_camillero and not self.camillero:
-             raise ValidationError("Debe indicar un Camillero o marcar 'No aplica'.")
+            raise ValidationError({'camillero': 'Debe indicar un Camillero o marcar "No aplica".'})
 
     @property
     def km_recorridos(self):
@@ -855,10 +905,36 @@ class Viaje(models.Model):
         return self.pacientes.filter(destino_tipo='HBO').exists()
 
 
+class PacienteViaje(models.Model):
+    """
+    Tabla maestra de pacientes que han sido trasladados en algún viaje.
+    Permite listado desplegable para reutilizar datos en nuevos traslados.
+    """
+    id = models.AutoField(primary_key=True)
+    rut = models.CharField(max_length=12, unique=True, db_index=True)
+    nombre = models.CharField(max_length=150)
+    prevision = models.CharField(max_length=50, blank=True, verbose_name="Previsión/Tipo Servicio por defecto")
+    creado_en = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'paciente_viaje'
+        verbose_name = 'Paciente (traslados anteriores)'
+        verbose_name_plural = 'Pacientes (traslados anteriores)'
+        ordering = ['nombre']
+
+    def __str__(self):
+        return f"{self.nombre} ({self.rut})"
+
+
 class PacienteTraslado(models.Model):
     """Modelo para soportar 0 a N pacientes por viaje"""
     id = models.AutoField(primary_key=True)
     viaje = models.ForeignKey(Viaje, on_delete=models.CASCADE, related_name='pacientes')
+    # Opcional: vincular con paciente de la tabla maestra (traslados anteriores)
+    paciente_viaje = models.ForeignKey(
+        PacienteViaje, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='traslados', verbose_name="Paciente (de listado anterior)"
+    )
     nombre = models.CharField(max_length=150)
     rut = models.CharField(max_length=12, blank=True, null=True)
     
@@ -899,14 +975,9 @@ class CargaCombustible(models.Model):
 
 
 class FallaReportada(models.Model):
-    TIPO_REPORTE = [
-        ('Falla', 'Falla / Incidente'),
-        ('Desempeño', 'Desempeño del vehículo'),
-    ]
     id = models.AutoField(primary_key=True)
     fecha_reporte = models.DateField()
     descripcion = models.TextField()
-    tipo_reporte = models.CharField(max_length=20, choices=TIPO_REPORTE, default='Falla')
     nivel_urgencia = models.CharField(max_length=20, choices=[('Alta', 'Alta'), ('Media', 'Media'), ('Baja', 'Baja')], null=True, blank=True, default='Media')
     
     vehiculo = models.ForeignKey(Vehiculo, on_delete=models.CASCADE, related_name='fallas_reportadas')

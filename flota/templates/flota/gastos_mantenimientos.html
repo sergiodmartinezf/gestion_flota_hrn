@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load moneda_clp %}
 
 {% block title %}Gastos de Mantenimientos - Gestión de Flota{% endblock %}
 
@@ -18,13 +19,13 @@
         {% for item in gastos %}
         <tr>
             <td><strong>{{ item.vehiculo.patente }}</strong></td>
-            <td>${{ item.gasto_acumulado|floatformat:0 }}</td>
-            <td>${{ item.presupuesto_total|floatformat:0 }}</td>
+            <td>${{ item.gasto_acumulado|clp }}</td>
+            <td>${{ item.presupuesto_total|clp }}</td>
             <td>
                 {% if item.diferencia > 0 %}
-                    <span class="badge bg-danger">+${{ item.diferencia|floatformat:0 }}</span>
+                    <span class="badge bg-danger">+{{ item.diferencia|clp }}</span>
                 {% else %}
-                    <span class="badge bg-success">${{ item.diferencia|floatformat:0 }}</span>
+                    <span class="badge bg-success">{{ item.diferencia|clp }}</span>
                 {% endif %}
             </td>
         </tr>

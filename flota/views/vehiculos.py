@@ -44,12 +44,20 @@ def listar_flota(request):
     if criticidad_filter:
         vehiculos = vehiculos.filter(criticidad=criticidad_filter)
     
+    tipos_distintos = Vehiculo.objects.values_list('tipo_carroceria', flat=True).distinct()
+    choices_dict = dict(Vehiculo.TIPOS_CARROCERIA)
+    tipos_carroceria = []
+    for tipo in tipos_distintos:
+        display = choices_dict.get(tipo, tipo)  # si no está en choices, mostrar el valor crudo
+        tipos_carroceria.append((tipo, display))
+
     return render(request, 'flota/listar_flota.html', {
         'vehiculos': vehiculos,
         'estado_filter': estado_filter,
         'tipo_filter': tipo_filter,
         'propiedad_filter': propiedad_filter,
         'criticidad_filter': criticidad_filter,
+        'tipos_carroceria': tipos_carroceria,   # ← NUEVO
     })
 
 # RF_08: Visualizar ficha de unidad
@@ -226,6 +234,21 @@ def alertas_mantenimiento(request):
         return redirect('alertas_mantenimiento')
 
     alertas = _alertas_mantenimiento_no_pausadas()
-    return render(request, 'flota/alertas_mantenimiento.html', {'alertas': alertas})
+
+    # Alertas de presupuesto (presupuestos con ≥80% ejecutado)
+    alertas_presupuesto = []
+    for presupuesto in Presupuesto.objects.filter(activo=True).exclude(monto_asignado=0).select_related('vehiculo', 'cuenta'):
+        porcentaje = presupuesto.porcentaje_ejecutado
+        if porcentaje >= 80:
+            alertas_presupuesto.append({
+                'presupuesto': presupuesto,
+                'porcentaje': porcentaje,
+                'monto_restante': presupuesto.monto_asignado - presupuesto.monto_ejecutado,
+            })
+
+    return render(request, 'flota/alertas_mantenimiento.html', {
+        'alertas': alertas,
+        'alertas_presupuesto': alertas_presupuesto,
+    })
 
 

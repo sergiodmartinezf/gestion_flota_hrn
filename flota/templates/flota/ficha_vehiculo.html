@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load moneda_clp %}
 
 {% block title %}Ficha Vehículo {{ vehiculo.patente }} - Gestión de Flota{% endblock %}
 
@@ -41,7 +42,7 @@
                 <h5>Indicadores</h5>
             </div>
             <div class="card-body">
-                <p><strong>Costo Total:</strong> ${{ costo_total|floatformat:0 }}</p>
+                <p><strong>Costo Total:</strong> ${{ costo_total|clp }}</p>
                 <p><strong>Costo por Kilómetro:</strong> ${{ costo_por_km|floatformat:2 }}</p>
             </div>
         </div>
@@ -85,7 +86,7 @@
                             <td>{{ mantenimiento.fecha_ingreso|date:"d/m/Y" }}</td>
                             <td>{{ mantenimiento.get_tipo_mantencion_display }}</td>
                             <td>{{ mantenimiento.get_estado_display }}</td>
-                            <td>${{ mantenimiento.costo_total|floatformat:0 }}</td>
+                            <td>${{ mantenimiento.costo_total|clp }}</td>
                         </tr>
                         {% endfor %}
                     </tbody>

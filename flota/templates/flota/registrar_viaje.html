@@ -67,17 +67,6 @@
                                 {{ form.detalle_origen_alta }}
                             </div>
 
-                            <!-- Campos para horas HBO (se mostrarán dinámicamente) -->
-                            <div class="col-md-4" id="hbo-horas-container" style="display:none;">
-                                <label>Hora Salida HBO</label>
-                                {{ form.hora_salida_hbo }}
-                            </div>
-                            
-                            <div class="col-md-4" id="hbo-horas-container" style="display:none;">
-                                <label>Hora Llegada HBO</label>
-                                {{ form.hora_llegada_hbo }}
-                            </div>
-
                             <div class="col-12">
                                 <label>Observaciones generales</label>
                                 {{ form.observaciones }}
@@ -125,6 +114,17 @@
                                     {% endif %}
                                     
                                     {{ form_paciente.id }}
+                                    <div class="row g-2 mb-2">
+                                        <div class="col-12">
+                                            <label class="small text-muted">Paciente de traslados anteriores</label>
+                                            <select class="form-select paciente-anterior-select" data-row="paciente-row">
+                                                <option value="">-- Ingresar nuevo o seleccionar --</option>
+                                                {% for p in pacientes_anteriores %}
+                                                <option value="{{ p.id }}" data-nombre="{{ p.nombre|escapejs }}" data-rut="{{ p.rut|escapejs }}" data-prevision="{{ p.prevision|default:''|escapejs }}">{{ p.nombre }} ({{ p.rut }})</option>
+                                                {% endfor %}
+                                            </select>
+                                        </div>
+                                    </div>
                                     <div class="row g-2">
                                         <div class="col-md-8">
                                             <label class="small">
@@ -177,14 +177,25 @@
                         <template id="empty-form-template">
                             <div class="paciente-row card mb-3 bg-light border-0">
                                 <div class="card-body">
+                                    <div class="row g-2 mb-2">
+                                        <div class="col-12">
+                                            <label class="small text-muted">Paciente de traslados anteriores</label>
+                                            <select class="form-select paciente-anterior-select" data-row="paciente-row">
+                                                <option value="">-- Ingresar nuevo o seleccionar --</option>
+                                                {% for p in pacientes_anteriores %}
+                                                <option value="{{ p.id }}" data-nombre="{{ p.nombre|escapejs }}" data-rut="{{ p.rut|escapejs }}" data-prevision="{{ p.prevision|default:''|escapejs }}">{{ p.nombre }} ({{ p.rut }})</option>
+                                                {% endfor %}
+                                            </select>
+                                        </div>
+                                    </div>
                                     <div class="row g-2">
                                         <div class="col-md-8">
                                             <label class="small">Nombre Completo *</label>
-                                            <input type="text" name="pacientes-__prefix__-nombre" class="form-control" maxlength="150">
+                                            <input type="text" name="pacientes-__prefix__-nombre" class="form-control paciente-nombre" maxlength="150">
                                         </div>
                                         <div class="col-md-4">
                                             <label class="small">RUT</label>
-                                            <input type="text" name="pacientes-__prefix__-rut" class="form-control" maxlength="12">
+                                            <input type="text" name="pacientes-__prefix__-rut" class="form-control paciente-rut" maxlength="12">
                                         </div>
                                         <div class="col-md-4">
                                             <label class="small">Destino *</label>
@@ -203,7 +214,7 @@
                                         </div>
                                         <div class="col-md-3">
                                             <label class="small">Servicio/Prev</label>
-                                            <input type="text" name="pacientes-__prefix__-prevision" class="form-control" maxlength="50">
+                                            <input type="text" name="pacientes-__prefix__-prevision" class="form-control paciente-prevision" maxlength="50">
                                         </div>
                                     </div>
                                     <button type="button" class="btn btn-sm btn-outline-danger mt-2 remove-paciente">Quitar</button>

@@ -8,9 +8,11 @@
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h2><i class="bi bi-clipboard-data"></i> Hoja de Ruta #{{ hoja.id }}</h2>
         <div>
+            {% if hoja.abierta %}
             <a href="{% url 'agregar_viaje' id=hoja.id %}" class="btn btn-success">
                 <i class="bi bi-plus-circle"></i> Agregar Viaje
             </a>
+            {% endif %}
             <a href="{% url 'listar_bitacoras' %}" class="btn btn-outline-secondary">
                 <i class="bi bi-list"></i> Volver a Lista
             </a>
@@ -50,12 +52,10 @@
                             <strong>KM Fin:</strong><br>
                             {{ hoja.km_fin|default:"No registrado" }} km
                         </div>
-                        {% if hoja.observaciones %}
-                        <div class="col-12 mt-2">
-                            <strong>Observaciones:</strong><br>
-                            {{ hoja.observaciones|linebreaks }}
+                        <div class="col-md-6 mb-2">
+                            <strong>Estado:</strong><br>
+                            {% if hoja.abierta %}<span class="badge bg-success">Abierta</span>{% else %}<span class="badge bg-secondary">Cerrada</span>{% endif %}
                         </div>
-                        {% endif %}
                     </div>
                 </div>
             </div>
@@ -77,7 +77,7 @@
                         </div>
                         <div class="col-6">
                             <small class="text-muted">Fin</small><br>
-                            <strong>{{ hoja.km_fin|default:hoja.km_inicio }} km</strong>
+                            <strong>{{ km_fin_hoja|default:hoja.km_inicio }} km</strong>
                         </div>
                     </div>
                 </div>
@@ -89,9 +89,11 @@
     <div class="card">
         <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
             <span><i class="bi bi-journey"></i> Viajes Registrados ({{ viajes|length }})</span>
+            {% if hoja.abierta %}
             <a href="{% url 'agregar_viaje' id=hoja.id %}" class="btn btn-light btn-sm">
                 <i class="bi bi-plus"></i> Nuevo Viaje
             </a>
+            {% endif %}
         </div>
         <div class="card-body">
             {% if viajes %}
@@ -101,11 +103,11 @@
                             <tr>
                                 <th>Hora Salida</th>
                                 <th>Hora Llegada</th>
-                                <th>Destino</th>
+                                <th>Destino(s)</th>
                                 <th>Paciente(s)</th>
-                                <th>Tipo</th>
-                                <th>KM Inicio</th>
-                                <th>KM Fin</th>
+                                <th>Tipo servicio</th>
+                                <th>KM Salida</th>
+                                <th>KM Llegada</th>
                                 <th>KM Recorridos</th>
                             </tr>
                         </thead>
@@ -114,32 +116,31 @@
                                 <tr>
                                     <td>{{ viaje.hora_salida|time:"H:i" }}</td>
                                     <td>{{ viaje.hora_llegada|time:"H:i"|default:"-" }}</td>
-                                    <td>{{ viaje.destino|truncatechars:30 }}</td>
                                     <td>
-                                        {% if viaje.nombre_paciente %}
-                                            <div>
-                                                {{ viaje.nombre_paciente }}<br>
-                                                <small class="text-muted">{{ viaje.rut_paciente|default:"" }}</small>
-                                            </div>
-                                        {% endif %}
-                                        {% for vp in viaje.pacientes_adicionales.all %}
-                                            <div class="mt-1">
-                                                <small>
-                                                    {{ vp.paciente.nombre }}
-                                                    {% if vp.paciente.rut %}
-                                                        <span class="text-muted">({{ vp.paciente.rut }})</span>
-                                                    {% endif %}
-                                                </small>
-                                            </div>
+                                        {% for p in viaje.pacientes.all %}
+                                            <span class="d-block">{{ p.get_destino_tipo_display }}{% if p.direccion_especifica %}: {{ p.direccion_especifica|truncatechars:25 }}{% endif %}</span>
                                         {% empty %}
-                                            {% if not viaje.nombre_paciente %}
-                                                -
-                                            {% endif %}
+                                            -
                                         {% endfor %}
                                     </td>
-                                    <td><span class="badge bg-info">{{ viaje.tipo_servicio }}</span></td>
-                                    <td>{{ viaje.km_inicio_viaje }} km</td>
-                                    <td>{{ viaje.km_fin_viaje }} km</td>
+                                    <td>
+                                        {% for p in viaje.pacientes.all %}
+                                            <div class="mb-1">
+                                                {{ p.nombre }}{% if p.rut %} <small class="text-muted">({{ p.rut }})</small>{% endif %}
+                                            </div>
+                                        {% empty %}
+                                            -
+                                        {% endfor %}
+                                    </td>
+                                    <td>
+                                        {% for p in viaje.pacientes.all %}
+                                            <span class="badge bg-info">{{ p.prevision|default:"-" }}</span>
+                                        {% empty %}
+                                            -
+                                        {% endfor %}
+                                    </td>
+                                    <td>{{ viaje.km_salida }} km</td>
+                                    <td>{{ viaje.km_llegada|default:"-" }} km</td>
                                     <td><strong class="text-success">{{ viaje.km_recorridos_calculados }} km</strong></td>
                                 </tr>
                             {% endfor %}
@@ -157,9 +158,11 @@
                     <i class="bi bi-journey display-1 text-muted"></i>
                     <h4 class="mt-3">No hay viajes registrados</h4>
                     <p class="text-muted">Comience agregando el primer viaje de este turno</p>
+                    {% if hoja.abierta %}
                     <a href="{% url 'agregar_viaje' id=hoja.id %}" class="btn btn-primary btn-lg">
                         <i class="bi bi-plus-circle"></i> Agregar Primer Viaje
                     </a>
+                    {% endif %}
                 </div>
             {% endif %}
         </div>
@@ -176,11 +179,12 @@
                     <i class="bi bi-pencil"></i> Editar Hoja
                 </a>
             {% endif %}
-            <a href="{% url 'agregar_viaje' id=hoja.id %}" class="btn btn-success">
-                <i class="bi bi-plus-circle"></i> Agregar Viaje
-            </a>
+            {% if hoja.abierta %}
+                <a href="{% url 'agregar_viaje' id=hoja.id %}" class="btn btn-success">
+                    <i class="bi bi-plus-circle"></i> Agregar Viaje
+                </a>
+            {% endif %}
         </div>
     </div>
 </div>
 {% endblock %}
-

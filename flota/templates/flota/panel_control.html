@@ -24,28 +24,7 @@
 </div>
 
 <div class="row">
-    <div class="col-md-4">
-        <div class="card">
-            <div class="card-header"><h5>Top 10 costos por vehículo</h5></div>
-            <div class="card-body p-0">
-                <table class="table table-sm table-striped mb-0">
-                    <thead><tr><th>Vehículo</th><th class="text-end">Costo Total</th><th class="text-end">$/km</th></tr></thead>
-                    <tbody>
-                        {% for item in top_costos %}
-                        <tr>
-                            <td>{{ item.vehiculo.patente }}</td>
-                            <td class="text-end">${{ item.costo_total|floatformat:0 }}</td>
-                            <td class="text-end">${{ item.costo_por_km|floatformat:2 }}</td>
-                        </tr>
-                        {% empty %}
-                        <tr><td colspan="3" class="text-center text-muted">Sin datos</td></tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-4">
+    <div class="col-md-6">
         <div class="card">
             <div class="card-header"><h5>Próximos mantenimientos</h5></div>
             <div class="card-body p-0">
@@ -63,7 +42,7 @@
             </div>
         </div>
     </div>
-    <div class="col-md-4">
+    <div class="col-md-6">
         <div class="card">
             <div class="card-header"><h5>Presupuestos en riesgo (≥80% ejecutado)</h5></div>
             <div class="card-body p-0">

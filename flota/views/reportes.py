@@ -7,7 +7,7 @@ from datetime import datetime
 import json
 
 from django.utils import timezone as tz
-from ..models import Vehiculo, Mantenimiento, CargaCombustible, Arriendo, Presupuesto, FallaReportada, HojaRuta, AlertaMantencion
+from ..models import Vehiculo, Mantenimiento, CargaCombustible, Arriendo, Presupuesto, FallaReportada, HojaRuta, AlertaMantencion, PacienteTraslado
 from ..utils import exportar_reporte_excel
 
 
@@ -442,15 +442,21 @@ def reporte_historial_unidad(request, patente):
 
 @login_required
 def reporte_servicios(request):
-    # Cuenta cuántos viajes hay por cada tipo de servicio
-    servicios = Viaje.objects.values('tipo_servicio').annotate(total=Count('id')).order_by('-total')
+    # Cuenta por tipo de servicio/previsión a nivel de paciente (PacienteTraslado)
+    servicios = PacienteTraslado.objects.values('prevision').annotate(
+        total=Count('id')
+    ).order_by('-total')
     
-    # Para el gráfico
-    labels = [s['tipo_servicio'] for s in servicios]
-    data = [s['total'] for s in servicios]
+    # Normalizar etiquetas: previsión vacía como "Sin especificar"
+    labels = []
+    data = []
+    for s in servicios:
+        prev = s['prevision'] or 'Sin especificar'
+        labels.append(prev)
+        data.append(s['total'])
     
     return render(request, 'flota/reporte_servicios.html', {
-        'servicios': servicios,
+        'servicios': [{'prevision': labels[i], 'total': data[i]} for i in range(len(labels))],
         'chart_labels': labels,
         'chart_data': data
     })
