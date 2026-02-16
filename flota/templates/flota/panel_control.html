@@ -1,92 +1,305 @@
 {% extends 'base.html' %}
 {% load static %}
-{% block title %}Panel de Control - Gestión de Flota{% endblock %}
+{% load humanize %}
+
+{% block title %}Tablero de Mando - Dirección{% endblock %}
+
+{% block extra_css %}
+<style>
+    .card-kpi {
+        transition: transform 0.2s, box-shadow 0.2s;
+        cursor: pointer;
+        height: 100%;
+        border-left: 6px solid #ccc;
+    }
+    .card-kpi:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+    }
+    .kpi-value { font-size: 2.8rem; font-weight: 700; margin-bottom: 0; }
+    .kpi-label { font-size: 1rem; color: #6c757d; text-transform: uppercase; letter-spacing: 1px; }
+    
+    .border-lucas { border-left-color: #0d6efd; }
+    .border-km { border-left-color: #198754; }
+    .border-time { border-left-color: #dc3545; }
+    
+    .icon-box { font-size: 2.5rem; margin-bottom: 15px; }
+</style>
+{% endblock %}
+
 {% block content %}
-<h2 class="mb-4"><i class="bi bi-bar-chart-line"></i> Panel de Control</h2>
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-3 mb-4 border-bottom">
+    <h1 class="h2">Tablero de Gestión de Flota</h1>
+</div>
 
-<div class="row mb-4">
-    <div class="col-md-6">
-        <div class="card">
-            <div class="card-header"><h5>Costos por mes (mantenimiento vs combustible)</h5></div>
-            <div class="card-body">
-                <canvas id="chartCostosMes" height="200"></canvas>
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="get" class="row g-3">
+            <div class="col-md-4">
+                <label for="anio" class="form-label">Año:</label>
+                <select name="anio" id="anio" class="form-select">
+                    <option value="">Seleccionar Año</option>
+                    {% for year in years_range %}
+                        <option value="{{ year|stringformat:'i' }}"
+                            {% if anio_filter == year|stringformat:'s' %}selected{% endif %}>
+                            {{ year|stringformat:'i' }} </option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div class="col-md-4 d-flex align-items-end">
+                <div class="btn-group">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-funnel"></i> Filtrar
+                    </button>
+                    <a href="{% url 'panel_control' %}" class="btn btn-secondary">
+                        <i class="bi bi-x-circle"></i> Limpiar
+                    </a>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="row g-4 mb-5">
+    
+    <div class="col-md-4">
+        <div class="card card-kpi border-lucas" data-bs-toggle="modal" data-bs-target="#modalFinanzas">
+            <div class="card-body text-center">
+                <div class="icon-box text-primary"><i class="bi bi-cash-coin"></i></div>
+                <h6 class="kpi-label">Ejecución Presupuestaria</h6>
+                <p class="kpi-value {% if presupuesto_pct > 80 %}text-danger{% else %}text-dark{% endif %}">
+                    {{ presupuesto_pct|floatformat:0 }}%
+                </p>
+                <p class="text-muted small">
+                    ${{ presupuesto_ejecutado|intcomma }} gastados de ${{ presupuesto_total|intcomma }}
+                </p>
+                <div class="progress" style="height: 8px;">
+                    <div class="progress-bar {% if presupuesto_pct > 80 %}bg-danger{% else %}bg-primary{% endif %}" 
+                         role="progressbar" style="width: {{ presupuesto_pct }}%"></div>
+                </div>
+                <small class="text-primary mt-3 d-block"><i class="bi bi-search"></i> Ver detalle de gastos</small>
             </div>
         </div>
     </div>
-    <div class="col-md-6">
-        <div class="card">
-            <div class="card-header"><h5>Costos totales por vehículo</h5></div>
-            <div class="card-body">
-                <canvas id="chartCostosVehiculo" height="200"></canvas>
+
+    <div class="col-md-4">
+        <div class="card card-kpi border-km" data-bs-toggle="modal" data-bs-target="#modalKm">
+            <div class="card-body text-center">
+                <div class="icon-box text-success"><i class="bi bi-speedometer2"></i></div>
+                <h6 class="kpi-label">Salud de Flota (Preventiva)</h6>
+                <p class="kpi-value text-dark">{{ cumplimiento_pct|floatformat:0 }}%</p>
+                <p class="text-muted small">Vehículos al día con pauta de 10.000km</p>
+                
+                <div class="d-flex justify-content-center gap-2 mt-2">
+                    <span class="badge bg-success">OK</span>
+                    <span class="badge bg-warning text-dark">Pendiente</span>
+                    <span class="badge bg-danger">Crítico</span>
+                </div>
+                <small class="text-success mt-3 d-block"><i class="bi bi-search"></i> Ver estado por patente</small>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card card-kpi border-time" data-bs-toggle="modal" data-bs-target="#modalTiempo">
+            <div class="card-body text-center">
+                <div class="icon-box text-danger"><i class="bi bi-clock-history"></i></div>
+                <h6 class="kpi-label">Disponibilidad Anual</h6>
+                <p class="kpi-value {% if disponibilidad_pct < 85 %}text-danger{% else %}text-success{% endif %}">
+                    {{ disponibilidad_pct }}%
+                </p>
+                <p class="text-muted small">Tiempo real en calle vs. Taller</p>
+                <div style="height: 8px; width: 100%; background: #dc3545; border-radius: 4px; overflow: hidden; display: flex;">
+                    <div style="width: {{ disponibilidad_pct }}%; background: #198754; height: 100%;"></div>
+                </div>
+                <small class="text-danger mt-3 d-block"><i class="bi bi-search"></i> Analizar causas de baja</small>
             </div>
         </div>
     </div>
 </div>
 
-<div class="row">
-    <div class="col-md-6">
-        <div class="card">
-            <div class="card-header"><h5>Próximos mantenimientos</h5></div>
-            <div class="card-body p-0">
-                <ul class="list-group list-group-flush">
-                    {% for m in proximos_mantenimientos %}
-                    <li class="list-group-item d-flex justify-content-between">
-                        <span>{{ m.vehiculo.patente }}</span>
-                        <small>{{ m.fecha_ingreso|date:"d/m/Y" }}</small>
-                    </li>
-                    {% empty %}
-                    <li class="list-group-item text-muted">Ninguno programado</li>
-                    {% endfor %}
-                </ul>
-                <div class="card-footer"><a href="{% url 'calendario_mantenciones' %}" class="btn btn-sm btn-outline-primary">Ver calendario</a></div>
+<div class="modal fade" id="modalFinanzas" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title"><i class="bi bi-graph-up"></i> Detalle Financiero [{{ anio_filter }}]</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
-        </div>
-    </div>
-    <div class="col-md-6">
-        <div class="card">
-            <div class="card-header"><h5>Presupuestos en riesgo (≥80% ejecutado)</h5></div>
-            <div class="card-body p-0">
-                <ul class="list-group list-group-flush">
-                    {% for p in presupuestos_riesgo %}
-                    <li class="list-group-item d-flex justify-content-between align-items-center">
-                        <span>{% if p.vehiculo %}{{ p.vehiculo.patente }}{% else %}Flota{% endif %} - {{ p.cuenta.codigo }}</span>
-                        <span class="badge bg-warning">{{ p.porcentaje_ejecutado|floatformat:1 }}%</span>
-                    </li>
-                    {% empty %}
-                    <li class="list-group-item text-muted">Ninguno</li>
-                    {% endfor %}
+            <div class="modal-body">
+                <ul class="nav nav-tabs mb-3" role="tablist">
+                    <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tab-mes">Gasto Mensual</button></li>
+                    <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-vehiculo">Por Vehículo</button></li>
                 </ul>
-                <div class="card-footer"><a href="{% url 'alertas_presupuesto' %}" class="btn btn-sm btn-outline-warning">Ver alertas</a></div>
+                <div class="tab-content">
+                    <div class="tab-pane fade show active" id="tab-mes">
+                        <canvas id="chartGastoMensual" height="100"></canvas>
+                        <p class="text-center text-muted mt-2">Incluye Mantenciones y Combustible.</p>
+                    </div>
+                    <div class="tab-pane fade" id="tab-vehiculo">
+                        <canvas id="chartGastoVehiculo" height="150"></canvas>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
 </div>
 
+<div class="modal fade" id="modalKm" tabindex="-1">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title"><i class="bi bi-list-check"></i> Estado de Mantenciones (KILÓMETROS)</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-0">
+                <table class="table table-striped table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Patente</th>
+                            <th class="text-end">Km Actual</th>
+                            <th class="text-end">Última Mant.</th>
+                            <th class="text-end">Recorrido</th>
+                            <th class="text-center">Estado</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for v in detalle_cumplimiento %}
+                        <tr>
+                            <td><strong>{{ v.patente }}</strong></td>
+                            <td class="text-end">{{ v.km_actual|intcomma }}</td>
+                            <td class="text-end">{{ v.km_ultimo|intcomma }}</td>
+                            <td class="text-end">+{{ v.diferencia|intcomma }}</td>
+                            <td class="text-center">
+                                <span class="badge {{ v.clase }}">{{ v.estado }}</span>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            <div class="modal-footer bg-light">
+                <small class="text-muted">Regla: Mantención cada 10.000 km. Tolerancia hasta 11.000 km.</small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="modalTiempo" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title"><i class="bi bi-pie-chart"></i> Análisis de Disponibilidad (TIEMPO)</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row align-items-center">
+                    <div class="col-md-6">
+                        <canvas id="chartDisponibilidad"></canvas>
+                    </div>
+                    <div class="col-md-6">
+                        <h5 class="mb-3">Distribución de Tiempo</h5>
+                        <ul class="list-group list-group-flush">
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                <span class="text-success"><i class="bi bi-check-circle-fill"></i> Operativo (En calle)</span>
+                                <span class="fw-bold">{{ dias_operativos }} días</span>
+                            </li>
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                <span class="text-primary"><i class="bi bi-tools"></i> Preventivo</span>
+                                <span class="fw-bold">{{ dias_preventivo }} días</span>
+                            </li>
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                <span class="text-danger"><i class="bi bi-exclamation-triangle-fill"></i> Correctivo (Fallas)</span>
+                                <span class="fw-bold">{{ dias_correctivo }} días</span>
+                            </li>
+                        </ul>
+                        <div class="alert alert-light border mt-3 small">
+                            <strong>Nota:</strong> Un alto porcentaje correctivo indica vehículos antiguos o falta de prevención.
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    var mesesLabels = {{ meses_labels|safe }};
-    var costosMant = {{ costos_mes_mant|safe }};
-    var costosComb = {{ costos_mes_comb|safe }};
-    new Chart(document.getElementById('chartCostosMes'), {
-        type: 'bar',
-        data: {
-            labels: mesesLabels,
-            datasets: [
-                { label: 'Mantenimiento', data: costosMant, backgroundColor: 'rgba(255, 99, 132, 0.6)' },
-                { label: 'Combustible', data: costosComb, backgroundColor: 'rgba(54, 162, 235, 0.6)' }
-            ]
-        },
-        options: { responsive: true, scales: { y: { beginAtZero: true } } }
-    });
-    var datos = {{ graficos_json|safe }};
-    new Chart(document.getElementById('chartCostosVehiculo'), {
-        type: 'bar',
-        data: {
-            labels: datos.patentes,
-            datasets: [{ label: 'Costo total', data: datos.costos_totales, backgroundColor: 'rgba(75, 192, 192, 0.6)' }]
-        },
-        options: { responsive: true, indexAxis: 'y', scales: { x: { beginAtZero: true } } }
-    });
+    
+    // --- DATOS DESDE DJANGO ---
+    const dataGastoMensual = JSON.parse('{{ json_gasto_mensual|safe }}');
+    const dataGastoVehiculo = JSON.parse('{{ json_gasto_vehiculo|safe }}');
+    const labelsVehiculo = JSON.parse('{{ json_labels_vehiculo|safe }}');
+    
+    const diasOperativos = {{ dias_operativos }};
+    const diasPreventivo = {{ dias_preventivo }};
+    const diasCorrectivo = {{ dias_correctivo }};
+
+    // 1. Gráfico Lineal: Gasto Mensual
+    const ctxMes = document.getElementById('chartGastoMensual');
+    if(ctxMes) {
+        new Chart(ctxMes, {
+            type: 'line',
+            data: {
+                labels: dataGastoMensual.labels,
+                datasets: [{
+                    label: 'Gasto Total ($)',
+                    data: dataGastoMensual.data,
+                    borderColor: '#0d6efd',
+                    backgroundColor: 'rgba(13, 110, 253, 0.1)',
+                    fill: true,
+                    tension: 0.3
+                }]
+            },
+            options: { responsive: true, plugins: { legend: {display: false} } }
+        });
+    }
+
+    // 2. Gráfico Barras: Top Gasto por Vehículo
+    const ctxVeh = document.getElementById('chartGastoVehiculo');
+    if(ctxVeh) {
+        new Chart(ctxVeh, {
+            type: 'bar',
+            data: {
+                labels: labelsVehiculo,
+                datasets: [{
+                    label: 'Costo Acumulado ($)',
+                    data: dataGastoVehiculo,
+                    backgroundColor: '#0d6efd'
+                }]
+            },
+            options: { 
+                indexAxis: 'y',
+                responsive: true,
+                plugins: { legend: {display: false} }
+            }
+        });
+    }
+
+    // 3. Gráfico Torta: Disponibilidad
+    const ctxDisp = document.getElementById('chartDisponibilidad');
+    if(ctxDisp) {
+        new Chart(ctxDisp, {
+            type: 'doughnut',
+            data: {
+                labels: ['Operativo', 'Preventivo', 'Correctivo'],
+                datasets: [{
+                    data: [diasOperativos, diasPreventivo, diasCorrectivo],
+                    backgroundColor: ['#198754', '#0d6efd', '#dc3545'],
+                    borderWidth: 0
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: { position: 'bottom' }
+                }
+            }
+        });
+    }
 });
 </script>
 {% endblock %}

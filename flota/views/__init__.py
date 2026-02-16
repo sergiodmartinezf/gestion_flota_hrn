@@ -58,6 +58,9 @@ from .mantenimiento import (
     api_mantenimientos
 )
 
+# Importar vistas de panel de control
+from .panel_control import panel_control
+
 # Importar vistas de presupuesto
 from .presupuesto import (
     registrar_presupuesto,
@@ -72,8 +75,7 @@ from .presupuesto import (
 from .reportes import (
     reporte_costos,
     reporte_disponibilidad,
-    reporte_historial_unidad,
-    panel_control
+    reporte_historial_unidad
 )
 
 # Importar vistas de arriendo
@@ -169,6 +171,9 @@ __all__ = [
     'eliminar_mantenimiento',
     'calendario_mantenciones',
     'api_mantenimientos',
+
+    # Panel de control
+    'panel_control',
     
     # Presupuesto
     'registrar_presupuesto',
@@ -182,7 +187,6 @@ __all__ = [
     'reporte_costos',
     'reporte_disponibilidad',
     'reporte_historial_unidad',
-    'panel_control',
     
     # Arriendo
     'registrar_arriendo',

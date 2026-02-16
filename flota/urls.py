@@ -50,12 +50,14 @@ urlpatterns = [
     path('mantenimientos/finalizar/<int:id>/', views.finalizar_mantenimiento, name='finalizar_mantenimiento'),
     path('mantenimientos/eliminar/<int:id>/', views.eliminar_mantenimiento, name='eliminar_mantenimiento'),
     path('mantenimientos/estado/<int:id>/', views.cambiar_estado_mantenimiento, name='cambiar_estado_mantenimiento'),
+
+    # Panel de control
+    path('panel-control/', views.panel_control, name='panel_control'),
     
     # Presupuesto (RF_21-22)
     path('presupuestos/registrar/', views.registrar_presupuesto, name='registrar_presupuesto'),
     path('presupuestos/listar/', views.listar_presupuestos, name='listar_presupuestos'),
     path('presupuestos/alertas/', views.alertas_presupuesto, name='alertas_presupuesto'),
-    #path('presupuestos/variacion/', views.reporte_variacion_presupuestaria, name='reporte_variacion_presupuestaria'),
     # Con parámetro
     path('presupuestos/modificar/<int:id>/', views.modificar_presupuesto, name='modificar_presupuesto'),
     path('presupuestos/deshabilitar/<int:id>/', views.deshabilitar_presupuesto, name='deshabilitar_presupuesto'),
@@ -64,7 +66,6 @@ urlpatterns = [
     path('reportes/costos/', views.reporte_costos, name='reporte_costos'),
     path('reportes/disponibilidad/', views.reporte_disponibilidad, name='reporte_disponibilidad'),
     path('reportes/historial/<str:patente>/', views.reporte_historial_unidad, name='reporte_historial_unidad'),
-    path('reportes/panel/', views.panel_control, name='panel_control'),
     
     # Arriendo (RF_26)
     path('arriendos/', views.listar_arriendos, name='listar_arriendos'),

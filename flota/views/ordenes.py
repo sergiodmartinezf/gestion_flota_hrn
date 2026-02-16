@@ -1,3 +1,4 @@
+from django.urls import reverse
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib import messages
@@ -314,12 +315,13 @@ def registrar_orden_trabajo(request):
                 request,
                 f'Orden de Trabajo {orden_trabajo.nro_ot} registrada. Siguiente paso: registrar la Orden de Compra asociada.'
             )
-            return redirect('registrar_orden_compra' + '?ot=' + str(orden_trabajo.id))
+            # Construir la URL correctamente
+            url = reverse('registrar_orden_compra') + f'?ot={orden_trabajo.id}'
+            return redirect(url)
     else:
         form = OrdenTrabajoForm()
     
     return render(request, 'flota/registrar_orden_trabajo.html', {'form': form})
-
 
 # Listar Órdenes de Trabajo
 @login_required

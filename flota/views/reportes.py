@@ -264,68 +264,6 @@ def reporte_costos(request):
         'graficos_json': graficos_json,
     })
 
-
-# Panel de control visual (gráficos y tablas resumen)
-@login_required
-def panel_control(request):
-    vehiculos = Vehiculo.objects.all()
-    # Tabla resumen costos por vehículo
-    top_costos = []
-    for vehiculo in vehiculos:
-        calculos = ReporteCalculos.calcular_costos_vehiculo(vehiculo)
-        top_costos.append({
-            'vehiculo': vehiculo,
-            'costo_total': calculos['costo_total'],
-            'costo_por_km': calculos['costo_por_km'],
-        })
-    top_costos.sort(key=lambda x: x['costo_total'], reverse=True)
-    top_costos = top_costos[:10]
-    
-    # Próximos mantenimientos
-    proximos_mantenimientos = Mantenimiento.objects.filter(
-        estado='Programado'
-    ).order_by('fecha_ingreso')[:10]
-    
-    # Presupuestos cerca del límite (>= 80% ejecutado)
-    presupuestos_riesgo = [
-        p for p in Presupuesto.objects.filter(activo=True).select_related('vehiculo', 'cuenta')
-        if p.monto_asignado > 0 and p.porcentaje_ejecutado >= 80
-    ][:10]
-    
-    # Datos para gráficos
-    datos_graficos = ReporteCalculos.obtener_datos_graficos_costos()
-    graficos_json = json.dumps(datos_graficos)
-    
-    # Costos por mes (últimos 12 meses)
-    meses_labels = []
-    costos_mes_mant = []
-    costos_mes_comb = []
-    hoy = tz.now().date()
-    from datetime import timedelta
-    for i in range(11, -1, -1):
-        ref = hoy - timedelta(days=30 * i)
-        year, month = ref.year, ref.month
-        mant_mes = Mantenimiento.objects.filter(
-            fecha_ingreso__year=year, fecha_ingreso__month=month
-        ).aggregate(total=Sum('costo_total_real'))['total'] or 0
-        comb_mes = CargaCombustible.objects.filter(
-            fecha__year=year, fecha__month=month
-        ).aggregate(total=Sum('costo_total'))['total'] or 0
-        meses_labels.append(ref.strftime('%Y-%m'))
-        costos_mes_mant.append(float(mant_mes))
-        costos_mes_comb.append(float(comb_mes))
-    
-    return render(request, 'flota/panel_control.html', {
-        'top_costos': top_costos,
-        'proximos_mantenimientos': proximos_mantenimientos,
-        'presupuestos_riesgo': presupuestos_riesgo,
-        'graficos_json': graficos_json,
-        'meses_labels': json.dumps(meses_labels),
-        'costos_mes_mant': json.dumps(costos_mes_mant),
-        'costos_mes_comb': json.dumps(costos_mes_comb),
-    })
-
-
 # RF_25: Generar reporte de disponibilidad (disponibilidad efectiva: días disponibles en período)
 @login_required
 def reporte_disponibilidad(request):
