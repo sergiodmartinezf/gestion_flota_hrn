@@ -1,6 +1,7 @@
 {% extends 'base.html' %}
 {% load static %}
 {% load humanize %}
+{% load moneda_clp %}
 
 {% block title %}Tablero de Mando - Dirección{% endblock %}
 
@@ -32,6 +33,7 @@
     <h1 class="h2">Tablero de Gestión de Flota</h1>
 </div>
 
+<!-- Filtro por año (solo años con datos + actual) -->
 <div class="card mb-4">
     <div class="card-body">
         <form method="get" class="row g-3">
@@ -39,14 +41,15 @@
                 <label for="anio" class="form-label">Año:</label>
                 <select name="anio" id="anio" class="form-select">
                     <option value="">Seleccionar Año</option>
-                    {% for year in years_range %}
-                        <option value="{{ year|stringformat:'i' }}"
-                            {% if anio_filter == year|stringformat:'s' %}selected{% endif %}>
-                            {{ year|stringformat:'i' }} </option>
+                    {% for year in years_disponibles %}
+                        {% with year_str=year|stringformat:"d" %}
+                            <option value="{{ year_str }}" {% if anio_filter == year_str %}selected{% endif %}>
+                                {{ year_str }}
+                            </option>
+                        {% endwith %}
                     {% endfor %}
                 </select>
             </div>
-            
             <div class="col-md-4 d-flex align-items-end">
                 <div class="btn-group">
                     <button type="submit" class="btn btn-primary">
@@ -61,36 +64,34 @@
     </div>
 </div>
 
+<!-- Tres KPIs principales (sin formato intcomma para evitar espacios) -->
 <div class="row g-4 mb-5">
-    
+    <!-- Bloque 1: Gestión Financiera -->
     <div class="col-md-4">
         <div class="card card-kpi border-lucas" data-bs-toggle="modal" data-bs-target="#modalFinanzas">
             <div class="card-body text-center">
-                <div class="icon-box text-primary"><i class="bi bi-cash-coin"></i></div>
-                <h6 class="kpi-label">Ejecución Presupuestaria</h6>
-                <p class="kpi-value {% if presupuesto_pct > 80 %}text-danger{% else %}text-dark{% endif %}">
-                    {{ presupuesto_pct|floatformat:0 }}%
-                </p>
+                <div class="icon-box text-primary"><i class="bi bi-currency-dollar"></i></div>
+                <h6 class="kpi-label">Ejecución presupuestaria</h6>
+                <p class="kpi-value text-dark">${{ total_ejec|clp }}</p>
                 <p class="text-muted small">
-                    ${{ presupuesto_ejecutado|intcomma }} gastados de ${{ presupuesto_total|intcomma }}
+                    ejecutado de ${{ total_prog|clp }} programado
                 </p>
                 <div class="progress" style="height: 8px;">
-                    <div class="progress-bar {% if presupuesto_pct > 80 %}bg-danger{% else %}bg-primary{% endif %}" 
-                         role="progressbar" style="width: {{ presupuesto_pct }}%"></div>
+                    <div class="progress-bar bg-primary" role="progressbar" style="width: {{ presupuesto_pct|floatformat:1 }}%;" aria-valuenow="{{ presupuesto_pct|floatformat:1 }}" aria-valuemin="0" aria-valuemax="100"></div>
                 </div>
-                <small class="text-primary mt-3 d-block"><i class="bi bi-search"></i> Ver detalle de gastos</small>
+                <small class="text-primary mt-3 d-block"><i class="bi bi-search"></i> Ver detalle financiero</small>
             </div>
         </div>
     </div>
 
+    <!-- Bloque 2: Salud de Flota (Kilómetros) -->
     <div class="col-md-4">
         <div class="card card-kpi border-km" data-bs-toggle="modal" data-bs-target="#modalKm">
             <div class="card-body text-center">
                 <div class="icon-box text-success"><i class="bi bi-speedometer2"></i></div>
-                <h6 class="kpi-label">Salud de Flota (Preventiva)</h6>
+                <h6 class="kpi-label">Salud de Flota</h6>
                 <p class="kpi-value text-dark">{{ cumplimiento_pct|floatformat:0 }}%</p>
                 <p class="text-muted small">Vehículos al día con pauta de 10.000km</p>
-                
                 <div class="d-flex justify-content-center gap-2 mt-2">
                     <span class="badge bg-success">OK</span>
                     <span class="badge bg-warning text-dark">Pendiente</span>
@@ -101,6 +102,7 @@
         </div>
     </div>
 
+    <!-- Bloque 3: Disponibilidad Anual (Tiempo) -->
     <div class="col-md-4">
         <div class="card card-kpi border-time" data-bs-toggle="modal" data-bs-target="#modalTiempo">
             <div class="card-body text-center">
@@ -109,8 +111,11 @@
                 <p class="kpi-value {% if disponibilidad_pct < 85 %}text-danger{% else %}text-success{% endif %}">
                     {{ disponibilidad_pct }}%
                 </p>
-                <p class="text-muted small">Tiempo real en calle vs. Taller</p>
-                <div style="height: 8px; width: 100%; background: #dc3545; border-radius: 4px; overflow: hidden; display: flex;">
+                <p class="text-muted small">
+                    Tiempo operativo vs. Taller<br>
+                    <small>(basado en capacidad de 2 ambulancias)</small>
+                </p>
+                <div style="height: 8px; width: 100%; background: #dc3545; border-radius: 4px; overflow: hidden;">
                     <div style="width: {{ disponibilidad_pct }}%; background: #198754; height: 100%;"></div>
                 </div>
                 <small class="text-danger mt-3 d-block"><i class="bi bi-search"></i> Analizar causas de baja</small>
@@ -119,6 +124,7 @@
     </div>
 </div>
 
+<!-- ========== MODAL FINANZAS ========== -->
 <div class="modal fade" id="modalFinanzas" tabindex="-1">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
@@ -127,17 +133,25 @@
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
-                <ul class="nav nav-tabs mb-3" role="tablist">
-                    <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tab-mes">Gasto Mensual</button></li>
-                    <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-vehiculo">Por Vehículo</button></li>
-                </ul>
-                <div class="tab-content">
-                    <div class="tab-pane fade show active" id="tab-mes">
-                        <canvas id="chartGastoMensual" height="100"></canvas>
-                        <p class="text-center text-muted mt-2">Incluye Mantenciones y Combustible.</p>
+                <div class="row">
+                    <div class="col-lg-8">
+                        <h6 class="text-muted">1. Gasto Mensual (Click en un mes para ver detalle)</h6>
+                        <canvas id="chartFinanceMain" height="150"></canvas>
                     </div>
-                    <div class="tab-pane fade" id="tab-vehiculo">
-                        <canvas id="chartGastoVehiculo" height="150"></canvas>
+                    <div class="col-lg-4 border-start">
+                        <h6 class="text-muted" id="financeDetailTitle">2. Detalle del Mes</h6>
+                        <div id="financeDetailContent" class="text-center text-muted mt-5">
+                            <i class="bi bi-hand-index-thumb fs-1"></i>
+                            <p>Selecciona un mes en el gráfico para ver qué vehículo gastó más.</p>
+                        </div>
+                        <canvas id="chartFinanceDetail" class="d-none" height="200"></canvas>
+                    </div>
+                </div>
+                <hr>
+                <div class="row">
+                    <div class="col-12">
+                        <h6 class="text-muted">Comparativa: Preventivo vs Correctivo</h6>
+                        <canvas id="chartPlataBarras" height="80"></canvas>
                     </div>
                 </div>
             </div>
@@ -145,6 +159,7 @@
     </div>
 </div>
 
+<!-- ========== MODAL KILÓMETROS ========== -->
 <div class="modal fade" id="modalKm" tabindex="-1">
     <div class="modal-dialog modal-xl">
         <div class="modal-content">
@@ -152,31 +167,11 @@
                 <h5 class="modal-title"><i class="bi bi-list-check"></i> Estado de Mantenciones (KILÓMETROS)</h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
-            <div class="modal-body p-0">
-                <table class="table table-striped table-hover mb-0">
-                    <thead class="table-light">
-                        <tr>
-                            <th>Patente</th>
-                            <th class="text-end">Km Actual</th>
-                            <th class="text-end">Última Mant.</th>
-                            <th class="text-end">Recorrido</th>
-                            <th class="text-center">Estado</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for v in detalle_cumplimiento %}
-                        <tr>
-                            <td><strong>{{ v.patente }}</strong></td>
-                            <td class="text-end">{{ v.km_actual|intcomma }}</td>
-                            <td class="text-end">{{ v.km_ultimo|intcomma }}</td>
-                            <td class="text-end">+{{ v.diferencia|intcomma }}</td>
-                            <td class="text-center">
-                                <span class="badge {{ v.clase }}">{{ v.estado }}</span>
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+            <div class="modal-body">
+                <p class="alert alert-info py-1"><i class="bi bi-info-circle"></i> La línea roja marca el límite de 10.000 km. Barras sobre ese valor requieren atención inmediata.</p>
+                <div style="height: 400px;">
+                    <canvas id="chartKmBarras"></canvas>
+                </div>
             </div>
             <div class="modal-footer bg-light">
                 <small class="text-muted">Regla: Mantención cada 10.000 km. Tolerancia hasta 11.000 km.</small>
@@ -185,6 +180,7 @@
     </div>
 </div>
 
+<!-- ========== MODAL TIEMPO (DISPONIBILIDAD) ========== -->
 <div class="modal fade" id="modalTiempo" tabindex="-1">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
@@ -193,6 +189,7 @@
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
+                <!-- Gráfico y resumen global -->
                 <div class="row align-items-center">
                     <div class="col-md-6">
                         <canvas id="chartDisponibilidad"></canvas>
@@ -218,6 +215,42 @@
                         </div>
                     </div>
                 </div>
+                
+                <hr>
+                <h5 class="mt-4">Detalle por Vehículo (días fuera de servicio)</h5>
+                <p class="text-muted small">
+                    Período considerado: <strong>{{ dias_del_periodo }} días</strong> 
+                    (desde {{ inicio_anio|date:"d/m/Y" }} hasta {{ fin_calculo|date:"d/m/Y" }})
+                </p>
+                <div class="table-responsive">
+                    <table class="table table-sm table-striped">
+                        <thead>
+                            <tr>
+                                <th>Patente</th>
+                                <th class="text-end">Preventivo</th>
+                                <th class="text-end">Correctivo</th>
+                                <th class="text-end">Total no operativo</th>
+                                <th class="text-end">Operativo</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for v in dias_por_vehiculo %}
+                            <tr>
+                                <td>{{ v.patente }}</td>
+                                <td class="text-end">{{ v.preventivo }}</td>
+                                <td class="text-end">{{ v.correctivo }}</td>
+                                <td class="text-end">{{ v.total }}</td>
+                                <td class="text-end">{{ v.operativo }}</td>
+                            </tr>
+                            {% empty %}
+                            <tr><td colspan="5" class="text-center">Sin datos de mantenimiento en el período</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                <p class="text-muted small">
+                    * Días calculados según intersección de fechas de mantenimiento con el año seleccionado.
+                </p>
             </div>
         </div>
     </div>
@@ -226,76 +259,251 @@
 
 {% block extra_js %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@1.4.0/dist/chartjs-plugin-annotation.min.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    
-    // --- DATOS DESDE DJANGO ---
-    const dataGastoMensual = JSON.parse('{{ json_gasto_mensual|safe }}');
-    const dataGastoVehiculo = JSON.parse('{{ json_gasto_vehiculo|safe }}');
-    const labelsVehiculo = JSON.parse('{{ json_labels_vehiculo|safe }}');
-    
-    const diasOperativos = {{ dias_operativos }};
-    const diasPreventivo = {{ dias_preventivo }};
-    const diasCorrectivo = {{ dias_correctivo }};
+    // Registrar el plugin de anotaciones correctamente
+    if (typeof Annotation !== 'undefined') {
+        Chart.register(Annotation);
+        console.log('Annotation plugin registered');
+    } else if (typeof ChartAnnotation !== 'undefined') {
+        Chart.register(ChartAnnotation);
+        console.log('ChartAnnotation plugin registered');
+    } else {
+        console.warn('Annotation plugin not loaded - line will not be drawn');
+    }
 
-    // 1. Gráfico Lineal: Gasto Mensual
-    const ctxMes = document.getElementById('chartGastoMensual');
-    if(ctxMes) {
-        new Chart(ctxMes, {
+    // ==========================================
+    // 1. LÓGICA FINANCIERA (DRILL-DOWN)
+    // ==========================================
+    let financeData = null;
+    try {
+        financeData = JSON.parse('{{ json_finance|safe }}');
+        console.log('financeData:', financeData);
+    } catch(e) {
+        console.error('Error parsing json_finance:', e);
+        financeData = { labels: [], monthly_totals: [], drilldown: [] };
+    }
+
+    let detailChart = null;
+    const ctxDetail = document.getElementById('chartFinanceDetail');
+    const ctxMain = document.getElementById('chartFinanceMain');
+
+    if (ctxMain && financeData && financeData.labels.length) {
+        new Chart(ctxMain, {
             type: 'line',
             data: {
-                labels: dataGastoMensual.labels,
+                labels: financeData.labels,
                 datasets: [{
                     label: 'Gasto Total ($)',
-                    data: dataGastoMensual.data,
+                    data: financeData.monthly_totals,
                     borderColor: '#0d6efd',
                     backgroundColor: 'rgba(13, 110, 253, 0.1)',
                     fill: true,
-                    tension: 0.3
+                    tension: 0.4,
+                    pointRadius: 6,
+                    pointHoverRadius: 8
                 }]
             },
-            options: { responsive: true, plugins: { legend: {display: false} } }
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: {
+                    tooltip: {
+                        callbacks: {
+                            label: (c) => '$' + new Intl.NumberFormat('es-CL').format(c.raw)
+                        }
+                    }
+                },
+                onClick: (e, activeElements) => {
+                    if (activeElements.length > 0) {
+                        const index = activeElements[0].index;
+                        const mesNombre = financeData.labels[index];
+                        const breakdown = financeData.drilldown[index] || [];
+                        updateFinanceDetail(mesNombre, breakdown);
+                    }
+                }
+            }
         });
+    } else {
+        console.warn('No hay datos financieros o canvas no encontrado');
     }
 
-    // 2. Gráfico Barras: Top Gasto por Vehículo
-    const ctxVeh = document.getElementById('chartGastoVehiculo');
-    if(ctxVeh) {
-        new Chart(ctxVeh, {
+    function updateFinanceDetail(mes, data) {
+        document.getElementById('financeDetailTitle').innerText = `2. Gasto en ${mes}`;
+        document.getElementById('financeDetailContent').classList.add('d-none');
+        ctxDetail.classList.remove('d-none');
+
+        const labels = data.map(d => d.patente);
+        const values = data.map(d => d.monto);
+
+        if (detailChart) detailChart.destroy();
+
+        if (labels.length) {
+            detailChart = new Chart(ctxDetail, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Gasto ($)',
+                        data: values,
+                        backgroundColor: '#dc3545'
+                    }]
+                },
+                options: {
+                    indexAxis: 'y',
+                    plugins: { legend: { display: false } },
+                    responsive: true,
+                    maintainAspectRatio: true
+                }
+            });
+        } else {
+            // Si no hay datos, mostrar mensaje
+            ctxDetail.getContext('2d').clearRect(0, 0, ctxDetail.width, ctxDetail.height);
+            ctxDetail.style.display = 'none';
+            document.getElementById('financeDetailContent').classList.remove('d-none');
+            document.getElementById('financeDetailContent').innerHTML = '<p>Sin datos para este mes</p>';
+        }
+    }
+
+    // Gráfico de barras comparativo (Preventivo vs Correctivo)
+    let comparativaData = null;
+    try {
+        comparativaData = JSON.parse('{{ json_comparativa_global|safe }}');
+        console.log('comparativaData:', comparativaData);
+    } catch(e) {
+        console.error('Error parsing json_comparativa_global:', e);
+    }
+    const ctxBarras = document.getElementById('chartPlataBarras');
+    if (ctxBarras && comparativaData && comparativaData.labels) {
+        new Chart(ctxBarras, {
             type: 'bar',
             data: {
-                labels: labelsVehiculo,
-                datasets: [{
-                    label: 'Costo Acumulado ($)',
-                    data: dataGastoVehiculo,
-                    backgroundColor: '#0d6efd'
-                }]
+                labels: comparativaData.labels,
+                datasets: [
+                    {
+                        label: 'Programado ($)',
+                        data: comparativaData.programado,
+                        backgroundColor: 'rgba(201, 203, 207, 0.8)',
+                        borderRadius: 5
+                    },
+                    {
+                        label: 'Ejecutado ($)',
+                        data: comparativaData.ejecutado,
+                        backgroundColor: '#0d6efd',
+                        borderRadius: 5
+                    }
+                ]
             },
-            options: { 
-                indexAxis: 'y',
+            options: {
                 responsive: true,
-                plugins: { legend: {display: false} }
+                maintainAspectRatio: true,
+                plugins: {
+                    legend: { position: 'top' },
+                    tooltip: {
+                        callbacks: {
+                            label: (context) => context.dataset.label + ': $' + context.raw.toLocaleString('es-CL')
+                        }
+                    }
+                }
             }
         });
     }
 
-    // 3. Gráfico Torta: Disponibilidad
+    // ==========================================
+    // 2. LÓGICA KILÓMETROS (Barras con colores y línea límite)
+    // ==========================================
+    let kmData = null;
+    try {
+        kmData = JSON.parse('{{ json_km_barras|safe }}');
+        console.log('kmData:', kmData);
+    } catch(e) {
+        console.error('Error parsing json_km_barras:', e);
+        kmData = [];
+    }
+    const ctxKm = document.getElementById('chartKmBarras');
+    if (ctxKm && kmData.length) {
+        new Chart(ctxKm, {
+            type: 'bar',
+            data: {
+                labels: kmData.map(d => d.patente),
+                datasets: [{
+                    label: 'Kilómetros desde última mantención',
+                    data: kmData.map(d => d.valor_grafico),
+                    backgroundColor: kmData.map(d => d.color),
+                    borderRadius: 5
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,  // Cambiado a true para evitar estiramiento
+                plugins: {
+                    annotation: {
+                        annotations: {
+                            lineLimit: {
+                                type: 'line',
+                                yMin: 10000,
+                                yMax: 10000,
+                                borderColor: 'red',
+                                borderWidth: 2,
+                                borderDash: [6, 6],
+                                label: {
+                                    content: 'Límite 10.000 km',
+                                    enabled: true,
+                                    position: 'end'
+                                }
+                            }
+                        }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: (context) => {
+                                const item = kmData[context.dataIndex];
+                                return `Recorrido: ${item.recorrido} km (último mant: ${item.km_ultimo} km)`;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        title: { display: true, text: 'Kilómetros' }
+                    }
+                }
+            }
+        });
+    } else {
+        console.warn('No hay datos de kilómetros o canvas no encontrado');
+    }
+
+    // ==========================================
+    // 3. LÓGICA DISPONIBILIDAD (Torta)
+    // ==========================================
     const ctxDisp = document.getElementById('chartDisponibilidad');
-    if(ctxDisp) {
+    if (ctxDisp) {
+        const operativos = {{ dias_operativos }};
+        const noOperativos = {{ dias_preventivo }} + {{ dias_correctivo }};
         new Chart(ctxDisp, {
             type: 'doughnut',
             data: {
-                labels: ['Operativo', 'Preventivo', 'Correctivo'],
+                labels: ['Operativo', 'Mantenimiento (No Disponible)'],
                 datasets: [{
-                    data: [diasOperativos, diasPreventivo, diasCorrectivo],
-                    backgroundColor: ['#198754', '#0d6efd', '#dc3545'],
+                    data: [operativos, noOperativos],
+                    backgroundColor: ['#198754', '#dc3545'],
                     borderWidth: 0
                 }]
             },
             options: {
                 responsive: true,
+                maintainAspectRatio: true,
                 plugins: {
                     legend: { position: 'bottom' }
+                },
+                onClick: (e, activeElements) => {
+                    if (activeElements.length > 0 && activeElements[0].index === 1) {
+                        alert('Ver tabla de detalle por vehículo a continuación.');
+                        // Opcional: hacer scroll a la tabla
+                    }
                 }
             }
         });
