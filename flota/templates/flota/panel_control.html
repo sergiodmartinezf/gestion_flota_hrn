@@ -25,6 +25,19 @@
     .border-time { border-left-color: #dc3545; }
     
     .icon-box { font-size: 2.5rem; margin-bottom: 15px; }
+
+    .vehicle-card {
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        padding: 10px;
+        margin-bottom: 10px;
+        background: #f8f9fa;
+    }
+    .vehicle-card canvas {
+        max-height: 100px;
+        max-width: 100px;
+        margin: 0 auto;
+    }
 </style>
 {% endblock %}
 
@@ -33,7 +46,7 @@
     <h1 class="h2">Tablero de Gestión de Flota</h1>
 </div>
 
-<!-- Filtro por año (solo años con datos + actual) -->
+<!-- Filtro por año -->
 <div class="card mb-4">
     <div class="card-body">
         <form method="get" class="row g-3">
@@ -64,7 +77,7 @@
     </div>
 </div>
 
-<!-- Tres KPIs principales (sin formato intcomma para evitar espacios) -->
+<!-- Tres KPIs principales -->
 <div class="row g-4 mb-5">
     <!-- Bloque 1: Gestión Financiera -->
     <div class="col-md-4">
@@ -91,11 +104,11 @@
                 <div class="icon-box text-success"><i class="bi bi-speedometer2"></i></div>
                 <h6 class="kpi-label">Salud de Flota</h6>
                 <p class="kpi-value text-dark">{{ cumplimiento_pct|floatformat:0 }}%</p>
-                <p class="text-muted small">Vehículos al día con pauta de 10.000km</p>
+                <p class="text-muted small">Vehículos bajo 8000 km desde última mantención</p>
                 <div class="d-flex justify-content-center gap-2 mt-2">
                     <span class="badge bg-success">OK</span>
-                    <span class="badge bg-warning text-dark">Pendiente</span>
-                    <span class="badge bg-danger">Crítico</span>
+                    <span class="badge bg-warning text-dark">Próximo</span>
+                    <span class="badge bg-danger">Excedido</span>
                 </div>
                 <small class="text-success mt-3 d-block"><i class="bi bi-search"></i> Ver estado por patente</small>
             </div>
@@ -113,7 +126,7 @@
                 </p>
                 <p class="text-muted small">
                     Tiempo operativo vs. Taller<br>
-                    <small>(basado en capacidad de 2 ambulancias)</small>
+                    <small>(basado en {{ vehiculos.count }} vehículos)</small>
                 </p>
                 <div style="height: 8px; width: 100%; background: #dc3545; border-radius: 4px; overflow: hidden;">
                     <div style="width: {{ disponibilidad_pct }}%; background: #198754; height: 100%;"></div>
@@ -126,7 +139,7 @@
 
 <!-- ========== MODAL FINANZAS ========== -->
 <div class="modal fade" id="modalFinanzas" tabindex="-1">
-    <div class="modal-dialog modal-lg">
+    <div class="modal-dialog modal-xl">
         <div class="modal-content">
             <div class="modal-header bg-primary text-white">
                 <h5 class="modal-title"><i class="bi bi-graph-up"></i> Detalle Financiero [{{ anio_filter }}]</h5>
@@ -150,8 +163,15 @@
                 <hr>
                 <div class="row">
                     <div class="col-12">
-                        <h6 class="text-muted">Comparativa: Preventivo vs Correctivo</h6>
+                        <h6 class="text-muted">Comparativa: Preventivo vs Correctivo (Global)</h6>
                         <canvas id="chartPlataBarras" height="80"></canvas>
+                    </div>
+                </div>
+                <!-- Nuevo gráfico: Gasto acumulado por vehículo (desglosado) -->
+                <div class="row mt-4">
+                    <div class="col-12">
+                        <h6 class="text-muted">Gasto Acumulado por Vehículo (Preventivo vs Correctivo)</h6>
+                        <canvas id="chartVehicleSplit" height="200"></canvas>
                     </div>
                 </div>
             </div>
@@ -168,55 +188,64 @@
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
-                <p class="alert alert-info py-1"><i class="bi bi-info-circle"></i> La línea roja marca el límite de 10.000 km. Barras sobre ese valor requieren atención inmediata.</p>
+                <p class="alert alert-info py-1">
+                    <i class="bi bi-info-circle"></i> 
+                    La línea roja marca el límite de 10.000 km. Barras verdes < 8000 km, amarillas 8000-11999 km, rojas ≥ 12000 km.
+                </p>
                 <div style="height: 400px;">
                     <canvas id="chartKmBarras"></canvas>
                 </div>
             </div>
             <div class="modal-footer bg-light">
-                <small class="text-muted">Regla: Mantención cada 10.000 km. Tolerancia hasta 11.000 km.</small>
+                <small class="text-muted">Regla: Mantención cada 10.000 km. Al llegar a 12.000 km el vehículo se bloquea para operación.</small>
             </div>
         </div>
     </div>
 </div>
 
 <!-- ========== MODAL TIEMPO (DISPONIBILIDAD) ========== -->
+<!-- ========== MODAL TIEMPO (DISPONIBILIDAD) ========== -->
 <div class="modal fade" id="modalTiempo" tabindex="-1">
-    <div class="modal-dialog modal-lg">
+    <div class="modal-dialog modal-xl">
         <div class="modal-content">
             <div class="modal-header bg-danger text-white">
                 <h5 class="modal-title"><i class="bi bi-pie-chart"></i> Análisis de Disponibilidad (TIEMPO)</h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
-                <!-- Gráfico y resumen global -->
-                <div class="row align-items-center">
+                <!-- Gráficos por tipo de vehículo -->
+                <div class="row">
                     <div class="col-md-6">
-                        <canvas id="chartDisponibilidad"></canvas>
+                        <h6>Ambulancias ({{ ambulancias_count }})</h6>
+                        <canvas id="chartDisponibilidadAmbulancias" height="200"></canvas>
                     </div>
                     <div class="col-md-6">
-                        <h5 class="mb-3">Distribución de Tiempo</h5>
-                        <ul class="list-group list-group-flush">
-                            <li class="list-group-item d-flex justify-content-between align-items-center">
-                                <span class="text-success"><i class="bi bi-check-circle-fill"></i> Operativo (En calle)</span>
-                                <span class="fw-bold">{{ dias_operativos }} días</span>
-                            </li>
-                            <li class="list-group-item d-flex justify-content-between align-items-center">
-                                <span class="text-primary"><i class="bi bi-tools"></i> Preventivo</span>
-                                <span class="fw-bold">{{ dias_preventivo }} días</span>
-                            </li>
-                            <li class="list-group-item d-flex justify-content-between align-items-center">
-                                <span class="text-danger"><i class="bi bi-exclamation-triangle-fill"></i> Correctivo (Fallas)</span>
-                                <span class="fw-bold">{{ dias_correctivo }} días</span>
-                            </li>
-                        </ul>
-                        <div class="alert alert-light border mt-3 small">
-                            <strong>Nota:</strong> Un alto porcentaje correctivo indica vehículos antiguos o falta de prevención.
-                        </div>
+                        <h6>Camioneta Administrativa</h6>
+                        <canvas id="chartDisponibilidadCamioneta" height="200"></canvas>
                     </div>
                 </div>
-                
+
+                <!-- Gráficos individuales por patente (justo debajo de los generales) -->
                 <hr>
+                <h5>Distribución individual por vehículo</h5>
+                <div class="row" id="vehicle-charts-container">
+                    {% for v in dias_por_vehiculo %}
+                    <div class="col-md-3 col-sm-6">
+                        <div class="vehicle-card text-center">
+                            <strong>{{ v.patente }}</strong>
+                            <canvas id="chartPatente{{ forloop.counter }}" width="100" height="100"></canvas>
+                            <div class="small mt-2">
+                                <span class="text-success">Op: {{ v.operativo }}</span> |
+                                <span class="text-primary">Prev: {{ v.preventivo }}</span> |
+                                <span class="text-danger">Corr: {{ v.correctivo }}</span>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+
+                <hr>
+                <!-- Tabla detalle por vehículo -->
                 <h5 class="mt-4">Detalle por Vehículo (días fuera de servicio)</h5>
                 <p class="text-muted small">
                     Período considerado: <strong>{{ dias_del_periodo }} días</strong> 
@@ -248,9 +277,10 @@
                         </tbody>
                     </table>
                 </div>
-                <p class="text-muted small">
-                    * Días calculados según intersección de fechas de mantenimiento con el año seleccionado.
-                </p>
+                <!-- Gráfico de promedios -->
+                <hr>
+                <h5>Promedio por Vehículo (días)</h5>
+                <canvas id="chartPromedios" height="100"></canvas>
             </div>
         </div>
     </div>
@@ -262,24 +292,17 @@
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@1.4.0/dist/chartjs-plugin-annotation.min.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Registrar el plugin de anotaciones correctamente
+    // Registrar plugin de anotaciones
     if (typeof Annotation !== 'undefined') {
         Chart.register(Annotation);
-        console.log('Annotation plugin registered');
-    } else if (typeof ChartAnnotation !== 'undefined') {
-        Chart.register(ChartAnnotation);
-        console.log('ChartAnnotation plugin registered');
-    } else {
-        console.warn('Annotation plugin not loaded - line will not be drawn');
     }
 
     // ==========================================
-    // 1. LÓGICA FINANCIERA (DRILL-DOWN)
+    // 1. FINANZAS: Drill-down mensual (línea)
     // ==========================================
     let financeData = null;
     try {
         financeData = JSON.parse('{{ json_finance|safe }}');
-        console.log('financeData:', financeData);
     } catch(e) {
         console.error('Error parsing json_finance:', e);
         financeData = { labels: [], monthly_totals: [], drilldown: [] };
@@ -325,8 +348,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             }
         });
-    } else {
-        console.warn('No hay datos financieros o canvas no encontrado');
     }
 
     function updateFinanceDetail(mes, data) {
@@ -335,7 +356,8 @@ document.addEventListener('DOMContentLoaded', function() {
         ctxDetail.classList.remove('d-none');
 
         const labels = data.map(d => d.patente);
-        const values = data.map(d => d.monto);
+        const prevData = data.map(d => d.preventivo);
+        const corrData = data.map(d => d.correctivo);
 
         if (detailChart) detailChart.destroy();
 
@@ -344,21 +366,41 @@ document.addEventListener('DOMContentLoaded', function() {
                 type: 'bar',
                 data: {
                     labels: labels,
-                    datasets: [{
-                        label: 'Gasto ($)',
-                        data: values,
-                        backgroundColor: '#dc3545'
-                    }]
+                    datasets: [
+                        {
+                            label: 'Preventivo ($)',
+                            data: prevData,
+                            backgroundColor: '#0d6efd',
+                            borderRadius: 5
+                        },
+                        {
+                            label: 'Correctivo ($)',
+                            data: corrData,
+                            backgroundColor: '#dc3545',
+                            borderRadius: 5
+                        }
+                    ]
                 },
                 options: {
                     indexAxis: 'y',
-                    plugins: { legend: { display: false } },
                     responsive: true,
-                    maintainAspectRatio: true
+                    maintainAspectRatio: true,
+                    plugins: {
+                        tooltip: {
+                            callbacks: {
+                                label: (context) => {
+                                    return context.dataset.label + ': $' + context.raw.toLocaleString('es-CL');
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: { stacked: false, beginAtZero: true },
+                        y: { stacked: false }
+                    }
                 }
             });
         } else {
-            // Si no hay datos, mostrar mensaje
             ctxDetail.getContext('2d').clearRect(0, 0, ctxDetail.width, ctxDetail.height);
             ctxDetail.style.display = 'none';
             document.getElementById('financeDetailContent').classList.remove('d-none');
@@ -366,16 +408,15 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    // Gráfico de barras comparativo (Preventivo vs Correctivo)
+    // 2. Comparativa global (Preventivo vs Correctivo)
     let comparativaData = null;
     try {
         comparativaData = JSON.parse('{{ json_comparativa_global|safe }}');
-        console.log('comparativaData:', comparativaData);
     } catch(e) {
         console.error('Error parsing json_comparativa_global:', e);
     }
     const ctxBarras = document.getElementById('chartPlataBarras');
-    if (ctxBarras && comparativaData && comparativaData.labels) {
+    if (ctxBarras && comparativaData) {
         new Chart(ctxBarras, {
             type: 'bar',
             data: {
@@ -410,13 +451,62 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
+    // 3. Gasto acumulado por vehículo (desglosado)
+    let vehicleData = null;
+    try {
+        vehicleData = JSON.parse('{{ json_gasto_vehiculo_detalle|safe }}');
+    } catch(e) {
+        console.error('Error parsing json_gasto_vehiculo_detalle:', e);
+        vehicleData = [];
+    }
+    const ctxVehicle = document.getElementById('chartVehicleSplit');
+    if (ctxVehicle && vehicleData.length) {
+        new Chart(ctxVehicle, {
+            type: 'bar',
+            data: {
+                labels: vehicleData.map(d => d.patente),
+                datasets: [
+                    {
+                        label: 'Preventivo',
+                        data: vehicleData.map(d => d.preventivo),
+                        backgroundColor: '#0d6efd',
+                        borderRadius: 5
+                    },
+                    {
+                        label: 'Correctivo',
+                        data: vehicleData.map(d => d.correctivo),
+                        backgroundColor: '#dc3545',
+                        borderRadius: 5
+                    }
+                ]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: {
+                    tooltip: {
+                        callbacks: {
+                            label: (context) => {
+                                return context.dataset.label + ': $' + context.raw.toLocaleString('es-CL');
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: { stacked: true, beginAtZero: true },
+                    y: { stacked: true }
+                }
+            }
+        });
+    }
+
     // ==========================================
-    // 2. LÓGICA KILÓMETROS (Barras con colores y línea límite)
+    // 4. KILÓMETROS (con nuevos umbrales)
     // ==========================================
     let kmData = null;
     try {
         kmData = JSON.parse('{{ json_km_barras|safe }}');
-        console.log('kmData:', kmData);
     } catch(e) {
         console.error('Error parsing json_km_barras:', e);
         kmData = [];
@@ -436,7 +526,7 @@ document.addEventListener('DOMContentLoaded', function() {
             },
             options: {
                 responsive: true,
-                maintainAspectRatio: true,  // Cambiado a true para evitar estiramiento
+                maintainAspectRatio: true,
                 plugins: {
                     annotation: {
                         annotations: {
@@ -459,7 +549,13 @@ document.addEventListener('DOMContentLoaded', function() {
                         callbacks: {
                             label: (context) => {
                                 const item = kmData[context.dataIndex];
-                                return `Recorrido: ${item.recorrido} km (último mant: ${item.km_ultimo} km)`;
+                                let msg = `Recorrido: ${item.recorrido} km (último mant: ${item.km_ultimo} km)`;
+                                if (item.recorrido >= 12000) {
+                                    msg += ' - BLOQUEADO';
+                                } else if (item.recorrido >= 8000) {
+                                    msg += ' - Próximo a mantenimiento';
+                                }
+                                return msg;
                             }
                         }
                     }
@@ -472,24 +568,21 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             }
         });
-    } else {
-        console.warn('No hay datos de kilómetros o canvas no encontrado');
     }
 
     // ==========================================
-    // 3. LÓGICA DISPONIBILIDAD (Torta)
+    // 5. DISPONIBILIDAD
     // ==========================================
-    const ctxDisp = document.getElementById('chartDisponibilidad');
-    if (ctxDisp) {
-        const operativos = {{ dias_operativos }};
-        const noOperativos = {{ dias_preventivo }} + {{ dias_correctivo }};
-        new Chart(ctxDisp, {
+    // Ambulancias
+    const ctxDispAmb = document.getElementById('chartDisponibilidadAmbulancias');
+    if (ctxDispAmb) {
+        new Chart(ctxDispAmb, {
             type: 'doughnut',
             data: {
-                labels: ['Operativo', 'Mantenimiento (No Disponible)'],
+                labels: ['Operativo', 'Preventivo', 'Correctivo'],
                 datasets: [{
-                    data: [operativos, noOperativos],
-                    backgroundColor: ['#198754', '#dc3545'],
+                    data: [{{ dias_operativos_amb }}, {{ dias_preventivo_amb }}, {{ dias_correctivo_amb }}],
+                    backgroundColor: ['#198754', '#0d6efd', '#dc3545'],
                     borderWidth: 0
                 }]
             },
@@ -498,16 +591,108 @@ document.addEventListener('DOMContentLoaded', function() {
                 maintainAspectRatio: true,
                 plugins: {
                     legend: { position: 'bottom' }
-                },
-                onClick: (e, activeElements) => {
-                    if (activeElements.length > 0 && activeElements[0].index === 1) {
-                        alert('Ver tabla de detalle por vehículo a continuación.');
-                        // Opcional: hacer scroll a la tabla
-                    }
                 }
             }
         });
     }
+
+    // Camioneta (si existe)
+    const ctxDispCam = document.getElementById('chartDisponibilidadCamioneta');
+    if (ctxDispCam && {{ camioneta.id|default:0 }} ) {
+        let camData = {{ dias_por_vehiculo|safe }}.find(v => v.patente === '{{ camioneta.patente|default:"" }}');
+        if (camData) {
+            new Chart(ctxDispCam, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Operativo', 'Preventivo', 'Correctivo'],
+                    datasets: [{
+                        data: [camData.operativo, camData.preventivo, camData.correctivo],
+                        backgroundColor: ['#198754', '#0d6efd', '#dc3545'],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: {
+                        legend: { position: 'bottom' }
+                    }
+                }
+            });
+        } else {
+            ctxDispCam.parentNode.innerHTML = '<p class="text-muted">Sin datos</p>';
+        }
+    } else if (ctxDispCam) {
+        ctxDispCam.parentNode.innerHTML = '<p class="text-muted">No hay camioneta registrada</p>';
+    }
+
+    // Gráfico de promedios
+    const ctxProm = document.getElementById('chartPromedios');
+    if (ctxProm) {
+        new Chart(ctxProm, {
+            type: 'bar',
+            data: {
+                labels: ['Promedio por vehículo'],
+                datasets: [
+                    {
+                        label: 'Operativo (días)',
+                        data: [{{ avg_operativo }}],
+                        backgroundColor: '#198754'
+                    },
+                    {
+                        label: 'Preventivo (días)',
+                        data: [{{ avg_preventivo }}],
+                        backgroundColor: '#0d6efd'
+                    },
+                    {
+                        label: 'Correctivo (días)',
+                        data: [{{ avg_correctivo }}],
+                        backgroundColor: '#dc3545'
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: {
+                    legend: { position: 'bottom' }
+                },
+                scales: {
+                    y: { beginAtZero: true }
+                }
+            }
+        });
+    }
+
+    
+    // ==========================================
+    // 6. GRÁFICOS INDIVIDUALES POR PATENTE (basados en JSON)
+    // ==========================================
+    const diasPorVehiculo = JSON.parse('{{ dias_por_vehiculo_json|safe }}');
+    diasPorVehiculo.forEach((item, index) => {
+        const canvasId = `chartPatente${index + 1}`;
+        const ctx = document.getElementById(canvasId);
+        if (ctx) {
+            new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Operativo', 'Preventivo', 'Correctivo'],
+                    datasets: [{
+                        data: [item.operativo, item.preventivo, item.correctivo],
+                        backgroundColor: ['#198754', '#0d6efd', '#dc3545'],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: {
+                        legend: { display: false }
+                    }
+                }
+            });
+        }
+    });
 });
 </script>
 {% endblock %}

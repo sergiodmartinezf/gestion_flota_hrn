@@ -452,6 +452,32 @@ class Vehiculo(models.Model):
             return max(0, self.umbral_mantencion - resto)
         return 0
 
+    @classmethod
+    def objetos_operativos(cls):
+        """
+        Retorna queryset de vehículos que pueden ser utilizados en operaciones diarias:
+        - Estado en ['Disponible', 'En uso']
+        - Kilometraje recorrido desde última mantención preventiva < 12000 km
+        """
+        from django.db.models import OuterRef, Subquery, F, Value, IntegerField, Case, When
+
+        last_maint = Mantenimiento.objects.filter(
+            vehiculo=OuterRef('pk'),
+            tipo_mantencion='Preventivo',
+            estado='Finalizado'
+        ).order_by('-fecha_salida').values('km_al_ingreso')[:1]
+
+        qs = cls.objects.filter(estado__in=['Disponible', 'En uso']).annotate(
+            ultimo_km=Subquery(last_maint, output_field=IntegerField())
+        ).annotate(
+            recorrido=Case(
+                When(ultimo_km__isnull=True, then=F('kilometraje_actual')),
+                default=F('kilometraje_actual') - F('ultimo_km'),
+                output_field=IntegerField()
+            )
+        ).filter(recorrido__lt=12000)
+        return qs
+
 
 class Presupuesto(models.Model):
     """
