@@ -375,17 +375,30 @@ class Command(BaseCommand):
         )
         self.stdout.write(f'   ✅ {count_ocs} OC de camioneta actualizadas con cuenta 22.06.002.004.')
 
+        # --- Bloque modificado: desconectar señal antes de actualizar mantenimientos ---
         mantos_sin_cuenta = Mantenimiento.objects.filter(
             orden_compra__isnull=False,
             cuenta_presupuestaria__isnull=True
         )
         actualizados = 0
-        for m in mantos_sin_cuenta:
-            if m.orden_compra.cuenta_presupuestaria:
-                m.cuenta_presupuestaria = m.orden_compra.cuenta_presupuestaria
-                m.save()
-                actualizados += 1
+
+        # Desconectar la señal que valida el presupuesto
+        from django.db.models.signals import pre_save
+        from flota.signals import validar_cierre_administrativo_mantenimiento
+        pre_save.disconnect(validar_cierre_administrativo_mantenimiento, sender=Mantenimiento)
+
+        try:
+            for m in mantos_sin_cuenta:
+                if m.orden_compra.cuenta_presupuestaria:
+                    m.cuenta_presupuestaria = m.orden_compra.cuenta_presupuestaria
+                    m.save()
+                    actualizados += 1
+        finally:
+            # Reconectar la señal
+            pre_save.connect(validar_cierre_administrativo_mantenimiento, sender=Mantenimiento)
+
         self.stdout.write(f'   ✅ {actualizados} mantenimientos actualizados con cuenta desde su OC.')
+        # --- Fin del bloque modificado ---
 
         # Eliminar presupuestos individuales de correctivo (ya tenemos globales)
         individuales_correctivo = Presupuesto.objects.filter(
@@ -398,6 +411,8 @@ class Command(BaseCommand):
         individuales_correctivo.delete()
         self.stdout.write(f'   ✅ {count_ind} presupuestos individuales de correctivo eliminados.')
 
+        # Ahora que las cuentas están asignadas, recalculamos los montos ejecutados
+        self.verificar_y_corregir_ejecutado()
     # <<< NUEVA FUNCIÓN PARA VERIFICAR Y CORREGIR EL EJECUTADO >>>
     def verificar_y_corregir_ejecutado(self):
         self.stdout.write(self.style.WARNING('\n🔍 Verificando montos ejecutados...'))

@@ -30,10 +30,10 @@ def panel_control(request):
 
     inicio_anio = date(anio_seleccionado, 1, 1)
     fin_anio = date(anio_seleccionado, 12, 31)
-    fin_calculo = min(hoy, fin_anio) if anio_seleccionado <= hoy.year else inicio_anio
+    
+    # Eliminamos el límite de "hoy" para que siempre proyecte los 365/366 días del año
+    fin_calculo = fin_anio
     dias_del_periodo = (fin_calculo - inicio_anio).days + 1
-    if dias_del_periodo < 0:
-        dias_del_periodo = 0
 
     # --- Presupuestos: monto asignado total ---
     presupuestos = Presupuesto.objects.filter(anio=anio_seleccionado, activo=True)
@@ -42,30 +42,39 @@ def panel_control(request):
     # --- Ejecución real: suma de costos de mantenimientos finalizados en el año ---
     mantenimientos_anio = Mantenimiento.objects.filter(
         fecha_salida__year=anio_seleccionado,
-        estado='Finalizado'
+        estado='Finalizado',
+        cuenta_presupuestaria__isnull=False   # excluir registros sin cuenta
     )
-    total_ejecutado_real = mantenimientos_anio.aggregate(Sum('costo_total_real'))['costo_total_real__sum'] or 0
 
-    # --- Gasto mensual desglosado (preventivo vs correctivo) ---
+    # Definir códigos de cuenta para preventivo y correctivo
+    preventive_codes = ['22.06.002.001', '22.06.002.003']
+    corrective_codes = ['22.06.002.002', '22.06.002.004']
+
+    # --- Gasto mensual desglosado (preventivo vs correctivo) usando cuenta ---
     meses_labels = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"]
     monthly_prev = [0]*12
     monthly_corr = [0]*12
     for m in mantenimientos_anio:
         if m.fecha_salida:
             month = m.fecha_salida.month - 1
-            if m.tipo_mantencion == 'Preventivo':
+            codigo = m.cuenta_presupuestaria.codigo
+            if codigo in preventive_codes:
                 monthly_prev[month] += m.costo_total_real
-            else:
+            elif codigo in corrective_codes:
                 monthly_corr[month] += m.costo_total_real
     monthly_prev = [int(x) for x in monthly_prev]
     monthly_corr = [int(x) for x in monthly_corr]
 
-    # --- Top 10 vehículos con más gasto (desglosado) ---
+    # --- Totales anuales por tipo (según cuenta) ---
+    total_preventivo = mantenimientos_anio.filter(cuenta_presupuestaria__codigo__in=preventive_codes).aggregate(Sum('costo_total_real'))['costo_total_real__sum'] or 0
+    total_correctivo = mantenimientos_anio.filter(cuenta_presupuestaria__codigo__in=corrective_codes).aggregate(Sum('costo_total_real'))['costo_total_real__sum'] or 0
+
+    # --- Top 10 vehículos con más gasto (desglosado por cuenta) ---
     vehiculos = Vehiculo.objects.exclude(estado='Baja')
     gasto_por_vehiculo_detalle = []
     for v in vehiculos:
-        prev = mantenimientos_anio.filter(vehiculo=v, tipo_mantencion='Preventivo').aggregate(Sum('costo_total_real'))['costo_total_real__sum'] or 0
-        corr = mantenimientos_anio.filter(vehiculo=v, tipo_mantencion='Correctivo').aggregate(Sum('costo_total_real'))['costo_total_real__sum'] or 0
+        prev = mantenimientos_anio.filter(vehiculo=v, cuenta_presupuestaria__codigo__in=preventive_codes).aggregate(Sum('costo_total_real'))['costo_total_real__sum'] or 0
+        corr = mantenimientos_anio.filter(vehiculo=v, cuenta_presupuestaria__codigo__in=corrective_codes).aggregate(Sum('costo_total_real'))['costo_total_real__sum'] or 0
         if prev > 0 or corr > 0:
             gasto_por_vehiculo_detalle.append({
                 'patente': v.patente,
@@ -87,21 +96,34 @@ def panel_control(request):
     dias_por_vehiculo = []
 
     for v in vehiculos:
+        # Buscamos mantenimientos que toquen el año seleccionado
         mants_v = mants_anio.filter(vehiculo=v)
         prev_dias = 0
         corr_dias = 0
+        
         for m in mants_v:
+            # LÓGICA DE RECORTE DE FECHAS
+            # El inicio es el máximo entre cuando empezó el mant. y el 1 de enero
             inicio = max(m.fecha_ingreso, inicio_anio)
-            fin_temp = m.fecha_salida if m.fecha_salida else hoy
-            fin = min(fin_temp, fin_anio)
+            
+            # El fin es el mínimo entre cuando terminó (o hoy si sigue abierto) y el 31 de diciembre
+            fecha_termino_real = m.fecha_salida if m.fecha_salida else hoy
+            fin = min(fecha_termino_real, fin_anio)
+            
             if fin >= inicio:
+                # Calculamos la duración en ese rango específico
                 duracion = (fin - inicio).days + 1
+                
                 if m.tipo_mantencion == 'Preventivo':
                     prev_dias += duracion
                 else:
                     corr_dias += duracion
-        total_off = prev_dias + corr_dias
-        operativo = max(0, dias_del_periodo - total_off)
+        
+        # IMPORTANTE: Asegurar que un vehículo no tenga más de 365 días de mantención
+        # (pasa si hay mantenimientos superpuestos en la base de datos)
+        total_off = min(prev_dias + corr_dias, dias_del_periodo)
+        operativo = dias_del_periodo - total_off
+        
         dias_por_vehiculo.append({
             'patente': v.patente,
             'preventivo': prev_dias,
@@ -111,31 +133,38 @@ def panel_control(request):
         })
         dias_preventivo += prev_dias
         dias_correctivo += corr_dias
-
-    # --- Disponibilidad total (todos los vehículos) ---
+        
+    # --- Disponibilidad total ---
     n_vehiculos = len(vehiculos)
     dias_totales_posibles = n_vehiculos * dias_del_periodo
     dias_operativos = max(0, dias_totales_posibles - (dias_preventivo + dias_correctivo))
     disponibilidad_pct = (dias_operativos / dias_totales_posibles * 100) if dias_totales_posibles > 0 else 100.0
 
-    # --- Separar ambulancias y camioneta para gráficos específicos ---
-    ambulancias = vehiculos.filter(tipo_carroceria='Ambulancia')
-    camioneta = vehiculos.filter(tipo_carroceria='Camioneta').first()
+    # --- Separar ambulancias y camioneta para gráficos específicos (LÓGICA CORREGIDA) ---
+    ambulancias_qs = vehiculos.filter(tipo_carroceria='Ambulancia')
+    patentes_ambulancia = set(ambulancias_qs.values_list('patente', flat=True))
+    
+    camioneta_qs = vehiculos.filter(tipo_carroceria='Camioneta').first()
+    patente_camioneta = camioneta_qs.patente if camioneta_qs else None
 
-    dias_totales_amb = ambulancias.count() * dias_del_periodo
-    dias_preventivo_amb = sum(d['preventivo'] for d in dias_por_vehiculo if d['patente'] in ambulancias.values_list('patente', flat=True))
-    dias_correctivo_amb = sum(d['correctivo'] for d in dias_por_vehiculo if d['patente'] in ambulancias.values_list('patente', flat=True))
-    dias_operativos_amb = max(0, dias_totales_amb - (dias_preventivo_amb + dias_correctivo_amb))
-
+    # Sumamos directamente desde el array procesado 'dias_por_vehiculo' para evitar discrepancias
+    # entre el cálculo individual y el cálculo grupal.
+    dias_preventivo_amb = sum(d['preventivo'] for d in dias_por_vehiculo if d['patente'] in patentes_ambulancia)
+    dias_correctivo_amb = sum(d['correctivo'] for d in dias_por_vehiculo if d['patente'] in patentes_ambulancia)
+    dias_operativos_amb = sum(d['operativo'] for d in dias_por_vehiculo if d['patente'] in patentes_ambulancia)
+    
+    # Cálculo total teórico (solo referencial ahora, la suma real manda)
+    dias_totales_amb = ambulancias_qs.count() * dias_del_periodo
+        
     # --- Promedios por vehículo ---
     if n_vehiculos > 0:
-        avg_operativo = sum(d['operativo'] for d in dias_por_vehiculo) / n_vehiculos
-        avg_preventivo = sum(d['preventivo'] for d in dias_por_vehiculo) / n_vehiculos
-        avg_correctivo = sum(d['correctivo'] for d in dias_por_vehiculo) / n_vehiculos
+        avg_operativo = sum((d.get('operativo', 0) or 0) for d in dias_por_vehiculo) / n_vehiculos
+        avg_preventivo = sum((d.get('preventivo', 0) or 0) for d in dias_por_vehiculo) / n_vehiculos
+        avg_correctivo = sum((d.get('correctivo', 0) or 0) for d in dias_por_vehiculo) / n_vehiculos
     else:
-        avg_operativo = avg_preventivo = avg_correctivo = 0
+        avg_operativo = avg_preventivo = avg_correctivo = 0.0
 
-    # --- Salud de flota (kilómetros) con nuevos umbrales ---
+    # --- Salud de flota (kilómetros) ---
     detalle_cumplimiento = []
     cumplimiento_ok = 0
     for v in vehiculos:
@@ -192,12 +221,14 @@ def panel_control(request):
     if cuenta_corr_cam:
         prog_corr += presupuestos.filter(cuenta=cuenta_corr_cam).aggregate(Sum('monto_asignado'))['monto_asignado__sum'] or 0
 
-    ejec_prev = mantenimientos_anio.filter(tipo_mantencion='Preventivo').aggregate(Sum('costo_total_real'))['costo_total_real__sum'] or 0
-    ejec_corr = mantenimientos_anio.filter(tipo_mantencion='Correctivo').aggregate(Sum('costo_total_real'))['costo_total_real__sum'] or 0
+    # Usamos los totales calculados con cuenta
+    ejec_prev = total_preventivo
+    ejec_corr = total_correctivo
+    total_ejecutado_real = ejec_prev + ejec_corr
 
     porcentaje_gasto = (total_ejecutado_real / total_asignado * 100) if total_asignado > 0 else 0
 
-    # --- Factor Plata (drill‑down financiero) - restaurado ---
+    # --- Factor Plata (drill‑down financiero) - restaurado con cuenta ---
     gasto_mensual = []
     finance_data = {
         'labels': meses_labels,
@@ -207,30 +238,46 @@ def panel_control(request):
     for i in range(1, 13):
         # Total del mes (para el gráfico de línea)
         total_mes = mantenimientos_anio.filter(fecha_salida__month=i).aggregate(Sum('costo_total_real'))['costo_total_real__sum'] or 0
-        gasto_mensual.append(int(total_mes))
+        gasto_mensual.append(int(total_mes or 0))
 
-        # Desglose por vehículo y tipo
+        # Desglose por vehículo y tipo según cuenta
         qs_mes = mantenimientos_anio.filter(fecha_salida__month=i)
         vehiculos_mes = {}
         for m in qs_mes:
-            pat = m.vehiculo.patente
-            if pat not in vehiculos_mes:
-                vehiculos_mes[pat] = {'preventivo': 0, 'correctivo': 0}
-            if m.tipo_mantencion == 'Preventivo':
-                vehiculos_mes[pat]['preventivo'] += m.costo_total_real
-            else:
-                vehiculos_mes[pat]['correctivo'] += m.costo_total_real
+            if m.vehiculo and m.vehiculo.patente and m.cuenta_presupuestaria:
+                pat = m.vehiculo.patente
+                if pat not in vehiculos_mes:
+                    vehiculos_mes[pat] = {'preventivo': 0, 'correctivo': 0}
+                costo = m.costo_total_real or 0
+                codigo = m.cuenta_presupuestaria.codigo
+                if codigo in preventive_codes:
+                    vehiculos_mes[pat]['preventivo'] += costo
+                elif codigo in corrective_codes:
+                    vehiculos_mes[pat]['correctivo'] += costo
         # Convertir a lista y ordenar por total (desc)
         drill_list = []
         for pat, montos in vehiculos_mes.items():
+            prev = int(montos.get('preventivo', 0) or 0)
+            corr = int(montos.get('correctivo', 0) or 0)
             drill_list.append({
-                'patente': pat,
-                'preventivo': int(montos['preventivo']),
-                'correctivo': int(montos['correctivo']),
-                'total': int(montos['preventivo'] + montos['correctivo'])
+                'patente': pat or '',
+                'preventivo': prev,
+                'correctivo': corr,
+                'total': prev + corr
             })
         drill_list.sort(key=lambda x: x['total'], reverse=True)
         finance_data['drilldown'].append(drill_list)
+
+    dias_por_vehiculo_limpio = []
+    for d in dias_por_vehiculo:
+        d_clean = {
+            'patente': d['patente'] or '',
+            'preventivo': int(d['preventivo'] or 0),
+            'correctivo': int(d['correctivo'] or 0),
+            'total': int(d['total'] or 0),
+            'operativo': int(d['operativo'] or 0),
+        }
+        dias_por_vehiculo_limpio.append(d_clean)
 
     # --- Contexto final ---
     context = {
@@ -239,21 +286,16 @@ def panel_control(request):
         'presupuesto_total': total_asignado,
         'presupuesto_ejecutado': total_ejecutado_real,
         'presupuesto_pct': porcentaje_gasto,
-        # Gasto mensual desglosado (para el nuevo gráfico de barras agrupadas - opcional, pero lo dejamos)
         'json_monthly_split': json.dumps({
             'labels': meses_labels,
             'preventivo': monthly_prev,
             'correctivo': monthly_corr
         }),
-        # Gasto por vehículo desglosado
         'json_gasto_vehiculo_detalle': json.dumps(gasto_por_vehiculo_detalle),
-        # Para mantener compatibilidad con gráficos antiguos (opcional)
         'json_gasto_vehiculo': json.dumps([v['total'] for v in gasto_por_vehiculo_detalle]),
         'json_labels_vehiculo': json.dumps([v['patente'] for v in gasto_por_vehiculo_detalle]),
-        # Cumplimiento de km
         'cumplimiento_pct': cumplimiento_pct,
         'detalle_cumplimiento': detalle_cumplimiento,
-        # Disponibilidad general
         'disponibilidad_pct': round(disponibilidad_pct, 1),
         'dias_preventivo': dias_preventivo,
         'dias_correctivo': dias_correctivo,
@@ -262,18 +304,15 @@ def panel_control(request):
         'dias_del_periodo': dias_del_periodo,
         'inicio_anio': inicio_anio,
         'fin_calculo': fin_calculo,
-        # Datos para gráficos de disponibilidad específicos
-        'ambulancias_count': ambulancias.count(),
-        'dias_totales_amb': dias_totales_amb,
-        'dias_operativos_amb': dias_operativos_amb,
-        'dias_preventivo_amb': dias_preventivo_amb,
-        'dias_correctivo_amb': dias_correctivo_amb,
-        'camioneta': camioneta,
-        # Promedios
-        'avg_operativo': round(avg_operativo, 1),
-        'avg_preventivo': round(avg_preventivo, 1),
-        'avg_correctivo': round(avg_correctivo, 1),
-        # Datos para gráfico de km
+        'ambulancias_count': ambulancias_qs.count(),
+        'dias_totales_amb': int(dias_totales_amb),
+        'dias_operativos_amb': int(dias_operativos_amb),
+        'dias_preventivo_amb': int(dias_preventivo_amb),
+        'dias_correctivo_amb': int(dias_correctivo_amb),
+        'camioneta': camioneta_qs,
+        'avg_operativo': float(round(avg_operativo, 1)) if avg_operativo else 0.0,
+        'avg_preventivo': float(round(avg_preventivo, 1)) if avg_preventivo else 0.0,
+        'avg_correctivo': float(round(avg_correctivo, 1)) if avg_correctivo else 0.0,
         'json_km_barras': json.dumps(detalle_cumplimiento),
         'json_comparativa_global': json.dumps({
             'labels': ['Mantenimiento Preventivo', 'Mantenimiento Correctivo'],
@@ -283,10 +322,10 @@ def panel_control(request):
         'total_prog': prog_prev + prog_corr,
         'total_ejec': ejec_prev + ejec_corr,
         'vehiculos': vehiculos,
-        # Drill-down financiero (restaurado)
         'json_finance': json.dumps(finance_data),
-        'dias_por_vehiculo_json': json.dumps(dias_por_vehiculo),
+        'dias_por_vehiculo_json': json.dumps(dias_por_vehiculo_limpio),
     }
 
     logger.info(f"Contexto generado con {len(gasto_por_vehiculo_detalle)} vehículos con gasto.")
     return render(request, 'flota/panel_control.html', context)
+    

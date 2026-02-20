@@ -2,6 +2,7 @@
 {% load static %}
 {% load humanize %}
 {% load moneda_clp %}
+{% load l10n %}
 
 {% block title %}Tablero de Mando - Dirección{% endblock %}
 
@@ -37,6 +38,9 @@
         max-height: 100px;
         max-width: 100px;
         margin: 0 auto;
+        display: block !important;
+        width: 100px !important;
+        height: 100px !important;
     }
 </style>
 {% endblock %}
@@ -46,7 +50,6 @@
     <h1 class="h2">Tablero de Gestión de Flota</h1>
 </div>
 
-<!-- Filtro por año -->
 <div class="card mb-4">
     <div class="card-body">
         <form method="get" class="row g-3">
@@ -77,9 +80,7 @@
     </div>
 </div>
 
-<!-- Tres KPIs principales -->
 <div class="row g-4 mb-5">
-    <!-- Bloque 1: Gestión Financiera -->
     <div class="col-md-4">
         <div class="card card-kpi border-lucas" data-bs-toggle="modal" data-bs-target="#modalFinanzas">
             <div class="card-body text-center">
@@ -90,14 +91,13 @@
                     ejecutado de ${{ total_prog|clp }} programado
                 </p>
                 <div class="progress" style="height: 8px;">
-                    <div class="progress-bar bg-primary" role="progressbar" style="width: {{ presupuesto_pct|floatformat:1 }}%;" aria-valuenow="{{ presupuesto_pct|floatformat:1 }}" aria-valuemin="0" aria-valuemax="100"></div>
+                    <div class="progress-bar bg-primary" role="progressbar" style="width: {{ presupuesto_pct|floatformat:1|stringformat:'s' }}%;" aria-valuenow="{{ presupuesto_pct|floatformat:1 }}" aria-valuemin="0" aria-valuemax="100"></div>
                 </div>
                 <small class="text-primary mt-3 d-block"><i class="bi bi-search"></i> Ver detalle financiero</small>
             </div>
         </div>
     </div>
 
-    <!-- Bloque 2: Salud de Flota (Kilómetros) -->
     <div class="col-md-4">
         <div class="card card-kpi border-km" data-bs-toggle="modal" data-bs-target="#modalKm">
             <div class="card-body text-center">
@@ -115,7 +115,6 @@
         </div>
     </div>
 
-    <!-- Bloque 3: Disponibilidad Anual (Tiempo) -->
     <div class="col-md-4">
         <div class="card card-kpi border-time" data-bs-toggle="modal" data-bs-target="#modalTiempo">
             <div class="card-body text-center">
@@ -129,7 +128,7 @@
                     <small>(basado en {{ vehiculos.count }} vehículos)</small>
                 </p>
                 <div style="height: 8px; width: 100%; background: #dc3545; border-radius: 4px; overflow: hidden;">
-                    <div style="width: {{ disponibilidad_pct }}%; background: #198754; height: 100%;"></div>
+                    <div style="width: {{ disponibilidad_pct|stringformat:'s' }}%; background: #198754; height: 100%;"></div>
                 </div>
                 <small class="text-danger mt-3 d-block"><i class="bi bi-search"></i> Analizar causas de baja</small>
             </div>
@@ -137,7 +136,6 @@
     </div>
 </div>
 
-<!-- ========== MODAL FINANZAS ========== -->
 <div class="modal fade" id="modalFinanzas" tabindex="-1">
     <div class="modal-dialog modal-xl">
         <div class="modal-content">
@@ -167,7 +165,6 @@
                         <canvas id="chartPlataBarras" height="80"></canvas>
                     </div>
                 </div>
-                <!-- Nuevo gráfico: Gasto acumulado por vehículo (desglosado) -->
                 <div class="row mt-4">
                     <div class="col-12">
                         <h6 class="text-muted">Gasto Acumulado por Vehículo (Preventivo vs Correctivo)</h6>
@@ -179,7 +176,6 @@
     </div>
 </div>
 
-<!-- ========== MODAL KILÓMETROS ========== -->
 <div class="modal fade" id="modalKm" tabindex="-1">
     <div class="modal-dialog modal-xl">
         <div class="modal-content">
@@ -203,8 +199,6 @@
     </div>
 </div>
 
-<!-- ========== MODAL TIEMPO (DISPONIBILIDAD) ========== -->
-<!-- ========== MODAL TIEMPO (DISPONIBILIDAD) ========== -->
 <div class="modal fade" id="modalTiempo" tabindex="-1">
     <div class="modal-dialog modal-xl">
         <div class="modal-content">
@@ -213,7 +207,6 @@
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
-                <!-- Gráficos por tipo de vehículo -->
                 <div class="row">
                     <div class="col-md-6">
                         <h6>Ambulancias ({{ ambulancias_count }})</h6>
@@ -225,7 +218,6 @@
                     </div>
                 </div>
 
-                <!-- Gráficos individuales por patente (justo debajo de los generales) -->
                 <hr>
                 <h5>Distribución individual por vehículo</h5>
                 <div class="row" id="vehicle-charts-container">
@@ -245,7 +237,6 @@
                 </div>
 
                 <hr>
-                <!-- Tabla detalle por vehículo -->
                 <h5 class="mt-4">Detalle por Vehículo (días fuera de servicio)</h5>
                 <p class="text-muted small">
                     Período considerado: <strong>{{ dias_del_periodo }} días</strong> 
@@ -277,7 +268,6 @@
                         </tbody>
                     </table>
                 </div>
-                <!-- Gráfico de promedios -->
                 <hr>
                 <h5>Promedio por Vehículo (días)</h5>
                 <canvas id="chartPromedios" height="100"></canvas>
@@ -298,9 +288,17 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // ==========================================
-    // 1. FINANZAS: Drill-down mensual (línea)
+    // VARIABLES GLOBALES PARA GRÁFICOS DE FINANZAS
     // ==========================================
     let financeData = null;
+    let comparativaData = null;
+    let vehicleData = null;
+    let financeMainChart = null;
+    let detailChart = null;
+    let comparativaChart = null;
+    let vehicleChart = null;
+
+    // Cargar datos JSON
     try {
         financeData = JSON.parse('{{ json_finance|safe }}');
     } catch(e) {
@@ -308,49 +306,160 @@ document.addEventListener('DOMContentLoaded', function() {
         financeData = { labels: [], monthly_totals: [], drilldown: [] };
     }
 
-    let detailChart = null;
-    const ctxDetail = document.getElementById('chartFinanceDetail');
-    const ctxMain = document.getElementById('chartFinanceMain');
+    try {
+        comparativaData = JSON.parse('{{ json_comparativa_global|safe }}');
+    } catch(e) {
+        console.error('Error parsing json_comparativa_global:', e);
+        comparativaData = null;
+    }
 
-    if (ctxMain && financeData && financeData.labels.length) {
-        new Chart(ctxMain, {
-            type: 'line',
-            data: {
-                labels: financeData.labels,
-                datasets: [{
-                    label: 'Gasto Total ($)',
-                    data: financeData.monthly_totals,
-                    borderColor: '#0d6efd',
-                    backgroundColor: 'rgba(13, 110, 253, 0.1)',
-                    fill: true,
-                    tension: 0.4,
-                    pointRadius: 6,
-                    pointHoverRadius: 8
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: true,
-                plugins: {
-                    tooltip: {
-                        callbacks: {
-                            label: (c) => '$' + new Intl.NumberFormat('es-CL').format(c.raw)
+    try {
+        vehicleData = JSON.parse('{{ json_gasto_vehiculo_detalle|safe }}');
+    } catch(e) {
+        console.error('Error parsing json_gasto_vehiculo_detalle:', e);
+        vehicleData = [];
+    }
+
+    // ==========================================
+    // FUNCIÓN PARA INICIALIZAR GRÁFICOS DE FINANZAS
+    // ==========================================
+    function initFinanceCharts() {
+        const ctxMain = document.getElementById('chartFinanceMain');
+        const ctxDetail = document.getElementById('chartFinanceDetail');
+        const ctxBarras = document.getElementById('chartPlataBarras');
+        const ctxVehicle = document.getElementById('chartVehicleSplit');
+
+        // Destruir gráficos existentes si existen
+        if (financeMainChart) financeMainChart.destroy();
+        if (comparativaChart) comparativaChart.destroy();
+        if (vehicleChart) vehicleChart.destroy();
+
+        // 1. Gráfico principal de gasto mensual
+        if (ctxMain && financeData && financeData.labels && financeData.labels.length) {
+            financeMainChart = new Chart(ctxMain, {
+                type: 'line',
+                data: {
+                    labels: financeData.labels,
+                    datasets: [{
+                        label: 'Gasto Total ($)',
+                        data: (financeData.monthly_totals || []).map(v => v || 0),
+                        borderColor: '#0d6efd',
+                        backgroundColor: 'rgba(13, 110, 253, 0.1)',
+                        fill: true,
+                        tension: 0.4,
+                        pointRadius: 6,
+                        pointHoverRadius: 8
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: {
+                        tooltip: {
+                            callbacks: {
+                                label: (c) => '$' + new Intl.NumberFormat('es-CL').format(c.raw || 0)
+                            }
+                        }
+                    },
+                    onClick: (e, activeElements) => {
+                        if (activeElements.length > 0) {
+                            const index = activeElements[0].index;
+                            const mesNombre = financeData.labels[index];
+                            const breakdown = (financeData.drilldown && financeData.drilldown[index]) || [];
+                            updateFinanceDetail(mesNombre, breakdown);
                         }
                     }
+                }
+            });
+        } else if (ctxMain) {
+            console.warn('No se pudo crear el gráfico de gasto mensual: datos incompletos', financeData);
+        }
+
+        // 2. Comparativa global (Preventivo vs Correctivo) - Ejecución Presupuestaria
+        if (ctxBarras && comparativaData && comparativaData.labels && comparativaData.programado && comparativaData.ejecutado) {
+            comparativaChart = new Chart(ctxBarras, {
+                type: 'bar',
+                data: {
+                    labels: comparativaData.labels,
+                    datasets: [
+                        {
+                            label: 'Programado ($)',
+                            data: comparativaData.programado.map(v => v || 0),
+                            backgroundColor: 'rgba(201, 203, 207, 0.8)',
+                            borderRadius: 5
+                        },
+                        {
+                            label: 'Ejecutado ($)',
+                            data: comparativaData.ejecutado.map(v => v || 0),
+                            backgroundColor: '#0d6efd',
+                            borderRadius: 5
+                        }
+                    ]
                 },
-                onClick: (e, activeElements) => {
-                    if (activeElements.length > 0) {
-                        const index = activeElements[0].index;
-                        const mesNombre = financeData.labels[index];
-                        const breakdown = financeData.drilldown[index] || [];
-                        updateFinanceDetail(mesNombre, breakdown);
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: {
+                        legend: { position: 'top' },
+                        tooltip: {
+                            callbacks: {
+                                label: (context) => context.dataset.label + ': $' + (context.raw || 0).toLocaleString('es-CL')
+                            }
+                        }
                     }
                 }
-            }
-        });
+            });
+        } else if (ctxBarras) {
+            console.warn('No se pudo crear el gráfico de comparativa: datos incompletos', comparativaData);
+        }
+
+        // 3. Gasto acumulado por vehículo (desglosado)
+        if (ctxVehicle && vehicleData && Array.isArray(vehicleData) && vehicleData.length > 0) {
+            vehicleChart = new Chart(ctxVehicle, {
+                type: 'bar',
+                data: {
+                    labels: vehicleData.map(d => d.patente || 'Sin patente'),
+                    datasets: [
+                        {
+                            label: 'Preventivo',
+                            data: vehicleData.map(d => (d.preventivo || 0)),
+                            backgroundColor: '#0d6efd',
+                            borderRadius: 5
+                        },
+                        {
+                            label: 'Correctivo',
+                            data: vehicleData.map(d => (d.correctivo || 0)),
+                            backgroundColor: '#dc3545',
+                            borderRadius: 5
+                        }
+                    ]
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: {
+                        tooltip: {
+                            callbacks: {
+                                label: (context) => {
+                                    return context.dataset.label + ': $' + (context.raw || 0).toLocaleString('es-CL');
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: { stacked: true, beginAtZero: true },
+                        y: { stacked: true }
+                    }
+                }
+            });
+        } else if (ctxVehicle) {
+            console.warn('No se pudo crear el gráfico de gasto por vehículo: datos incompletos', vehicleData);
+        }
     }
 
     function updateFinanceDetail(mes, data) {
+        const ctxDetail = document.getElementById('chartFinanceDetail');
         document.getElementById('financeDetailTitle').innerText = `2. Gasto en ${mes}`;
         document.getElementById('financeDetailContent').classList.add('d-none');
         ctxDetail.classList.remove('d-none');
@@ -408,95 +517,14 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    // 2. Comparativa global (Preventivo vs Correctivo)
-    let comparativaData = null;
-    try {
-        comparativaData = JSON.parse('{{ json_comparativa_global|safe }}');
-    } catch(e) {
-        console.error('Error parsing json_comparativa_global:', e);
-    }
-    const ctxBarras = document.getElementById('chartPlataBarras');
-    if (ctxBarras && comparativaData) {
-        new Chart(ctxBarras, {
-            type: 'bar',
-            data: {
-                labels: comparativaData.labels,
-                datasets: [
-                    {
-                        label: 'Programado ($)',
-                        data: comparativaData.programado,
-                        backgroundColor: 'rgba(201, 203, 207, 0.8)',
-                        borderRadius: 5
-                    },
-                    {
-                        label: 'Ejecutado ($)',
-                        data: comparativaData.ejecutado,
-                        backgroundColor: '#0d6efd',
-                        borderRadius: 5
-                    }
-                ]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: true,
-                plugins: {
-                    legend: { position: 'top' },
-                    tooltip: {
-                        callbacks: {
-                            label: (context) => context.dataset.label + ': $' + context.raw.toLocaleString('es-CL')
-                        }
-                    }
-                }
-            }
-        });
-    }
-
-    // 3. Gasto acumulado por vehículo (desglosado)
-    let vehicleData = null;
-    try {
-        vehicleData = JSON.parse('{{ json_gasto_vehiculo_detalle|safe }}');
-    } catch(e) {
-        console.error('Error parsing json_gasto_vehiculo_detalle:', e);
-        vehicleData = [];
-    }
-    const ctxVehicle = document.getElementById('chartVehicleSplit');
-    if (ctxVehicle && vehicleData.length) {
-        new Chart(ctxVehicle, {
-            type: 'bar',
-            data: {
-                labels: vehicleData.map(d => d.patente),
-                datasets: [
-                    {
-                        label: 'Preventivo',
-                        data: vehicleData.map(d => d.preventivo),
-                        backgroundColor: '#0d6efd',
-                        borderRadius: 5
-                    },
-                    {
-                        label: 'Correctivo',
-                        data: vehicleData.map(d => d.correctivo),
-                        backgroundColor: '#dc3545',
-                        borderRadius: 5
-                    }
-                ]
-            },
-            options: {
-                indexAxis: 'y',
-                responsive: true,
-                maintainAspectRatio: true,
-                plugins: {
-                    tooltip: {
-                        callbacks: {
-                            label: (context) => {
-                                return context.dataset.label + ': $' + context.raw.toLocaleString('es-CL');
-                            }
-                        }
-                    }
-                },
-                scales: {
-                    x: { stacked: true, beginAtZero: true },
-                    y: { stacked: true }
-                }
+    // Inicializar gráficos cuando se muestra el modal de finanzas
+    const modalFinanzas = document.getElementById('modalFinanzas');
+    if (modalFinanzas) {
+        modalFinanzas.addEventListener('shown.bs.modal', function() {
+            try {
+                initFinanceCharts();
+            } catch (error) {
+                console.error('Error al inicializar gráficos de finanzas:', error);
             }
         });
     }
@@ -573,40 +601,30 @@ document.addEventListener('DOMContentLoaded', function() {
     // ==========================================
     // 5. DISPONIBILIDAD
     // ==========================================
-    // Ambulancias
-    const ctxDispAmb = document.getElementById('chartDisponibilidadAmbulancias');
-    if (ctxDispAmb) {
-        new Chart(ctxDispAmb, {
-            type: 'doughnut',
-            data: {
-                labels: ['Operativo', 'Preventivo', 'Correctivo'],
-                datasets: [{
-                    data: [{{ dias_operativos_amb }}, {{ dias_preventivo_amb }}, {{ dias_correctivo_amb }}],
-                    backgroundColor: ['#198754', '#0d6efd', '#dc3545'],
-                    borderWidth: 0
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: true,
-                plugins: {
-                    legend: { position: 'bottom' }
-                }
-            }
-        });
+    // Cargar datos de días por vehículo
+    let diasPorVehiculo = [];
+    try {
+        diasPorVehiculo = JSON.parse('{{ dias_por_vehiculo_json|safe }}');
+    } catch(e) {
+        console.error('Error parsing dias_por_vehiculo_json:', e);
+        diasPorVehiculo = [];
     }
-
-    // Camioneta (si existe)
-    const ctxDispCam = document.getElementById('chartDisponibilidadCamioneta');
-    if (ctxDispCam && {{ camioneta.id|default:0 }} ) {
-        let camData = {{ dias_por_vehiculo|safe }}.find(v => v.patente === '{{ camioneta.patente|default:"" }}');
-        if (camData) {
-            new Chart(ctxDispCam, {
+    
+    try {
+        // Ambulancias - AQUÍ ESTÁ LA CORRECCIÓN CLAVE
+        const ctxDispAmb = document.getElementById('chartDisponibilidadAmbulancias');
+        if (ctxDispAmb) {
+            // Usamos |stringformat:"d" para evitar que 1012 se formatee como 1.012 y JS lea "1"
+            const diasOperativosAmb = parseInt('{{ dias_operativos_amb|default:0|stringformat:"d" }}') || 0;
+            const diasPreventivoAmb = parseInt('{{ dias_preventivo_amb|default:0|stringformat:"d" }}') || 0;
+            const diasCorrectivoAmb = parseInt('{{ dias_correctivo_amb|default:0|stringformat:"d" }}') || 0;
+            
+            new Chart(ctxDispAmb, {
                 type: 'doughnut',
                 data: {
                     labels: ['Operativo', 'Preventivo', 'Correctivo'],
                     datasets: [{
-                        data: [camData.operativo, camData.preventivo, camData.correctivo],
+                        data: [diasOperativosAmb, diasPreventivoAmb, diasCorrectivoAmb],
                         backgroundColor: ['#198754', '#0d6efd', '#dc3545'],
                         borderWidth: 0
                     }]
@@ -619,80 +637,160 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
                 }
             });
-        } else {
-            ctxDispCam.parentNode.innerHTML = '<p class="text-muted">Sin datos</p>';
         }
-    } else if (ctxDispCam) {
-        ctxDispCam.parentNode.innerHTML = '<p class="text-muted">No hay camioneta registrada</p>';
-    }
 
-    // Gráfico de promedios
-    const ctxProm = document.getElementById('chartPromedios');
-    if (ctxProm) {
-        new Chart(ctxProm, {
-            type: 'bar',
-            data: {
-                labels: ['Promedio por vehículo'],
-                datasets: [
-                    {
-                        label: 'Operativo (días)',
-                        data: [{{ avg_operativo }}],
-                        backgroundColor: '#198754'
-                    },
-                    {
-                        label: 'Preventivo (días)',
-                        data: [{{ avg_preventivo }}],
-                        backgroundColor: '#0d6efd'
-                    },
-                    {
-                        label: 'Correctivo (días)',
-                        data: [{{ avg_correctivo }}],
-                        backgroundColor: '#dc3545'
-                    }
-                ]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: true,
-                plugins: {
-                    legend: { position: 'bottom' }
-                },
-                scales: {
-                    y: { beginAtZero: true }
-                }
+        // Camioneta (si existe)
+        const ctxDispCam = document.getElementById('chartDisponibilidadCamioneta');
+        let camionetaId = 0;
+        try {
+            camionetaId = parseInt('{{ camioneta.id|default:0|stringformat:"d" }}') || 0;
+        } catch(e) {
+            console.error('Error parsing camioneta.id:', e);
+            camionetaId = 0;
+        }
+        if (ctxDispCam && camionetaId) {
+            let camData = null;
+            try {
+                camData = diasPorVehiculo.find(v => v.patente === '{{ camioneta.patente|default:"" }}');
+            } catch(e) {
+                console.error('Error finding camioneta data:', e);
             }
-        });
-    }
+            if (camData) {
+                new Chart(ctxDispCam, {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['Operativo', 'Preventivo', 'Correctivo'],
+                        datasets: [{
+                            data: [
+                                parseInt(camData.operativo) || 0,
+                                parseInt(camData.preventivo) || 0,
+                                parseInt(camData.correctivo) || 0
+                            ],
+                            backgroundColor: ['#198754', '#0d6efd', '#dc3545'],
+                            borderWidth: 0
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: true,
+                        plugins: {
+                            legend: { position: 'bottom' }
+                        }
+                    }
+                });
+            } else {
+                ctxDispCam.parentNode.innerHTML = '<p class="text-muted">Sin datos</p>';
+            }
+        } else if (ctxDispCam) {
+            ctxDispCam.parentNode.innerHTML = '<p class="text-muted">No hay camioneta registrada</p>';
+        }
 
-    
-    // ==========================================
-    // 6. GRÁFICOS INDIVIDUALES POR PATENTE (basados en JSON)
-    // ==========================================
-    const diasPorVehiculo = JSON.parse('{{ dias_por_vehiculo_json|safe }}');
-    diasPorVehiculo.forEach((item, index) => {
-        const canvasId = `chartPatente${index + 1}`;
-        const ctx = document.getElementById(canvasId);
-        if (ctx) {
-            new Chart(ctx, {
-                type: 'doughnut',
+        // Gráfico de promedios
+        const ctxProm = document.getElementById('chartPromedios');
+        if (ctxProm) {
+            let avgOperativo = 0, avgPreventivo = 0, avgCorrectivo = 0;
+            try {
+                // Reemplazamos coma por punto para que parseFloat funcione (si L10N está activo)
+                avgOperativo = parseFloat('{{ avg_operativo|default:0|floatformat:1 }}'.replace(',', '.')) || 0;
+                avgPreventivo = parseFloat('{{ avg_preventivo|default:0|floatformat:1 }}'.replace(',', '.')) || 0;
+                avgCorrectivo = parseFloat('{{ avg_correctivo|default:0|floatformat:1 }}'.replace(',', '.')) || 0;
+            } catch(e) {
+                console.error('Error parsing promedios:', e);
+            }
+            new Chart(ctxProm, {
+                type: 'bar',
                 data: {
-                    labels: ['Operativo', 'Preventivo', 'Correctivo'],
-                    datasets: [{
-                        data: [item.operativo, item.preventivo, item.correctivo],
-                        backgroundColor: ['#198754', '#0d6efd', '#dc3545'],
-                        borderWidth: 0
-                    }]
+                    labels: ['Promedio por vehículo'],
+                    datasets: [
+                        {
+                            label: 'Operativo (días)',
+                            data: [avgOperativo],
+                            backgroundColor: '#198754'
+                        },
+                        {
+                            label: 'Preventivo (días)',
+                            data: [avgPreventivo],
+                            backgroundColor: '#0d6efd'
+                        },
+                        {
+                            label: 'Correctivo (días)',
+                            data: [avgCorrectivo],
+                            backgroundColor: '#dc3545'
+                        }
+                    ]
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: true,
                     plugins: {
-                        legend: { display: false }
+                        legend: { position: 'bottom' }
+                    },
+                    scales: {
+                        y: { beginAtZero: true }
                     }
                 }
             });
         }
-    });
+    } catch(error) {
+        console.error('Error al inicializar gráficos de disponibilidad:', error);
+    }
+
+    
+    // ==========================================
+    // 6. GRÁFICOS INDIVIDUALES POR PATENTE
+    // ==========================================
+    try {
+        let diasPorVehiculo = [];
+        try {
+            diasPorVehiculo = JSON.parse('{{ dias_por_vehiculo_json|safe }}');
+        } catch(e) {
+            console.error('Error al parsear dias_por_vehiculo_json:', e);
+            diasPorVehiculo = [];
+        }
+
+        if (Array.isArray(diasPorVehiculo) && diasPorVehiculo.length > 0) {
+            diasPorVehiculo.forEach((item, index) => {
+                const canvasId = `chartPatente${index + 1}`;
+                const ctx = document.getElementById(canvasId);
+                if (ctx) {
+                    ctx.style.width = '100px';
+                    ctx.style.height = '100px';
+                    if (ctx.chart) {
+                        ctx.chart.destroy();
+                    }
+                    try {
+                        const chart = new Chart(ctx, {
+                            type: 'doughnut',
+                            data: {
+                                labels: ['Operativo', 'Preventivo', 'Correctivo'],
+                                datasets: [{
+                                    data: [
+                                        parseInt(item.operativo) || 0,
+                                        parseInt(item.preventivo) || 0,
+                                        parseInt(item.correctivo) || 0
+                                    ],
+                                    backgroundColor: ['#198754', '#0d6efd', '#dc3545'],
+                                    borderWidth: 0
+                                }]
+                            },
+                            options: {
+                                responsive: true,
+                                maintainAspectRatio: true,
+                                plugins: {
+                                    legend: { display: false }
+                                }
+                            }
+                        });
+                        ctx.chart = chart;
+                    } catch (chartError) {
+                        console.error(`Error al crear gráfico para ${item.patente}:`, chartError);
+                    }
+                }
+            });
+        }
+    } catch(error) {
+        console.error('Error general en gráficos individuales:', error);
+    }
 });
 </script>
 {% endblock %}
