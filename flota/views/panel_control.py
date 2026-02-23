@@ -279,6 +279,34 @@ def panel_control(request):
         }
         dias_por_vehiculo_limpio.append(d_clean)
 
+    disponibilidad_data = {
+        'por_vehiculo': dias_por_vehiculo_limpio,  # lista limpia ya calculada
+        'ambulancias': {
+            'operativos': int(dias_operativos_amb),
+            'preventivo': int(dias_preventivo_amb),
+            'correctivo': int(dias_correctivo_amb),
+        },
+        'promedios': {
+            'operativo': float(round(avg_operativo, 1)),
+            'preventivo': float(round(avg_preventivo, 1)),
+            'correctivo': float(round(avg_correctivo, 1)),
+        }
+    }
+
+    # Si existe camioneta, agregar sus datos
+    if camioneta_qs:
+        cam_entry = next((d for d in dias_por_vehiculo_limpio if d['patente'] == patente_camioneta), None)
+        if cam_entry:
+            disponibilidad_data['camioneta'] = {
+                'operativo': cam_entry['operativo'],
+                'preventivo': cam_entry['preventivo'],
+                'correctivo': cam_entry['correctivo'],
+            }
+        else:
+            disponibilidad_data['camioneta'] = {'operativo': 0, 'preventivo': 0, 'correctivo': 0}
+    else:
+        disponibilidad_data['camioneta'] = None
+
     # --- Contexto final ---
     context = {
         'years_disponibles': years_disponibles,
@@ -324,6 +352,7 @@ def panel_control(request):
         'vehiculos': vehiculos,
         'json_finance': json.dumps(finance_data),
         'dias_por_vehiculo_json': json.dumps(dias_por_vehiculo_limpio),
+        'disponibilidad_json': json.dumps(disponibilidad_data),
     }
 
     logger.info(f"Contexto generado con {len(gasto_por_vehiculo_detalle)} vehículos con gasto.")

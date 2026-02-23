@@ -170,7 +170,7 @@
                         <div class="col-md-6">
                             <label for="id_km_inicio" class="form-label fw-bold">Kilometraje Inicial *</label>
                             <div class="input-group">
-                                {{ form.km_inicio }}
+                                {{ form.km_inicio|stringformat:"s" }}
                                 <span class="input-group-text">km</span>
                             </div>
                             <small class="text-muted">KM al inicio del turno</small>

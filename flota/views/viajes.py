@@ -212,6 +212,10 @@ def agregar_viaje(request, id):
 
     # Lista de pacientes de traslados anteriores para el desplegable
     pacientes_anteriores = PacienteViaje.objects.all().order_by('nombre')[:300]
+
+    km_actual_vehiculo = hoja.vehiculo.kilometraje_actual
+    if km_actual_vehiculo < hoja.km_inicio:
+        km_actual_vehiculo = hoja.km_inicio
     
     context = {
         'hoja': hoja,
@@ -219,6 +223,7 @@ def agregar_viaje(request, id):
         'paciente_formset': paciente_formset,
         'ultimos_viajes': hoja.viajes.all().order_by('-id')[:5],
         'pacientes_anteriores': pacientes_anteriores,
+        'km_actual_vehiculo': km_actual_vehiculo,
     }
     return render(request, 'flota/registrar_viaje.html', context)
 

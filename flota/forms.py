@@ -3,6 +3,7 @@ from django import forms
 from django.forms import formset_factory, inlineformset_factory
 from django.contrib.auth.forms import UserCreationForm
 from datetime import datetime
+from django.core.exceptions import ValidationError
 from .models import (
     Usuario, Vehiculo, Proveedor, OrdenCompra, OrdenTrabajo,
     Presupuesto, Arriendo, HojaRuta, Viaje, PacienteTraslado, CargaCombustible,
@@ -168,12 +169,14 @@ class VehiculoForm(forms.ModelForm):
     
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        # Si es una edición, patente NO es readonly porque no es PK
-        # Pero podría serlo por lógica de negocio (la patente no debería cambiar)
         if self.instance.pk:
             self.fields['patente'].widget.attrs['readonly'] = True  # Mantener readonly visual
             # Establecer el valor inicial para que se envíe en POST
             self.fields['patente'].initial = self.instance.patente
+        self.fields['es_samu'].required = False
+        self.fields['es_backup'].required = False
+        self.fields['es_samu'].widget.attrs.pop('required', None)
+        self.fields['es_backup'].widget.attrs.pop('required', None)
     
     def clean(self):
         cleaned_data = super().clean()
@@ -778,27 +781,17 @@ class PresupuestoForm(forms.ModelForm):
 
 
 class ArriendoForm(forms.ModelForm):
-    # Campos adicionales para crear un vehículo arrendado si no existe
-    nueva_patente = forms.CharField(
-        max_length=10,
+    # Definir explícitamente vehiculo_reemplazado como ModelChoiceField
+    vehiculo_reemplazado = forms.ModelChoiceField(
+        queryset=Vehiculo.objects.filter(
+            tipo_propiedad='Propio', 
+            estado__in=['En mantenimiento', 'Fuera de servicio']
+        ).order_by('patente'),
         required=False,
-        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ej: ABC-123'}),
-        label='Nueva patente',
-        help_text='Si el vehículo arrendado no está registrado, ingrese su patente aquí'
+        label="Vehículo propio a reemplazar",
+        widget=forms.Select(attrs={'class': 'form-select'})
     )
-    nueva_marca = forms.CharField(
-        max_length=50,
-        required=False,
-        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ej: Toyota'}),
-        label='Marca'
-    )
-    nueva_modelo = forms.CharField(
-        max_length=50,
-        required=False,
-        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ej: Hilux'}),
-        label='Modelo'
-    )
-    
+
     class Meta:
         model = Arriendo
         fields = [
@@ -815,102 +808,41 @@ class ArriendoForm(forms.ModelForm):
             'fecha_fin': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}),
             'motivo': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
             'vehiculo_arrendado': forms.Select(attrs={'class': 'form-select'}),
-            'vehiculo_reemplazado': forms.Select(attrs={'class': 'form-select'}),
             'proveedor': forms.Select(attrs={'class': 'form-select'}),
             'costo_diario': forms.NumberInput(attrs={'class': 'form-control'}),
         }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        
-        # Filtrar vehículos arrendados
+        # Configurar queryset para otros campos FK
         self.fields['vehiculo_arrendado'].queryset = Vehiculo.objects.filter(
             tipo_propiedad='Arrendado'
         ).order_by('patente')
-        
-        # Filtrar vehículos propios para reemplazo
-        self.fields['vehiculo_reemplazado'].queryset = Vehiculo.objects.filter(
-            tipo_propiedad='Propio', 
-            estado__in=['En mantenimiento', 'Fuera de servicio']
-        ).order_by('patente')
-        
-        # Filtrar proveedores arrendadores
         self.fields['proveedor'].queryset = Proveedor.objects.filter(
-            es_arrendador=True, 
-            activo=True
+            es_arrendador=True, activo=True
         ).order_by('nombre_fantasia')
-        
-        # Formatear fechas
-        if self.instance and self.instance.pk:
+        # Nota: vehiculo_reemplazado ya tiene queryset fijo, no se modifica aquí
+
+        # Formatear fechas si es edición
+        if self.instance.pk:
             if self.instance.fecha_inicio:
                 self.fields['fecha_inicio'].widget.attrs['value'] = self.instance.fecha_inicio.strftime('%Y-%m-%d')
             if self.instance.fecha_fin:
                 self.fields['fecha_fin'].widget.attrs['value'] = self.instance.fecha_fin.strftime('%Y-%m-%d')
 
-            # En edición, los datos del vehículo arrendado ya están fijados
-            self.fields['nueva_patente'].required = False
-            self.fields['nueva_marca'].required = False
-            self.fields['nueva_modelo'].required = False
-
-        # Para claridad de flujo: el vehículo propio a reemplazar es obligatorio
-        self.fields['vehiculo_reemplazado'].required = True
+        # Hacer vehiculo_arrendado opcional si es modo nuevo
+        modo = self.data.get('modo_vehiculo_arriendo') if self.data else None
+        if modo == 'nuevo':
+            self.fields['vehiculo_arrendado'].required = False
 
     def clean(self):
         cleaned_data = super().clean()
-        
-        # Validar fechas de vigencia del arriendo
         fecha_inicio = cleaned_data.get('fecha_inicio')
         fecha_fin = cleaned_data.get('fecha_fin')
         if fecha_inicio and fecha_fin and fecha_fin < fecha_inicio:
-            raise forms.ValidationError("La fecha de fin no puede ser anterior a la fecha de inicio.")
-        
-        # Solo validar en creación, no en edición
-        if not self.instance.pk:  # Si es nuevo arriendo
-            vehiculo_arrendado = cleaned_data.get('vehiculo_arrendado')
-            nueva_patente = cleaned_data.get('nueva_patente')
-            
-            if not vehiculo_arrendado and not nueva_patente:
-                raise forms.ValidationError(
-                    "Debe seleccionar un vehículo arrendado existente o proporcionar los datos de uno nuevo."
-                )
-            
-            if nueva_patente:
-                # Verificar que la patente no exista ya
-                if Vehiculo.objects.filter(patente=nueva_patente).exists():
-                    raise forms.ValidationError(f"Ya existe un vehículo con la patente {nueva_patente} en el sistema.")
-        
+            self.add_error('fecha_fin', "La fecha de fin no puede ser anterior a la fecha de inicio.")
         return cleaned_data
-
-    def save(self, commit=True):
-        arriendo = super().save(commit=False)
         
-        # Si se proporcionó un vehículo nuevo, crearlo
-        nueva_patente = self.cleaned_data.get('nueva_patente')
-        if nueva_patente and not arriendo.vehiculo_arrendado:
-            nueva_marca = self.cleaned_data.get('nueva_marca')
-            nueva_modelo = self.cleaned_data.get('nueva_modelo')
-            
-            # Crear el vehículo arrendado
-            vehiculo_arrendado = Vehiculo(
-                patente=nueva_patente,
-                marca=nueva_marca or 'Marca no especificada',
-                modelo=nueva_modelo or 'Modelo no especificado',
-                tipo_propiedad='Arrendado',
-                estado='Disponible',
-                establecimiento='Hospital Río Negro',
-                anio_adquisicion=datetime.now().year,
-                tipo_carroceria='Camioneta',
-                criticidad='No crítico'
-            )
-            vehiculo_arrendado.save()
-            
-            arriendo.vehiculo_arrendado = vehiculo_arrendado
-        
-        if commit:
-            arriendo.save()
-        
-        return arriendo
-
 
 class OrdenCompraForm(forms.ModelForm):
     estado = forms.CharField(

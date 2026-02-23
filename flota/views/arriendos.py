@@ -3,7 +3,7 @@ from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib import messages
 from django.utils import timezone
 from ..models import Arriendo, Mantenimiento, Vehiculo, Proveedor
-from ..forms import ArriendoForm
+from ..forms import ArriendoForm, VehiculoForm
 from .utilidades import es_administrador
 
 
@@ -53,31 +53,55 @@ def listar_arriendos(request):
 @login_required
 @user_passes_test(es_administrador)
 def registrar_arriendo(request):
-    if request.method == 'POST':
-        form = ArriendoForm(request.POST)
-        if form.is_valid():
-            arriendo = form.save()
-            # Actualizar estado del vehículo reemplazado
-            if arriendo.vehiculo_reemplazado:
-                vehiculo = arriendo.vehiculo_reemplazado
-                # Verificar si ya está fuera de servicio
-                if vehiculo.estado != 'Fuera de servicio':
-                    vehiculo.estado = 'Fuera de servicio'
-                    vehiculo.save()
-                    messages.info(request, f'Vehículo {vehiculo.patente} marcado como Fuera de servicio.')
-            messages.success(request, 'Arriendo registrado exitosamente.')
-            return redirect('listar_arriendos')
-    else:
-        form = ArriendoForm()
+    existen_arrendados = Vehiculo.objects.filter(tipo_propiedad='Arrendado').exists()
+    modo_inicial = 'existente' if existen_arrendados else 'nuevo'
     
-    vehiculos_arrendados_existentes = Vehiculo.objects.filter(
-        tipo_propiedad='Arrendado'
-    ).exists()
-
+    if request.method == 'POST':
+        modo = request.POST.get('modo_vehiculo_arriendo')
+        arriendo_form = ArriendoForm(request.POST)
+        
+        if modo == 'existente':
+            if arriendo_form.is_valid():
+                arriendo = arriendo_form.save()
+                messages.success(request, 'Arriendo registrado exitosamente.')
+                return redirect('listar_arriendos')
+            else:
+                vehiculo_form = VehiculoForm()
+                modo_inicial = 'existente'
+        else:  # nuevo
+            vehiculo_form = VehiculoForm(request.POST)
+            if arriendo_form.is_valid() and vehiculo_form.is_valid():
+                nuevo_vehiculo = vehiculo_form.save(commit=False)
+                nuevo_vehiculo.tipo_propiedad = 'Arrendado'
+                nuevo_vehiculo.estado = 'Disponible'
+                nuevo_vehiculo.save()
+                
+                arriendo = arriendo_form.save(commit=False)
+                arriendo.vehiculo_arrendado = nuevo_vehiculo
+                arriendo.save()
+                messages.success(request, 'Arriendo registrado exitosamente con nuevo vehículo.')
+                return redirect('listar_arriendos')
+            else:
+                modo_inicial = 'nuevo'
+    else:
+        arriendo_form = ArriendoForm()
+        vehiculo_form = VehiculoForm(initial={
+            'tipo_propiedad': 'Arrendado',
+            'estado': 'Disponible',
+            'establecimiento': 'Hospital Río Negro',
+            'criticidad': 'No crítico',
+            'anio_adquisicion': timezone.now().year,
+            'es_samu': False,
+            'es_backup': False,
+        })
+    
     return render(request, 'flota/registrar_arriendo.html', {
-        'form': form,
-        'vehiculos_arrendados_existentes': vehiculos_arrendados_existentes,
+        'arriendo_form': arriendo_form,
+        'vehiculo_form': vehiculo_form,
+        'existen_arrendados': existen_arrendados,
+        'modo_inicial': modo_inicial,
     })
+
 
 @login_required
 @user_passes_test(es_administrador)

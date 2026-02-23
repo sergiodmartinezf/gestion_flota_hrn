@@ -10,6 +10,19 @@
     <link rel="stylesheet" href="{% static 'css/base.css' %}">
     {% block extra_css %}{% endblock %}
 </head>
+
+
+
+
+{% if arriendo_form.errors %}
+    <pre>Errores del arriendo: {{ arriendo_form.errors }}</pre>
+{% endif %}
+{% if vehiculo_form.errors %}
+    <pre>Errores del vehículo: {{ vehiculo_form.errors }}</pre>
+{% endif %}
+
+
+
 <body>
     {% if user.is_authenticated %}
     <div class="container-fluid">

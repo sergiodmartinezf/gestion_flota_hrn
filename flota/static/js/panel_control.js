@@ -1,33 +1,39 @@
-document.addEventListener('DOMContentLoaded', function() {
-    // Registrar plugin de anotaciones si está disponible
-    if (typeof Annotation !== 'undefined') {
-        Chart.register(Annotation);
+function getJSON(elementId, defaultValue = null) {
+    const el = document.getElementById(elementId);
+    if (!el) {
+        console.warn(`Elemento ${elementId} no encontrado`);
+        return defaultValue;
     }
-
-    // ------------------------------------------------------------------
-    // Función auxiliar para leer datos JSON desde elementos <script>
-    // ------------------------------------------------------------------
-    function getJSON(elementId, defaultValue = null) {
-        const el = document.getElementById(elementId);
-        if (!el) {
-            console.warn(`Elemento ${elementId} no encontrado`);
-            return defaultValue;
-        }
-        try {
-            return JSON.parse(el.textContent);
-        } catch (e) {
-            console.error(`Error parseando JSON en ${elementId}:`, e);
-            return defaultValue;
-        }
+    try {
+        return JSON.parse(el.textContent);
+    } catch (e) {
+        console.error(`Error parseando JSON en ${elementId}:`, e);
+        return defaultValue;
     }
+}
 
-    // ------------------------------------------------------------------
-    // Cargar todos los datos desde los scripts definidos en el template
-    // ------------------------------------------------------------------
-    const financeData = getJSON('data-finance', { labels: [], monthly_totals: [], drilldown: [] });
-    const comparativaData = getJSON('data-comparativa', null);
-    const vehicleData = getJSON('data-vehicle', []);
-    const kmData = getJSON('data-km', []);
+// Variables para los gráficos del modal Tiempo
+let ambulanciasChart = null;
+let camionetaChart = null;
+let promediosChart = null;
+
+function destroyTimeCharts() {
+    // Destruir gráficos principales
+    if (ambulanciasChart) ambulanciasChart.destroy();
+    if (camionetaChart) camionetaChart.destroy();
+    if (promediosChart) promediosChart.destroy();
+
+    // Destruir gráficos individuales por patente
+    const canvases = document.querySelectorAll('[id^="chartPatente"]');
+    canvases.forEach(canvas => {
+        if (canvas.chart) {
+            canvas.chart.destroy();
+            canvas.chart = null;
+        }
+    });
+}
+
+function initTimeCharts() {
     const disponibilidadData = getJSON('data-disponibilidad', {
         por_vehiculo: [],
         ambulancias: { operativos: 0, preventivo: 0, correctivo: 0 },
@@ -35,8 +41,150 @@ document.addEventListener('DOMContentLoaded', function() {
         promedios: { operativo: 0, preventivo: 0, correctivo: 0 }
     });
 
+    const diasPorVehiculo = disponibilidadData.por_vehiculo || [];
+
+    // Gráfico de Ambulancias
+    const ctxDispAmb = document.getElementById('chartDisponibilidadAmbulancias');
+    if (ctxDispAmb) {
+        const ambData = disponibilidadData.ambulancias;
+        ambulanciasChart = new Chart(ctxDispAmb, {
+            type: 'doughnut',
+            data: {
+                labels: ['Operativo', 'Preventivo', 'Correctivo'],
+                datasets: [{
+                    data: [ambData.operativos, ambData.preventivo, ambData.correctivo],
+                    backgroundColor: ['#198754', '#0d6efd', '#dc3545'],
+                    borderWidth: 0
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: { legend: { position: 'bottom' } }
+            }
+        });
+    }
+
+    // Gráfico de Camioneta (si existe)
+    const ctxDispCam = document.getElementById('chartDisponibilidadCamioneta');
+    if (ctxDispCam) {
+        const camData = disponibilidadData.camioneta;
+        if (camData && camData.operativo !== undefined) {
+            camionetaChart = new Chart(ctxDispCam, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Operativo', 'Preventivo', 'Correctivo'],
+                    datasets: [{
+                        data: [camData.operativo, camData.preventivo, camData.correctivo],
+                        backgroundColor: ['#198754', '#0d6efd', '#dc3545'],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: { legend: { position: 'bottom' } }
+                }
+            });
+        } else {
+            ctxDispCam.parentNode.innerHTML = '<p class="text-muted">Sin datos de camioneta</p>';
+        }
+    }
+
+    // Gráfico de promedios
+    const ctxProm = document.getElementById('chartPromedios');
+    if (ctxProm) {
+        const promedios = disponibilidadData.promedios;
+        promediosChart = new Chart(ctxProm, {
+            type: 'bar',
+            data: {
+                labels: ['Promedio por vehículo'],
+                datasets: [
+                    {
+                        label: 'Operativo (días)',
+                        data: [promedios.operativo],
+                        backgroundColor: '#198754'
+                    },
+                    {
+                        label: 'Preventivo (días)',
+                        data: [promedios.preventivo],
+                        backgroundColor: '#0d6efd'
+                    },
+                    {
+                        label: 'Correctivo (días)',
+                        data: [promedios.correctivo],
+                        backgroundColor: '#dc3545'
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: { legend: { position: 'bottom' } },
+                scales: { y: { beginAtZero: true } }
+            }
+        });
+    }
+
+    // Gráficos individuales por patente
+    if (diasPorVehiculo.length) {
+        diasPorVehiculo.forEach((item, index) => {
+            const canvasId = `chartPatente${index + 1}`;
+            const ctx = document.getElementById(canvasId);
+            if (ctx) {
+                ctx.style.width = '100px';
+                ctx.style.height = '100px';
+                // Destruir si ya existe
+                if (ctx.chart) ctx.chart.destroy();
+                try {
+                    ctx.chart = new Chart(ctx, {
+                        type: 'doughnut',
+                        data: {
+                            labels: ['Operativo', 'Preventivo', 'Correctivo'],
+                            datasets: [{
+                                data: [
+                                    parseInt(item.operativo) || 0,
+                                    parseInt(item.preventivo) || 0,
+                                    parseInt(item.correctivo) || 0
+                                ],
+                                backgroundColor: ['#198754', '#0d6efd', '#dc3545'],
+                                borderWidth: 0
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: true,
+                            plugins: { legend: { display: false } }
+                        }
+                    });
+                } catch (chartError) {
+                    console.error(`Error al crear gráfico para ${item.patente}:`, chartError);
+                }
+            }
+        });
+    }
+}
+
+// Evento para el modal de tiempo
+const modalTiempo = document.getElementById('modalTiempo');
+if (modalTiempo) {
+    modalTiempo.addEventListener('shown.bs.modal', function() {
+        destroyTimeCharts();
+        initTimeCharts();
+    });
+}
+
+// ------------------------------------------------------------------
+// Inicio de la aplicación: cuando el DOM está listo
+// ------------------------------------------------------------------
+document.addEventListener('DOMContentLoaded', function() {
+    // Registrar plugin de anotaciones si está disponible
+    if (typeof Annotation !== 'undefined') {
+        Chart.register(Annotation);
+    }
+
     // ------------------------------------------------------------------
-    // Variables para almacenar instancias de gráficos (para poder destruirlos)
+    // Variables para almacenar instancias de gráficos financieros
     // ------------------------------------------------------------------
     let financeMainChart = null;
     let detailChart = null;
@@ -116,6 +264,10 @@ document.addEventListener('DOMContentLoaded', function() {
     // Función para inicializar los gráficos financieros (modal)
     // ------------------------------------------------------------------
     function initFinanceCharts() {
+        const financeData = getJSON('data-finance', { labels: [], monthly_totals: [], drilldown: [] });
+        const comparativaData = getJSON('data-comparativa', null);
+        const vehicleData = getJSON('data-vehicle', []);
+
         const ctxMain = document.getElementById('chartFinanceMain');
         const ctxBarras = document.getElementById('chartPlataBarras');
         const ctxVehicle = document.getElementById('chartVehicleSplit');
@@ -267,8 +419,9 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // ------------------------------------------------------------------
-    // Gráfico de KILÓMETROS
+    // Gráfico de KILÓMETROS (siempre visible, se crea una sola vez)
     // ------------------------------------------------------------------
+    const kmData = getJSON('data-km', []);
     const ctxKm = document.getElementById('chartKmBarras');
     if (ctxKm && kmData && kmData.length) {
         new Chart(ctxKm, {
@@ -331,146 +484,4 @@ document.addEventListener('DOMContentLoaded', function() {
         console.warn('No hay datos para el gráfico de kilómetros');
     }
 
-    // ------------------------------------------------------------------
-    // Gráficos de DISPONIBILIDAD (modal Tiempo)
-    // ------------------------------------------------------------------
-    const diasPorVehiculo = disponibilidadData.por_vehiculo || [];
-
-    // Ambulancias
-    const ctxDispAmb = document.getElementById('chartDisponibilidadAmbulancias');
-    if (ctxDispAmb) {
-        const ambData = disponibilidadData.ambulancias || { operativos: 0, preventivo: 0, correctivo: 0 };
-        new Chart(ctxDispAmb, {
-            type: 'doughnut',
-            data: {
-                labels: ['Operativo', 'Preventivo', 'Correctivo'],
-                datasets: [{
-                    data: [ambData.operativos, ambData.preventivo, ambData.correctivo],
-                    backgroundColor: ['#198754', '#0d6efd', '#dc3545'],
-                    borderWidth: 0
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: true,
-                plugins: {
-                    legend: { position: 'bottom' }
-                }
-            }
-        });
-    }
-
-    // Camioneta (si existe en los datos)
-    const ctxDispCam = document.getElementById('chartDisponibilidadCamioneta');
-    if (ctxDispCam) {
-        const camData = disponibilidadData.camioneta;
-        if (camData && camData.operativo !== undefined) {
-            new Chart(ctxDispCam, {
-                type: 'doughnut',
-                data: {
-                    labels: ['Operativo', 'Preventivo', 'Correctivo'],
-                    datasets: [{
-                        data: [camData.operativo, camData.preventivo, camData.correctivo],
-                        backgroundColor: ['#198754', '#0d6efd', '#dc3545'],
-                        borderWidth: 0
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: true,
-                    plugins: {
-                        legend: { position: 'bottom' }
-                    }
-                }
-            });
-        } else {
-            ctxDispCam.parentNode.innerHTML = '<p class="text-muted">Sin datos de camioneta</p>';
-        }
-    }
-
-    // Gráfico de promedios
-    const ctxProm = document.getElementById('chartPromedios');
-    if (ctxProm) {
-        const promedios = disponibilidadData.promedios || { operativo: 0, preventivo: 0, correctivo: 0 };
-        new Chart(ctxProm, {
-            type: 'bar',
-            data: {
-                labels: ['Promedio por vehículo'],
-                datasets: [
-                    {
-                        label: 'Operativo (días)',
-                        data: [promedios.operativo],
-                        backgroundColor: '#198754'
-                    },
-                    {
-                        label: 'Preventivo (días)',
-                        data: [promedios.preventivo],
-                        backgroundColor: '#0d6efd'
-                    },
-                    {
-                        label: 'Correctivo (días)',
-                        data: [promedios.correctivo],
-                        backgroundColor: '#dc3545'
-                    }
-                ]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: true,
-                plugins: {
-                    legend: { position: 'bottom' }
-                },
-                scales: {
-                    y: { beginAtZero: true }
-                }
-            }
-        });
-    }
-
-    // ------------------------------------------------------------------
-    // Gráficos individuales por patente (dentro del modal Tiempo)
-    // ------------------------------------------------------------------
-    if (Array.isArray(diasPorVehiculo) && diasPorVehiculo.length > 0) {
-        diasPorVehiculo.forEach((item, index) => {
-            const canvasId = `chartPatente${index + 1}`;
-            const ctx = document.getElementById(canvasId);
-            if (ctx) {
-                // Ajustar dimensiones (por si acaso)
-                ctx.style.width = '100px';
-                ctx.style.height = '100px';
-                // Destruir gráfico anterior si existe (guardado en la propiedad .chart)
-                if (ctx.chart) {
-                    ctx.chart.destroy();
-                }
-                try {
-                    const chart = new Chart(ctx, {
-                        type: 'doughnut',
-                        data: {
-                            labels: ['Operativo', 'Preventivo', 'Correctivo'],
-                            datasets: [{
-                                data: [
-                                    parseInt(item.operativo) || 0,
-                                    parseInt(item.preventivo) || 0,
-                                    parseInt(item.correctivo) || 0
-                                ],
-                                backgroundColor: ['#198754', '#0d6efd', '#dc3545'],
-                                borderWidth: 0
-                            }]
-                        },
-                        options: {
-                            responsive: true,
-                            maintainAspectRatio: true,
-                            plugins: {
-                                legend: { display: false }
-                            }
-                        }
-                    });
-                    // Guardar referencia para poder destruir después si es necesario
-                    ctx.chart = chart;
-                } catch (chartError) {
-                    console.error(`Error al crear gráfico para ${item.patente}:`, chartError);
-                }
-            }
-        });
-    }
 });

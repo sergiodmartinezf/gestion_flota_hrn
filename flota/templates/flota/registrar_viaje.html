@@ -245,6 +245,30 @@
         </div>
     </div>
 </div>
+<!-- Modal para confirmar cierre de hoja -->
+<div class="modal fade" id="modalCerrar" tabindex="-1" aria-labelledby="modalCerrarLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="modalCerrarLabel">Cerrar Hoja de Ruta</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="post" action="{% url 'cerrar_hoja_ruta' hoja.id %}">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <p>Ingrese el kilometraje final del turno:</p>
+                    <input type="number" name="km_cierre" class="form-control" 
+                           required min="{{ hoja.km_inicio }}" 
+                           value="{{ km_actual_vehiculo|stringformat:"s" }}" step="1">
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-danger">Cerrar Hoja</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block extra_js %}

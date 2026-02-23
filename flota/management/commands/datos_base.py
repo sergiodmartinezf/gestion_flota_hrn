@@ -2,7 +2,7 @@ import os
 import csv
 from datetime import datetime, time
 from django.core.management.base import BaseCommand
-from django.db import transaction
+from django.db import transaction, connection
 from django.db.models import Sum
 from django.utils import timezone
 from django.utils.dateparse import parse_date
@@ -145,7 +145,10 @@ class Command(BaseCommand):
                             p.monto_ejecutado = 2120884
                     p.save()
                 self.stdout.write(self.style.SUCCESS('   ✅ Presupuestos forzados a valores correctos.'))
-            self.verificar_y_corregir_ejecutado()  # <<< NUEVA FUNCIÓN
+            self.verificar_y_corregir_ejecutado()
+            self.aplicar_correcciones()
+            self.verificar_y_corregir_ejecutado()
+            self.reset_sequences()
 
         self.stdout.write(self.style.SUCCESS('🎯 Proceso finalizado exitosamente.'))
 
@@ -515,3 +518,23 @@ class Command(BaseCommand):
             p.monto_ejecutado = total
             p.save()
         self.stdout.write(f'   ✅ {presupuestos_activos.count()} presupuestos actualizados con sus ejecutados reales.')
+
+    def reset_sequences(self):
+        """Resetea las secuencias de todas las tablas con AutoField (PostgreSQL)."""
+        self.stdout.write(self.style.WARNING('\n🔄 Reseteando secuencias...'))
+        with connection.cursor() as cursor:
+            tablas = [
+                'usuario',
+                'cuenta_presupuestaria',
+                'proveedor',
+                'vehiculo',
+                'presupuesto',
+                'orden_compra',
+                'mantenimiento',
+            ]
+            for tabla in tablas:
+                cursor.execute(
+                    f"SELECT setval(pg_get_serial_sequence('{tabla}', 'id'), "
+                    f"(SELECT COALESCE(MAX(id), 1) FROM {tabla}));"
+                )
+        self.stdout.write(self.style.SUCCESS('   ✅ Secuencias actualizadas.'))

@@ -769,11 +769,11 @@ class Arriendo(models.Model):
     
     def clean(self):
         # Validar que no estemos tratando de arrendar un vehículo propio
-        if self.vehiculo_arrendado and self.vehiculo_arrendado.tipo_propiedad == 'Propio':
+        if self.vehiculo_arrendado_id and self.vehiculo_arrendado.tipo_propiedad == 'Propio':
             raise ValidationError("El vehículo seleccionado como 'Arrendado' figura como 'Propio' en el sistema.")
             
         # Validar que no se reemplace un vehículo con sigo mismo
-        if self.vehiculo_reemplazado and self.vehiculo_arrendado == self.vehiculo_reemplazado:
+        if self.vehiculo_reemplazado and self.vehiculo_arrendado_id and self.vehiculo_arrendado == self.vehiculo_reemplazado:
             raise ValidationError("El vehículo arrendado no puede ser el mismo que el reemplazado.")
 
     def save(self, *args, **kwargs):
