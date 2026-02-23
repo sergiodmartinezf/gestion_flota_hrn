@@ -443,7 +443,7 @@ class Vehiculo(models.Model):
     
     def __str__(self):
         return f"{self.patente} - {self.marca} {self.modelo}"
-    
+
     @property
     def kilometraje_para_mantencion(self):
         """Calcula cuántos kilómetros faltan para el próximo mantenimiento"""
