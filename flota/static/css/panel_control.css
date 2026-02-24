@@ -25,8 +25,8 @@
     background: #f8f9fa;
 }
 .vehicle-card canvas {
-    max-height: 100px;
-    max-width: 100px;
+    max-height: 140px;
+    max-width: 140px;
     margin: 0 auto;
     display: block !important;
     width: 100px !important;

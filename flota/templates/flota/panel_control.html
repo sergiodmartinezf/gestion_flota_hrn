@@ -220,13 +220,9 @@
                             <tr>
                                 <th>Patente</th>
                                 <th class="text-end">Preventivo (días)</th>
-                                <th class="text-end">%</th>
                                 <th class="text-end">Correctivo (días)</th>
-                                <th class="text-end">%</th>
-                                <th class="text-end">Total no operativo</th>
-                                <th class="text-end">%</th>
+                                <th class="text-end">Total no operativo (días)</th>
                                 <th class="text-end">Operativo (días)</th>
-                                <th class="text-end">%</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -234,16 +230,12 @@
                             <tr>
                                 <td>{{ v.patente }}</td>
                                 <td class="text-end">{{ v.preventivo }}</td>
-                                <td class="text-end">{{ v.preventivo_pct|floatformat:1 }}%</td>
                                 <td class="text-end">{{ v.correctivo }}</td>
-                                <td class="text-end">{{ v.correctivo_pct|floatformat:1 }}%</td>
                                 <td class="text-end">{{ v.total|floatformat:0 }}</td>
-                                <td class="text-end">{{ v.total_pct|floatformat:1 }}%</td>   <!-- Requiere calcular total_pct -->
                                 <td class="text-end">{{ v.operativo|floatformat:0 }}</td>
-                                <td class="text-end">{{ v.operativo_pct|floatformat:1 }}%</td>
                             </tr>
                             {% empty %}
-                            <tr><td colspan="9" class="text-center">Sin datos de mantenimiento en el período</td></tr>
+                            <tr><td colspan="5" class="text-center">Sin datos de mantenimiento en el período</td></tr>
                             {% endfor %}
                         </tbody>
                     </table>
@@ -271,7 +263,6 @@
 <script>
     const DIAS_DEL_PERIODO = {{ dias_del_periodo }};
 </script>
-
 <!-- JS externo -->
-<script src="{% static 'js/panel_control.js' %}"></script>
+<script src="{% static 'js/panel_control.js' %}?v={% now 'U' %}"></script>
 {% endblock %}

@@ -178,10 +178,17 @@ function initTimeCharts() {
                                 tooltip: {
                                     callbacks: {
                                         label: (context) => {
-                                            const label = context.label || '';
-                                            const value = context.raw;
-                                            const percentage = ((value / DIAS_DEL_PERIODO) * 100).toFixed(1);
-                                            return `${label}: ${value} días / ${percentage}%`;
+                                            try {
+                                                const label = context.label || '';
+                                                const value = context.raw;
+                                                const total = typeof DIAS_DEL_PERIODO !== 'undefined' ? DIAS_DEL_PERIODO : context.dataset.data.reduce((a, b) => a + b, 0);
+                                                const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : '0.0';
+                                                // Una sola línea con el formato deseado
+                                                return `${label}: ${value} días / ${percentage}%`;
+                                            } catch (e) {
+                                                console.error('Error en tooltip:', e);
+                                                return `${context.label}: ${context.raw}`;
+                                            }
                                         }
                                     }
                                 }
@@ -195,7 +202,7 @@ function initTimeCharts() {
         });
     }
 
-    // --- Gráfico de promedios (se mantiene igual) ---
+    // --- Gráfico de promedios ---
     const ctxProm = document.getElementById('chartPromedios');
     if (ctxProm) {
         const promedios = disponibilidadData.promedios;
@@ -205,17 +212,17 @@ function initTimeCharts() {
                 labels: ['Promedio por vehículo'],
                 datasets: [
                     {
-                        label: 'Operativo (días)',
+                        label: 'Operativo',
                         data: [promedios.operativo],
                         backgroundColor: '#198754'
                     },
                     {
-                        label: 'Preventivo (días)',
+                        label: 'Preventivo',
                         data: [promedios.preventivo],
                         backgroundColor: '#0d6efd'
                     },
                     {
-                        label: 'Correctivo (días)',
+                        label: 'Correctivo',
                         data: [promedios.correctivo],
                         backgroundColor: '#dc3545'
                     }
@@ -224,7 +231,18 @@ function initTimeCharts() {
             options: {
                 responsive: true,
                 maintainAspectRatio: true,
-                plugins: { legend: { position: 'bottom' } },
+                plugins: {
+                    legend: { position: 'bottom' },
+                    tooltip: {
+                        callbacks: {
+                            label: (context) => {
+                                const label = context.dataset.label || '';
+                                const value = context.raw;
+                                return `${label}: ${value} días`;
+                            }
+                        }
+                    }
+                },
                 scales: { y: { beginAtZero: true } }
             }
         });
