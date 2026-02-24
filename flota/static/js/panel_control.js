@@ -43,7 +43,7 @@ function initTimeCharts() {
 
     const diasPorVehiculo = disponibilidadData.por_vehiculo || [];
 
-    // Gráfico de Ambulancias
+    // --- Gráfico de Ambulancias ---
     const ctxDispAmb = document.getElementById('chartDisponibilidadAmbulancias');
     if (ctxDispAmb) {
         const ambData = disponibilidadData.ambulancias;
@@ -60,12 +60,25 @@ function initTimeCharts() {
             options: {
                 responsive: true,
                 maintainAspectRatio: true,
-                plugins: { legend: { position: 'bottom' } }
+                plugins: {
+                    legend: { position: 'bottom' },
+                    tooltip: {
+                        callbacks: {
+                            label: (context) => {
+                                const label = context.label || '';
+                                const value = context.raw;
+                                const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                const percentage = ((value / total) * 100).toFixed(1);
+                                return `${label}: ${value} días / ${percentage}%`;
+                            }
+                        }
+                    }
+                }
             }
         });
     }
 
-    // Gráfico de Camioneta (si existe)
+    // --- Gráfico de Camioneta (si existe) ---
     const ctxDispCam = document.getElementById('chartDisponibilidadCamioneta');
     if (ctxDispCam) {
         const camData = disponibilidadData.camioneta;
@@ -83,7 +96,20 @@ function initTimeCharts() {
                 options: {
                     responsive: true,
                     maintainAspectRatio: true,
-                    plugins: { legend: { position: 'bottom' } }
+                    plugins: {
+                        legend: { position: 'bottom' },
+                        tooltip: {
+                            callbacks: {
+                                label: (context) => {
+                                    const label = context.label || '';
+                                    const value = context.raw;
+                                    const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                    const percentage = ((value / total) * 100).toFixed(1);
+                                    return `${label}: ${value} días / ${percentage}%`;
+                                }
+                            }
+                        }
+                    }
                 }
             });
         } else {
@@ -91,7 +117,85 @@ function initTimeCharts() {
         }
     }
 
-    // Gráfico de promedios
+    // --- Textos numéricos debajo de los gráficos generales ---
+    const ambText = document.getElementById('ambulancias-text');
+    if (ambText && ambulanciasChart) {
+        const data = ambulanciasChart.data.datasets[0].data;
+        const totalDiasAmb = data[0] + data[1] + data[2];
+        ambText.innerHTML = `
+            Operativo: ${data[0]} días (${((data[0]/totalDiasAmb)*100).toFixed(1)}%) |
+            Preventivo: ${data[1]} días (${((data[1]/totalDiasAmb)*100).toFixed(1)}%) |
+            Correctivo: ${data[2]} días (${((data[2]/totalDiasAmb)*100).toFixed(1)}%)
+        `;
+    }
+
+    const camText = document.getElementById('camioneta-text');
+    if (camText && camionetaChart) {
+        const data = camionetaChart.data.datasets[0].data;
+        const totalDiasCam = data[0] + data[1] + data[2];
+        camText.innerHTML = `
+            Operativo: ${data[0]} días (${((data[0]/totalDiasCam)*100).toFixed(1)}%) |
+            Preventivo: ${data[1]} días (${((data[1]/totalDiasCam)*100).toFixed(1)}%) |
+            Correctivo: ${data[2]} días (${((data[2]/totalDiasCam)*100).toFixed(1)}%)
+        `;
+    }
+
+    // --- Gráficos individuales por patente (solo ambulancias) ---
+    if (diasPorVehiculo.length) {
+        diasPorVehiculo.forEach((item, index) => {
+            const canvasId = `chartPatente${index + 1}`;
+            const ctx = document.getElementById(canvasId);
+            if (ctx) {
+                // Asegurar dimensiones
+                ctx.style.width = '100px';
+                ctx.style.height = '100px';
+
+                // Destruir gráfico previo si existe
+                if (ctx.chart) {
+                    ctx.chart.destroy();
+                }
+
+                try {
+                    ctx.chart = new Chart(ctx, {
+                        type: 'doughnut',
+                        data: {
+                            labels: ['Operativo', 'Preventivo', 'Correctivo'],
+                            datasets: [{
+                                data: [
+                                    parseInt(item.operativo) || 0,
+                                    parseInt(item.preventivo) || 0,
+                                    parseInt(item.correctivo) || 0
+                                ],
+                                backgroundColor: ['#198754', '#0d6efd', '#dc3545'],
+                                borderWidth: 0
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: true,
+                            plugins: {
+                                legend: { display: false },
+                                tooltip: {
+                                    callbacks: {
+                                        label: (context) => {
+                                            const label = context.label || '';
+                                            const value = context.raw;
+                                            const percentage = ((value / DIAS_DEL_PERIODO) * 100).toFixed(1);
+                                            return `${label}: ${value} días / ${percentage}%`;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    });
+                } catch (chartError) {
+                    console.error(`Error al crear gráfico para ${item.patente}:`, chartError);
+                }
+            }
+        });
+    }
+
+    // --- Gráfico de promedios (se mantiene igual) ---
     const ctxProm = document.getElementById('chartPromedios');
     if (ctxProm) {
         const promedios = disponibilidadData.promedios;
@@ -122,44 +226,6 @@ function initTimeCharts() {
                 maintainAspectRatio: true,
                 plugins: { legend: { position: 'bottom' } },
                 scales: { y: { beginAtZero: true } }
-            }
-        });
-    }
-
-    // Gráficos individuales por patente
-    if (diasPorVehiculo.length) {
-        diasPorVehiculo.forEach((item, index) => {
-            const canvasId = `chartPatente${index + 1}`;
-            const ctx = document.getElementById(canvasId);
-            if (ctx) {
-                ctx.style.width = '100px';
-                ctx.style.height = '100px';
-                // Destruir si ya existe
-                if (ctx.chart) ctx.chart.destroy();
-                try {
-                    ctx.chart = new Chart(ctx, {
-                        type: 'doughnut',
-                        data: {
-                            labels: ['Operativo', 'Preventivo', 'Correctivo'],
-                            datasets: [{
-                                data: [
-                                    parseInt(item.operativo) || 0,
-                                    parseInt(item.preventivo) || 0,
-                                    parseInt(item.correctivo) || 0
-                                ],
-                                backgroundColor: ['#198754', '#0d6efd', '#dc3545'],
-                                borderWidth: 0
-                            }]
-                        },
-                        options: {
-                            responsive: true,
-                            maintainAspectRatio: true,
-                            plugins: { legend: { display: false } }
-                        }
-                    });
-                } catch (chartError) {
-                    console.error(`Error al crear gráfico para ${item.patente}:`, chartError);
-                }
             }
         });
     }

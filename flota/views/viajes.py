@@ -129,7 +129,7 @@ def registrar_bitacora(request):
     else:
         form = HojaRutaForm()
 
-    vehiculos = Vehiculo.objects.filter(estado__in=['Disponible', 'En uso']).order_by('patente')
+    vehiculos = Vehiculo.objetos_operativos().order_by('patente')
     vehiculos_info = [
         {
             'patente': v.patente,

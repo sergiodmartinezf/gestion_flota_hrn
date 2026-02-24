@@ -478,6 +478,34 @@ class Vehiculo(models.Model):
         ).filter(recorrido__lt=12000)
         return qs
 
+    def save(self, *args, **kwargs):
+        # Guardar primero para tener el ID
+        super().save(*args, **kwargs)
+
+        # Obtener el último kilometraje de mantenimiento preventivo finalizado
+        ultimo_mant = self.mantenimientos.filter(
+            tipo_mantencion='Preventivo',
+            estado='Finalizado'
+        ).order_by('-fecha_salida').first()
+        km_base = ultimo_mant.km_al_ingreso if ultimo_mant else 0
+
+        recorrido = self.kilometraje_actual - km_base
+
+        # Si recorrido >= 8000, crear alerta si no existe una vigente similar
+        if recorrido >= 8000:
+            # Buscar alerta vigente para este vehículo con descripción que mencione kilometraje
+            alerta_existente = AlertaMantencion.objects.filter(
+                vehiculo=self,
+                vigente=True,
+                descripcion__icontains='kilometraje'
+            ).exists()
+            if not alerta_existente:
+                AlertaMantencion.objects.create(
+                    vehiculo=self,
+                    descripcion=f'Alerta por kilometraje: {recorrido} km desde última mantención (umbral 8000 km).',
+                    valor_umbral=8000
+                )
+
 
 class Presupuesto(models.Model):
     """
@@ -695,6 +723,14 @@ class Mantenimiento(models.Model):
                 raise ValidationError(
                     "No se puede cerrar administrativamente un mantenimiento sin costos reales."
                 )
+        if self.estado == 'Finalizado':
+        # Al finalizar, resolver las alertas de kilometraje de este vehículo
+            from django.utils import timezone
+            AlertaMantencion.objects.filter(
+                vehiculo=self.vehiculo,
+                vigente=True,
+                descripcion__icontains='kilometraje'
+            ).update(vigente=False, resuelta_en=timezone.now())
         super().save(*args, **kwargs)
 
     def __str__(self):

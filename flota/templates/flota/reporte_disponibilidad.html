@@ -56,9 +56,9 @@
         {% for item in reporte %}
         <tr>
             <td><strong>{{ item.vehiculo.patente }}</strong></td>
-            <td>{{ item.dias_fuera_servicio }}</td>
-            <td>{{ item.dias_disponibles }}</td>
-            <td>{{ item.incidentes }}</td>
+            <td>{{ item.dias_fuera_servicio|floatformat:0 }}</td>
+            <td>{{ item.dias_disponibles|floatformat:0 }}</td>
+            <td>{{ item.incidentes|floatformat:0 }}</td>
             <td>
                 {% if item.estado == 'Disponible' %}
                     <span class="badge bg-success">{{ item.estado }}</span>

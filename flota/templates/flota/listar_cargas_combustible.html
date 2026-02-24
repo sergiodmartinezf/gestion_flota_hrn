@@ -87,8 +87,8 @@
                                 <span class="badge bg-secondary">{{ carga.patente_vehiculo.patente }}</span><br>
                                 <small>{{ carga.patente_vehiculo.marca }} {{ carga.patente_vehiculo.modelo }}</small>
                             </td>
-                            <td>{{ carga.kilometraje_al_cargar }}</td>
-                            <td>{{ carga.litros }}</td>
+                            <td>{{ carga.kilometraje_al_cargar|floatformat:0 }}</td>
+                            <td>{{ carga.litros|floatformat:1 }}</td>
                             <td>${{ carga.costo_total|clp }}</td>
                             <td>{{ carga.nro_boleta|default:"-" }}</td>
                         </tr>

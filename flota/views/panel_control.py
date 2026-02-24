@@ -103,24 +103,17 @@ def panel_control(request):
         
         for m in mants_v:
             # LÓGICA DE RECORTE DE FECHAS
-            # El inicio es el máximo entre cuando empezó el mant. y el 1 de enero
             inicio = max(m.fecha_ingreso, inicio_anio)
-            
-            # El fin es el mínimo entre cuando terminó (o hoy si sigue abierto) y el 31 de diciembre
             fecha_termino_real = m.fecha_salida if m.fecha_salida else hoy
             fin = min(fecha_termino_real, fin_anio)
             
             if fin >= inicio:
-                # Calculamos la duración en ese rango específico
                 duracion = (fin - inicio).days + 1
-                
                 if m.tipo_mantencion == 'Preventivo':
                     prev_dias += duracion
                 else:
                     corr_dias += duracion
         
-        # IMPORTANTE: Asegurar que un vehículo no tenga más de 365 días de mantención
-        # (pasa si hay mantenimientos superpuestos en la base de datos)
         total_off = min(prev_dias + corr_dias, dias_del_periodo)
         operativo = dias_del_periodo - total_off
         
@@ -133,41 +126,18 @@ def panel_control(request):
         })
         dias_preventivo += prev_dias
         dias_correctivo += corr_dias
-        
-    # --- Disponibilidad total ---
-    n_vehiculos = len(vehiculos)
-    dias_totales_posibles = n_vehiculos * dias_del_periodo
-    dias_operativos = max(0, dias_totales_posibles - (dias_preventivo + dias_correctivo))
-    disponibilidad_pct = (dias_operativos / dias_totales_posibles * 100) if dias_totales_posibles > 0 else 100.0
 
-    # --- Separar ambulancias y camioneta para gráficos específicos (LÓGICA CORREGIDA) ---
+    # --- Separar ambulancias y camioneta ---
     ambulancias_qs = vehiculos.filter(tipo_carroceria='Ambulancia')
     patentes_ambulancia = set(ambulancias_qs.values_list('patente', flat=True))
     
     camioneta_qs = vehiculos.filter(tipo_carroceria='Camioneta').first()
     patente_camioneta = camioneta_qs.patente if camioneta_qs else None
 
-    # Sumamos directamente desde el array procesado 'dias_por_vehiculo' para evitar discrepancias
-    # entre el cálculo individual y el cálculo grupal.
-    dias_preventivo_amb = sum(d['preventivo'] for d in dias_por_vehiculo if d['patente'] in patentes_ambulancia)
-    dias_correctivo_amb = sum(d['correctivo'] for d in dias_por_vehiculo if d['patente'] in patentes_ambulancia)
-    dias_operativos_amb = sum(d['operativo'] for d in dias_por_vehiculo if d['patente'] in patentes_ambulancia)
-    
-    # Cálculo total teórico (solo referencial ahora, la suma real manda)
-    dias_totales_amb = ambulancias_qs.count() * dias_del_periodo
-        
-    # --- Promedios por vehículo ---
-    if n_vehiculos > 0:
-        avg_operativo = sum((d.get('operativo', 0) or 0) for d in dias_por_vehiculo) / n_vehiculos
-        avg_preventivo = sum((d.get('preventivo', 0) or 0) for d in dias_por_vehiculo) / n_vehiculos
-        avg_correctivo = sum((d.get('correctivo', 0) or 0) for d in dias_por_vehiculo) / n_vehiculos
-    else:
-        avg_operativo = avg_preventivo = avg_correctivo = 0.0
-
-    # --- Salud de flota (kilómetros) ---
+    # --- Salud de Flota (solo ambulancias) ---
     detalle_cumplimiento = []
     cumplimiento_ok = 0
-    for v in vehiculos:
+    for v in ambulancias_qs:
         ultimo_mant = v.mantenimientos.filter(
             tipo_mantencion='Preventivo',
             estado='Finalizado'
@@ -179,6 +149,7 @@ def panel_control(request):
             estado = "OK"
             clase = "bg-success"
             color = "#198754"
+            cumplimiento_ok += 1
         elif recorrido < 12000:
             estado = "Próximo a mantenimiento"
             clase = "bg-warning text-dark"
@@ -187,9 +158,6 @@ def panel_control(request):
             estado = "Excedido (Bloqueado)"
             clase = "bg-danger"
             color = "#dc3545"
-
-        if estado == "OK":
-            cumplimiento_ok += 1
 
         detalle_cumplimiento.append({
             'patente': v.patente,
@@ -202,7 +170,51 @@ def panel_control(request):
             'clase': clase,
             'proxima': km_ultimo + 10000
         })
-    cumplimiento_pct = round((cumplimiento_ok / len(vehiculos)) * 100, 1) if vehiculos else 0
+
+    cumplimiento_pct = round((cumplimiento_ok / len(ambulancias_qs)) * 100, 1) if ambulancias_qs else 0
+
+    # --- Disponibilidad total (solo ambulancias) ---
+    dias_totales_amb = ambulancias_qs.count() * dias_del_periodo
+    dias_operativos_amb = sum(d['operativo'] for d in dias_por_vehiculo if d['patente'] in patentes_ambulancia)
+    dias_preventivo_amb = sum(d['preventivo'] for d in dias_por_vehiculo if d['patente'] in patentes_ambulancia)
+    dias_correctivo_amb = sum(d['correctivo'] for d in dias_por_vehiculo if d['patente'] in patentes_ambulancia)
+
+    disponibilidad_pct = (dias_operativos_amb / dias_totales_amb * 100) if dias_totales_amb > 0 else 100.0
+
+    # --- Promedios por vehículo (todos los vehículos, solo para referencia) ---
+    n_vehiculos = len(vehiculos)
+    if n_vehiculos > 0:
+        avg_operativo = sum((d.get('operativo', 0) or 0) for d in dias_por_vehiculo) / n_vehiculos
+        avg_preventivo = sum((d.get('preventivo', 0) or 0) for d in dias_por_vehiculo) / n_vehiculos
+        avg_correctivo = sum((d.get('correctivo', 0) or 0) for d in dias_por_vehiculo) / n_vehiculos
+    else:
+        avg_operativo = avg_preventivo = avg_correctivo = 0.0
+
+    # --- Filtrar lista individual solo ambulancias y añadir porcentajes ---
+    dias_por_vehiculo_ambulancias = []
+    for d in dias_por_vehiculo:
+        if d['patente'] in patentes_ambulancia:
+            d_clean = {
+                'patente': d['patente'],
+                'preventivo': int(d['preventivo'] or 0),
+                'correctivo': int(d['correctivo'] or 0),
+                'total': int(d['total'] or 0),
+                'operativo': int(d['operativo'] or 0),
+            }
+            # Añadir porcentajes sobre el total de días del período
+            if dias_del_periodo > 0:
+                d_clean['preventivo_pct'] = round((d_clean['preventivo'] / dias_del_periodo) * 100, 1)
+                d_clean['correctivo_pct'] = round((d_clean['correctivo'] / dias_del_periodo) * 100, 1)
+                d_clean['total_pct'] = round((d_clean['total'] / dias_del_periodo) * 100, 1)
+                d_clean['operativo_pct'] = round((d_clean['operativo'] / dias_del_periodo) * 100, 1)
+            else:
+                d_clean.update({
+                    'preventivo_pct': 0,
+                    'correctivo_pct': 0,
+                    'total_pct': 0,
+                    'operativo_pct': 0
+                })
+            dias_por_vehiculo_ambulancias.append(d_clean)
 
     # --- Comparativa Preventivo vs Correctivo (global) ---
     cuenta_prev_amb = CuentaPresupuestaria.objects.filter(codigo='22.06.002.001').first()
@@ -221,26 +233,22 @@ def panel_control(request):
     if cuenta_corr_cam:
         prog_corr += presupuestos.filter(cuenta=cuenta_corr_cam).aggregate(Sum('monto_asignado'))['monto_asignado__sum'] or 0
 
-    # Usamos los totales calculados con cuenta
     ejec_prev = total_preventivo
     ejec_corr = total_correctivo
     total_ejecutado_real = ejec_prev + ejec_corr
-
     porcentaje_gasto = (total_ejecutado_real / total_asignado * 100) if total_asignado > 0 else 0
 
-    # --- Factor Plata (drill‑down financiero) - restaurado con cuenta ---
+    # --- Factor Plata (drill‑down financiero) ---
     gasto_mensual = []
     finance_data = {
         'labels': meses_labels,
         'monthly_totals': gasto_mensual,
-        'drilldown': []  # Cada elemento será lista de {patente, preventivo, correctivo}
+        'drilldown': []
     }
     for i in range(1, 13):
-        # Total del mes (para el gráfico de línea)
         total_mes = mantenimientos_anio.filter(fecha_salida__month=i).aggregate(Sum('costo_total_real'))['costo_total_real__sum'] or 0
         gasto_mensual.append(int(total_mes or 0))
 
-        # Desglose por vehículo y tipo según cuenta
         qs_mes = mantenimientos_anio.filter(fecha_salida__month=i)
         vehiculos_mes = {}
         for m in qs_mes:
@@ -254,7 +262,6 @@ def panel_control(request):
                     vehiculos_mes[pat]['preventivo'] += costo
                 elif codigo in corrective_codes:
                     vehiculos_mes[pat]['correctivo'] += costo
-        # Convertir a lista y ordenar por total (desc)
         drill_list = []
         for pat, montos in vehiculos_mes.items():
             prev = int(montos.get('preventivo', 0) or 0)
@@ -268,24 +275,15 @@ def panel_control(request):
         drill_list.sort(key=lambda x: x['total'], reverse=True)
         finance_data['drilldown'].append(drill_list)
 
-    dias_por_vehiculo_limpio = []
-    for d in dias_por_vehiculo:
-        d_clean = {
-            'patente': d['patente'] or '',
-            'preventivo': int(d['preventivo'] or 0),
-            'correctivo': int(d['correctivo'] or 0),
-            'total': int(d['total'] or 0),
-            'operativo': int(d['operativo'] or 0),
-        }
-        dias_por_vehiculo_limpio.append(d_clean)
-
+    # --- Datos de disponibilidad para JSON (solo ambulancias) ---
     disponibilidad_data = {
-        'por_vehiculo': dias_por_vehiculo_limpio,  # lista limpia ya calculada
+        'por_vehiculo': dias_por_vehiculo_ambulancias,
         'ambulancias': {
             'operativos': int(dias_operativos_amb),
             'preventivo': int(dias_preventivo_amb),
             'correctivo': int(dias_correctivo_amb),
         },
+        'camioneta': None,
         'promedios': {
             'operativo': float(round(avg_operativo, 1)),
             'preventivo': float(round(avg_preventivo, 1)),
@@ -293,9 +291,9 @@ def panel_control(request):
         }
     }
 
-    # Si existe camioneta, agregar sus datos
+    # Si existe camioneta, agregar sus datos (solo para gráfico, no para lista)
     if camioneta_qs:
-        cam_entry = next((d for d in dias_por_vehiculo_limpio if d['patente'] == patente_camioneta), None)
+        cam_entry = next((d for d in dias_por_vehiculo if d['patente'] == patente_camioneta), None)
         if cam_entry:
             disponibilidad_data['camioneta'] = {
                 'operativo': cam_entry['operativo'],
@@ -327,8 +325,8 @@ def panel_control(request):
         'disponibilidad_pct': round(disponibilidad_pct, 1),
         'dias_preventivo': dias_preventivo,
         'dias_correctivo': dias_correctivo,
-        'dias_operativos': dias_operativos,
-        'dias_por_vehiculo': dias_por_vehiculo,
+        #'dias_operativos': dias_operativos,
+        'dias_por_vehiculo_ambulancias': dias_por_vehiculo_ambulancias,
         'dias_del_periodo': dias_del_periodo,
         'inicio_anio': inicio_anio,
         'fin_calculo': fin_calculo,
@@ -351,10 +349,9 @@ def panel_control(request):
         'total_ejec': ejec_prev + ejec_corr,
         'vehiculos': vehiculos,
         'json_finance': json.dumps(finance_data),
-        'dias_por_vehiculo_json': json.dumps(dias_por_vehiculo_limpio),
+        'dias_por_vehiculo_json': json.dumps(dias_por_vehiculo_ambulancias),
         'disponibilidad_json': json.dumps(disponibilidad_data),
     }
 
     logger.info(f"Contexto generado con {len(gasto_por_vehiculo_detalle)} vehículos con gasto.")
     return render(request, 'flota/panel_control.html', context)
-    

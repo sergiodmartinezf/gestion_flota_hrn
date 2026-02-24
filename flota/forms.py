@@ -221,7 +221,7 @@ class ProveedorForm(forms.ModelForm):
 
 class HojaRutaForm(forms.ModelForm):
     vehiculo = forms.ModelChoiceField(
-        queryset=Vehiculo.objects.filter(estado__in=['Disponible', 'En uso']),
+        queryset=Vehiculo.objetos_operativos(),  # ← Cambio aquí
         to_field_name='patente',
         widget=forms.Select(attrs={'class': 'form-select'})
     )
@@ -431,9 +431,7 @@ class CargaCombustibleForm(forms.ModelForm):
             self.fields['fecha'].widget.attrs['value'] = self.instance.fecha.strftime('%Y-%m-%d')
 
         # REQ: Filtrar vehículos que no esten en mantenimiento ni de baja
-        self.fields['patente_vehiculo'].queryset = Vehiculo.objects.filter(
-            estado__in=['Disponible', 'En uso']
-        ).order_by('patente')
+        self.fields['patente_vehiculo'].queryset = Vehiculo.objetos_operativos().order_by('patente')
 
         # Auto-seleccionar conductor actual
         if not self.instance.pk:
@@ -706,9 +704,7 @@ class FallaReportadaForm(forms.ModelForm):
 
         # REQ: Filtrar vehículos activos para reportar fallas nuevas
         if not self.instance.pk:
-            self.fields['vehiculo'].queryset = Vehiculo.objects.filter(
-                estado__in=['Disponible', 'En uso']
-            ).order_by('patente')
+            self.fields['vehiculo'].queryset = Vehiculo.objetos_operativos().order_by('patente')
 
 
 class PresupuestoForm(forms.ModelForm):

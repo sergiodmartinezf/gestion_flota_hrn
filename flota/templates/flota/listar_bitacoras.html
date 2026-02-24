@@ -101,7 +101,7 @@
                             </td>
                             <td>{{ bitacora.conductor.nombre_completo }}</td>
                             <td>{{ bitacora.get_turno_display }}</td>
-                            <td>{{ bitacora.km_recorridos }}</td>
+                            <td>{{ bitacora.km_recorridos|floatformat:0 }}</td>
                             <td>
                                 <a href="{% url 'detalle_bitacora' bitacora.id %}" class="btn btn-sm btn-info me-1"
                                    title="Ver detalles">
