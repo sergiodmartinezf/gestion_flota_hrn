@@ -18,7 +18,7 @@ def login_view(request):
                 login(request, user)
                 # --- NUEVA LÓGICA DE REDIRECCIÓN POR ROL ---
                 if user.rol == 'Conductor':
-                    return redirect('registrar_bitacora')
+                    return redirect('listar_bitacoras')
                 else:
                     return redirect('dashboard')
                 # -------------------------------------------

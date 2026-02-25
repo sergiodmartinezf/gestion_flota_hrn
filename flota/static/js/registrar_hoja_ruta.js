@@ -70,7 +70,7 @@ class BitacoraPasos {
     actualizarKilometrajeInicial(vehiculoId) {
         const kmActual = this.vehiculosData[vehiculoId] || 0;
         const kmInput = document.getElementById('id_km_inicio');
-        if (kmInput && !kmInput.value) {
+        if (kmInput) {
             kmInput.value = kmActual;
         }
     }

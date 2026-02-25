@@ -9,7 +9,7 @@ document.addEventListener('DOMContentLoaded', function() {
     configurarValidacionFormulario();
     
     // 4. Establecer valor por defecto de km_llegada si está vacío
-    setDefaultKmLlegada();
+    //setDefaultKmLlegada();
     
     // 5. Configurar observador de cambios en pacientes
     const pacientesContainer = document.getElementById('pacientes-container');
@@ -231,6 +231,7 @@ function toggleHorasHBO() {
 }
 
 // 4. Establecer valor por defecto de km_llegada = km_salida + 1
+/*
 function setDefaultKmLlegada() {
     const kmSalida = document.querySelector('[name="km_salida"]');
     const kmLlegada = document.querySelector('[name="km_llegada"]');
@@ -241,19 +242,18 @@ function setDefaultKmLlegada() {
         }
     }
 }
+*/
 
 // 5. Configurar validación del formulario (incluye control de KM)
 function configurarValidacionFormulario() {
     const kmSalida = document.querySelector('[name="km_salida"]');
     const kmLlegada = document.querySelector('[name="km_llegada"]');
 
-    // --- Validación en tiempo real de KM ---
     if (kmSalida && kmLlegada) {
         function validarKmEnTiempoReal() {
             const salida = parseInt(kmSalida.value);
             const llegada = parseInt(kmLlegada.value);
             if (!isNaN(salida) && !isNaN(llegada) && llegada < salida) {
-                kmLlegada.value = salida;  // Corregir automáticamente
                 kmLlegada.classList.add('is-invalid');
             } else {
                 kmLlegada.classList.remove('is-invalid');
@@ -262,9 +262,7 @@ function configurarValidacionFormulario() {
 
         kmSalida.addEventListener('input', validarKmEnTiempoReal);
         kmLlegada.addEventListener('input', validarKmEnTiempoReal);
-
-        // Forzar corrección si el valor ya es inválido al cargar
-        validarKmEnTiempoReal();
+        validarKmEnTiempoReal(); // estado inicial
     }
 
     // --- Validación al enviar el formulario ---

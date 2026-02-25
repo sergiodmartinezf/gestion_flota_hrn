@@ -122,7 +122,6 @@ def registrar_bitacora(request):
             messages.success(request, 'Hoja de ruta creada exitosamente.')
             return redirect('agregar_viaje', id=hoja_ruta.id)
         else:
-            # Mostrar errores de forma clara
             for field, errors in form.errors.items():
                 for error in errors:
                     messages.error(request, f"{field}: {error}")
@@ -134,7 +133,7 @@ def registrar_bitacora(request):
         {
             'patente': v.patente,
             'texto': f"{v.patente} - {v.marca} {v.modelo} ({v.tipo_carroceria}) - {v.kilometraje_actual} km",
-            'kilometraje': v.kilometraje_actual,
+            'kilometraje': str(v.kilometraje_actual),   # ← convertir a string sin separadores
             'es_camioneta': v.tipo_carroceria == 'Camioneta'
         }
         for v in vehiculos
@@ -144,7 +143,6 @@ def registrar_bitacora(request):
         'vehiculos': vehiculos,
         'vehiculos_info': vehiculos_info
     })
-
 
 @login_required
 @user_passes_test(es_conductor_o_admin)
@@ -157,7 +155,6 @@ def agregar_viaje(request, id):
 
     if request.method == 'POST':
         form = ViajeForm(request.POST)
-        # Usar request.POST y request.FILES para el formset
         paciente_formset = PacienteFormSet(request.POST, request.FILES)
         
         if form.is_valid():
@@ -170,7 +167,15 @@ def agregar_viaje(request, id):
             else:
                 if paciente_formset.is_valid():
                     viaje.save()  # Guardar viaje primero
-                    
+
+                    # ===== ACTUALIZAR KILOMETRAJE DEL VEHÍCULO =====
+                    if viaje.km_llegada:
+                        vehiculo = hoja.vehiculo
+                        if viaje.km_llegada > vehiculo.kilometraje_actual:
+                            vehiculo.kilometraje_actual = viaje.km_llegada
+                            vehiculo.save()
+                    # ===============================================
+
                     # Guardar pacientes y actualizar tabla maestra PacienteViaje
                     pacientes = paciente_formset.save(commit=False)
                     for paciente in pacientes:
@@ -184,9 +189,9 @@ def agregar_viaje(request, id):
                         paciente.save()
                     
                     # Guardar también los que se marcaron para eliminar
-                    for form in paciente_formset.deleted_forms:
-                        if form.instance.pk:
-                            form.instance.delete()
+                    for form_del in paciente_formset.deleted_forms:
+                        if form_del.instance.pk:
+                            form_del.instance.delete()
                     
                     messages.success(request, 'Viaje registrado correctamente.')
                     return redirect('agregar_viaje', id=hoja.id)
@@ -197,10 +202,9 @@ def agregar_viaje(request, id):
             'km_salida': km_sugerido,
             'hora_salida': timezone.now().strftime('%H:%M')
         })
-        # Formset vacío inicialmente
         paciente_formset = PacienteFormSet(queryset=PacienteTraslado.objects.none())
 
-    # En viajes.py, dentro de agregar_viaje (GET)
+    # Para GET también asignamos km_llegada sugerido
     if request.method == 'GET':
         km_sugerido = ultimo_viaje.km_llegada if ultimo_viaje and ultimo_viaje.km_llegada else hoja.km_inicio
         initial_data = {
@@ -210,9 +214,7 @@ def agregar_viaje(request, id):
         }
         form = ViajeForm(initial=initial_data)
 
-    # Lista de pacientes de traslados anteriores para el desplegable
     pacientes_anteriores = PacienteViaje.objects.all().order_by('nombre')[:300]
-
     km_actual_vehiculo = hoja.vehiculo.kilometraje_actual
     if km_actual_vehiculo < hoja.km_inicio:
         km_actual_vehiculo = hoja.km_inicio
@@ -226,7 +228,6 @@ def agregar_viaje(request, id):
         'km_actual_vehiculo': km_actual_vehiculo,
     }
     return render(request, 'flota/registrar_viaje.html', context)
-
 
 @login_required
 def listar_bitacoras(request):

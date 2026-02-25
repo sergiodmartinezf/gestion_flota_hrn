@@ -79,43 +79,62 @@ class Command(BaseCommand):
             self.stdout.write(self.style.WARNING('\n🔧 Ajustando kilometraje para demo...'))
 
             try:
-                # Vehículo 1: HR.PG-25 → rango amarillo (8000-11999 km)
+                # Vehículo 1: HR.PG-25 → diferencia 7000 km
                 v1 = Vehiculo.objects.get(patente='HR.PG-25')
                 ultimo_mant_v1 = v1.mantenimientos.filter(
                     tipo_mantencion='Preventivo',
                     estado='Finalizado'
                 ).order_by('-fecha_salida').first()
-                
+
                 if ultimo_mant_v1:
-                    # Diferencia objetivo: 10000 km
-                    nuevo_km_ingreso = v1.kilometraje_actual - 10000
+                    nuevo_km_ingreso = v1.kilometraje_actual - 7000
                     if nuevo_km_ingreso >= 0:
                         ultimo_mant_v1.km_al_ingreso = nuevo_km_ingreso
                         ultimo_mant_v1.save()
-                        self.stdout.write(f'   ✅ {v1.patente}: último mant. preventivo actualizado (km_ingreso={nuevo_km_ingreso}) → diferencia 10000 km')
+                        self.stdout.write(f'   ✅ {v1.patente}: último mant. preventivo actualizado (km_ingreso={nuevo_km_ingreso}) → diferencia 7000 km')
                     else:
                         self.stdout.write(self.style.WARNING(f'   ⚠️ {v1.patente}: no se pudo ajustar (kilometraje actual muy bajo)'))
                 else:
                     self.stdout.write(self.style.WARNING(f'   ⚠️ {v1.patente}: no tiene mantenimientos preventivos'))
 
-                # Vehículo 2: LX-FG-16 → rango rojo (≥12000 km)
+                # Vehículo 2: LX-FG-16 → diferencia 7300 km
                 v2 = Vehiculo.objects.get(patente='LX-FG-16')
                 ultimo_mant_v2 = v2.mantenimientos.filter(
                     tipo_mantencion='Preventivo',
                     estado='Finalizado'
                 ).order_by('-fecha_salida').first()
-                
+
                 if ultimo_mant_v2:
-                    # Diferencia objetivo: 13000 km
-                    nuevo_km_ingreso = v2.kilometraje_actual - 13000
+                    nuevo_km_ingreso = v2.kilometraje_actual - 7300
                     if nuevo_km_ingreso >= 0:
                         ultimo_mant_v2.km_al_ingreso = nuevo_km_ingreso
                         ultimo_mant_v2.save()
-                        self.stdout.write(f'   ✅ {v2.patente}: último mant. preventivo actualizado (km_ingreso={nuevo_km_ingreso}) → diferencia 13000 km')
+                        self.stdout.write(f'   ✅ {v2.patente}: último mant. preventivo actualizado (km_ingreso={nuevo_km_ingreso}) → diferencia 7300 km')
                     else:
                         self.stdout.write(self.style.WARNING(f'   ⚠️ {v2.patente}: no se pudo ajustar (kilometraje actual muy bajo)'))
                 else:
                     self.stdout.write(self.style.WARNING(f'   ⚠️ {v2.patente}: no tiene mantenimientos preventivos'))
+
+                # Vehículo 3: KX.SL-70 → diferencia 7500 km
+                v3 = Vehiculo.objects.get(patente='KX.SL-70')
+                ultimo_mant_v3 = v3.mantenimientos.filter(
+                    tipo_mantencion='Preventivo',
+                    estado='Finalizado'
+                ).order_by('-fecha_salida').first()
+
+                if ultimo_mant_v3:
+                    nuevo_km_ingreso = v3.kilometraje_actual - 7500
+                    if nuevo_km_ingreso >= 0:
+                        # Usar update para evitar señales y validaciones de presupuesto
+                        actualizados = Mantenimiento.objects.filter(id=ultimo_mant_v3.id).update(km_al_ingreso=nuevo_km_ingreso)
+                        if actualizados:
+                            self.stdout.write(f'   ✅ {v3.patente}: km_al_ingreso actualizado a {nuevo_km_ingreso} (vía update) → diferencia 7500 km')
+                        else:
+                            self.stdout.write(self.style.WARNING(f'   ⚠️ {v3.patente}: no se pudo actualizar'))
+                    else:
+                        self.stdout.write(self.style.WARNING(f'   ⚠️ {v3.patente}: no se pudo ajustar (kilometraje actual muy bajo)'))
+                else:
+                    self.stdout.write(self.style.WARNING(f'   ⚠️ {v3.patente}: no tiene mantenimientos preventivos'))
 
             except Vehiculo.DoesNotExist as e:
                 self.stdout.write(self.style.ERROR(f'❌ Vehículo no encontrado: {e}'))
