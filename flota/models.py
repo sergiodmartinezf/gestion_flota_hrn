@@ -435,6 +435,11 @@ class Vehiculo(models.Model):
     tipo_propiedad = models.CharField(max_length=30, choices=TIPOS_PROPIEDAD, default='Propio')
     
     creado_en = models.DateTimeField(auto_now_add=True)
+
+    bloqueado_por_km = models.BooleanField(
+        default=False,
+        verbose_name="Bloqueado automáticamente por exceso de km"
+    )
     
     class Meta:
         db_table = 'vehiculo'
@@ -479,27 +484,51 @@ class Vehiculo(models.Model):
         return qs
 
     def save(self, *args, **kwargs):
-        # Guardar primero para tener el ID
-        super().save(*args, **kwargs)
-
-        # Obtener el último kilometraje de mantenimiento preventivo finalizado
-        ultimo_mant = self.mantenimientos.filter(
-            tipo_mantencion='Preventivo',
-            estado='Finalizado'
-        ).order_by('-fecha_salida').first()
-        km_base = ultimo_mant.km_al_ingreso if ultimo_mant else 0
+        # Calcular recorrido antes de guardar para decidir cambio de estado
+        if self.pk:  # vehículo existente
+            ultimo_mant = self.mantenimientos.filter(
+                tipo_mantencion='Preventivo',
+                estado='Finalizado'
+            ).order_by('-fecha_salida').first()
+            km_base = ultimo_mant.km_al_ingreso if ultimo_mant else 0
+        else:
+            km_base = 0
 
         recorrido = self.kilometraje_actual - km_base
 
-        # Si recorrido >= 8000, crear alerta si no existe una vigente similar
-        if recorrido >= 8000:
-            # Buscar alerta vigente para este vehículo con descripción que mencione kilometraje
-            alerta_existente = AlertaMantencion.objects.filter(
+        # --- Lógica de bloqueo por kilometraje ---
+        if recorrido >= 12000:
+            if self.estado not in ['Fuera de servicio', 'Baja', 'En mantenimiento']:
+                self.estado = 'Fuera de servicio'
+                self.bloqueado_por_km = True
+        else:
+            # Si estaba bloqueado por km y ahora está bajo el umbral, liberar
+            if self.bloqueado_por_km:
+                self.estado = 'Disponible'
+                self.bloqueado_por_km = False
+
+        super().save(*args, **kwargs)
+
+        # --- Crear alertas según el recorrido (después de guardar) ---
+        if recorrido >= 12000:
+            # Alerta de bloqueo (solo si no existe una vigente)
+            if not AlertaMantencion.objects.filter(
+                vehiculo=self,
+                vigente=True,
+                descripcion__icontains='bloqueado'
+            ).exists():
+                AlertaMantencion.objects.create(
+                    vehiculo=self,
+                    descripcion=f'Vehículo bloqueado por exceder 12000 km desde última mantención (recorrido: {recorrido} km).',
+                    valor_umbral=12000
+                )
+        elif recorrido >= 8000:
+            # Alerta de proximidad (solo si no existe una vigente)
+            if not AlertaMantencion.objects.filter(
                 vehiculo=self,
                 vigente=True,
                 descripcion__icontains='kilometraje'
-            ).exists()
-            if not alerta_existente:
+            ).exists():
                 AlertaMantencion.objects.create(
                     vehiculo=self,
                     descripcion=f'Alerta por kilometraje: {recorrido} km desde última mantención (umbral 8000 km).',
@@ -732,6 +761,27 @@ class Mantenimiento(models.Model):
                 descripcion__icontains='kilometraje'
             ).update(vigente=False, resuelta_en=timezone.now())
         super().save(*args, **kwargs)
+
+        if self.estado == 'Finalizado':
+            # Resolver alertas de kilometraje (8000 y 12000)
+            from django.utils import timezone
+            AlertaMantencion.objects.filter(
+                vehiculo=self.vehiculo,
+                vigente=True,
+                descripcion__icontains='kilometraje'
+            ).update(vigente=False, resuelta_en=timezone.now())
+            AlertaMantencion.objects.filter(
+                vehiculo=self.vehiculo,
+                vigente=True,
+                descripcion__icontains='bloqueado'
+            ).update(vigente=False, resuelta_en=timezone.now())
+
+        super().save(*args, **kwargs)
+
+        # Después de guardar, actualizar el vehículo para que recalcule su estado
+        # (esto disparará la lógica de bloqueo/liberación en Vehiculo.save)
+        if self.estado == 'Finalizado':
+            self.vehiculo.save()
 
     def __str__(self):
         return f"{self.tipo_mantencion} {self.vehiculo.patente} - {self.fecha_ingreso}"
