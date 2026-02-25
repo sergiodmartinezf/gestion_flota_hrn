@@ -521,51 +521,22 @@ document.addEventListener('DOMContentLoaded', function() {
             },
             options: {
                 responsive: true,
-                maintainAspectRatio: false,
+                maintainAspectRatio: true,
                 plugins: {
                     annotation: {
                         annotations: {
-                            line8000: {
-                                type: 'line',
-                                yMin: 8000,
-                                yMax: 8000,
-                                borderColor: 'orange',
-                                borderWidth: 2,
-                                borderDash: [6, 6]/*,
-                                label: {
-                                    content: '8.000 km (umbral preventivo)',
-                                    enabled: true,
-                                    position: 'end',
-                                    xAdjust: 60
-                                }*/
-                            },
-                            line10000: {
+                            lineLimit: {
                                 type: 'line',
                                 yMin: 10000,
                                 yMax: 10000,
                                 borderColor: 'red',
                                 borderWidth: 2,
-                                borderDash: [6, 6]/*,
+                                borderDash: [6, 6],
                                 label: {
-                                    content: '10.000 km (límite mantención)',
+                                    content: 'Límite 10.000 km',
                                     enabled: true,
-                                    position: 'end',
-                                    xAdjust: 60
-                                }*/
-                            },
-                            line12000: {
-                                type: 'line',
-                                yMin: 12000,
-                                yMax: 12000,
-                                borderColor: 'darkred',
-                                borderWidth: 2,
-                                borderDash: [6, 6]/*,
-                                label: {
-                                    content: '12.000 km (bloqueo)',
-                                    enabled: true,
-                                    position: 'end',
-                                    xAdjust: 60
-                                }*/
+                                    position: 'end'
+                                }
                             }
                         }
                     },
@@ -587,7 +558,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 scales: {
                     y: {
                         beginAtZero: true,
-                        suggestedMax: 13000,  // Para asegurar visibilidad de las líneas
                         title: { display: true, text: 'Kilómetros' }
                     }
                 }

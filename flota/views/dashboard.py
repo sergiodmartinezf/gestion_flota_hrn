@@ -89,11 +89,6 @@ def dashboard(request):
     arriendos_activos = Arriendo.objects.filter(estado='Activo').select_related(
         'vehiculo_arrendado', 'vehiculo_reemplazado', 'proveedor'
     ).order_by('-fecha_inicio')
-
-    vehiculos_bloqueados_km = Vehiculo.objects.filter(
-        estado='Fuera de servicio',
-        bloqueado_por_km=True
-    ).count()
     
     return render(request, 'flota/dashboard.html', {
         'total_vehiculos': total_vehiculos,
@@ -106,6 +101,5 @@ def dashboard(request):
         'alertas_vigentes': alertas_vigentes,
         'presupuestos_alerta': presupuestos_alerta,
         'arriendos_activos': arriendos_activos,
-        'vehiculos_bloqueados_km': vehiculos_bloqueados_km,
     })
 
