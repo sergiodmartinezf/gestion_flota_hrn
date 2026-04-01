@@ -454,11 +454,6 @@ class Vehiculo(models.Model):
 
     @classmethod
     def objetos_operativos(cls):
-        """
-        Retorna queryset de vehículos que pueden ser utilizados en operaciones diarias:
-        - Estado en ['Disponible', 'En uso']
-        - Kilometraje recorrido desde última mantención preventiva < 12000 km
-        """
         from django.db.models import OuterRef, Subquery, F, Value, IntegerField, Case, When
 
         last_maint = Mantenimiento.objects.filter(
@@ -471,8 +466,8 @@ class Vehiculo(models.Model):
             ultimo_km=Subquery(last_maint, output_field=IntegerField())
         ).annotate(
             recorrido=Case(
-                When(ultimo_km__isnull=True, then=F('kilometraje_actual')),
-                default=F('kilometraje_actual') - F('ultimo_km'),
+                When(ultimo_km__isnull=True, then=F('kilometraje_actual')),  # ← corregido
+                default=F('kilometraje_actual') - F('ultimo_km'),            # ← corregido
                 output_field=IntegerField()
             )
         ).filter(recorrido__lt=12000)
@@ -482,30 +477,72 @@ class Vehiculo(models.Model):
         # Guardar primero para tener el ID
         super().save(*args, **kwargs)
 
-        # Obtener el último kilometraje de mantenimiento preventivo finalizado
+        # Obtener el último mantenimiento preventivo finalizado
         ultimo_mant = self.mantenimientos.filter(
             tipo_mantencion='Preventivo',
             estado='Finalizado'
         ).order_by('-fecha_salida').first()
-        km_base = ultimo_mant.km_al_ingreso if ultimo_mant else 0
 
-        recorrido = self.kilometraje_actual - km_base
-
-        # Si recorrido >= 8000, crear alerta si no existe una vigente similar
-        if recorrido >= 8000:
-            # Buscar alerta vigente para este vehículo con descripción que mencione kilometraje
-            alerta_existente = AlertaMantencion.objects.filter(
+        # Si no hay mantenimiento preventivo, no se generan alertas de kilometraje
+        if not ultimo_mant:
+            # Eliminar posibles alertas previas de kilometraje (por si acaso)
+            AlertaMantencion.objects.filter(
                 vehiculo=self,
                 vigente=True,
-                descripcion__icontains='kilometraje'
-            ).exists()
-            if not alerta_existente:
-                AlertaMantencion.objects.create(
-                    vehiculo=self,
-                    descripcion=f'Alerta por kilometraje: {recorrido} km desde última mantención (umbral 8000 km).',
-                    valor_umbral=8000
-                )
+                valor_umbral__in=[8000, 12000]
+            ).update(vigente=False, resuelta_en=timezone.now())
+            return
 
+        km_base = ultimo_mant.km_al_ingreso
+        recorrido = self.kilometraje_actual - km_base
+
+        UMBRAL_PREVENTIVO = 8000
+        UMBRAL_CRITICO = 12000
+
+        if recorrido >= UMBRAL_CRITICO:
+            nuevo_umbral = UMBRAL_CRITICO
+            descripcion = (
+                f'ALERTA CRÍTICA: {recorrido} km desde última mantención '
+                f'(supera los {UMBRAL_CRITICO} km). Vehículo bloqueado para operación.'
+            )
+        elif recorrido >= UMBRAL_PREVENTIVO:
+            nuevo_umbral = UMBRAL_PREVENTIVO
+            descripcion = (
+                f'Alerta por kilometraje: {recorrido} km desde última mantención '
+                f'(umbral {UMBRAL_PREVENTIVO} km). Programar mantenimiento.'
+            )
+        else:
+            # Si el recorrido es menor a 8000, no debe haber alerta de kilometraje vigente.
+            AlertaMantencion.objects.filter(
+                vehiculo=self,
+                vigente=True,
+                valor_umbral__in=[UMBRAL_PREVENTIVO, UMBRAL_CRITICO]
+            ).update(vigente=False, resuelta_en=timezone.now())
+            return
+
+        # Manejo de alertas existentes
+        alerta_existente = AlertaMantencion.objects.filter(
+            vehiculo=self,
+            vigente=True,
+            valor_umbral=nuevo_umbral
+        ).first()
+
+        if alerta_existente:
+            alerta_existente.descripcion = descripcion
+            alerta_existente.save()
+        else:
+            # Desactivar la otra alerta si existe
+            AlertaMantencion.objects.filter(
+                vehiculo=self,
+                vigente=True,
+                valor_umbral__in=[UMBRAL_PREVENTIVO, UMBRAL_CRITICO]
+            ).exclude(valor_umbral=nuevo_umbral).update(vigente=False, resuelta_en=timezone.now())
+
+            AlertaMantencion.objects.create(
+                vehiculo=self,
+                descripcion=descripcion,
+                valor_umbral=nuevo_umbral
+            )
 
 class Presupuesto(models.Model):
     """
