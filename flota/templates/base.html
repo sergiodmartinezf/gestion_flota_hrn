@@ -10,6 +10,19 @@
     <link rel="stylesheet" href="{% static 'css/base.css' %}">
     {% block extra_css %}{% endblock %}
 </head>
+
+
+
+
+{% if arriendo_form.errors %}
+    <pre>Errores del arriendo: {{ arriendo_form.errors }}</pre>
+{% endif %}
+{% if vehiculo_form.errors %}
+    <pre>Errores del vehículo: {{ vehiculo_form.errors }}</pre>
+{% endif %}
+
+
+
 <body>
     {% if user.is_authenticated %}
     <div class="container-fluid">
@@ -21,6 +34,7 @@
                     <ul class="nav flex-column">
                         {% if user.rol == 'Administrador' or user.rol == 'Visualizador' %}
                         <li><a href="{% url 'dashboard' %}"><i class="bi bi-speedometer2"></i> Dashboard</a></li>
+                        <li><a href="{% url 'panel_control' %}"><i class="bi bi-bar-chart-line"></i> Panel de control</a></li>
                         {% if user.rol == 'Administrador' %}
                         <li><a href="{% url 'listar_usuarios' %}"><i class="bi bi-people"></i> Usuarios</a></li>
                         {% endif %}
@@ -65,7 +79,7 @@
                         <li><a href="{% url 'listar_ordenes_trabajo' %}"><i class="bi bi-wrench"></i> Órdenes de Trabajo</a></li>
                         <li><a href="{% url 'alertas_mantenimiento' %}"><i class="bi bi-bell"></i> Alertas {% if user.is_authenticated %}<span id="alertas-badge" class="badge bg-danger" style="display: none;"></span>{% endif %}</a></li>
                         <li><a href="{% url 'reporte_costos' %}"><i class="bi bi-graph-up"></i> Reportes</a></li>
-                        <li><a href="{% url 'panel_control' %}"><i class="bi bi-bar-chart-line"></i> Panel de control</a></li>
+                    
                         {% endif %}
                         <hr>
                         <li><a href="{% url 'logout' %}"><i class="bi bi-box-arrow-right"></i> Cerrar Sesión</a></li>
@@ -101,7 +115,7 @@
     <script src="{% static 'js/formatear_fechas.js' %}"></script>
 
     <!-- GRÁFICOS -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="{% static 'js/chart.umd.min.js' %}"></script>
 
     {% if user.is_authenticated %}
     <script>

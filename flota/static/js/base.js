@@ -6,6 +6,6 @@ document.addEventListener('DOMContentLoaded', function() {
         setTimeout(() => {
             const bsAlert = new bootstrap.Alert(alert);
             bsAlert.close();
-        }, 30000);// 3000ms = 3 segundos
+        }, 6000);// 6000ms = 6 segundos
     });
 });

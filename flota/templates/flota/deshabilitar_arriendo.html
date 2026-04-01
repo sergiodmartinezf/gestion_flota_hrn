@@ -1,0 +1,27 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>Deshabilitar Arriendo</h2>
+    
+    <div class="alert alert-warning">
+        <i class="bi bi-exclamation-triangle"></i>
+        ¿Está seguro que desea deshabilitar este arriendo?
+    </div>
+    
+    <div class="card mb-4">
+        <div class="card-body">
+            <p><strong>Vehículo Arrendado:</strong> {{ arriendo.vehiculo_arrendado.patente }}</p>
+            <p><strong>Proveedor:</strong> {{ arriendo.proveedor.nombre_fantasia }}</p>
+            <p><strong>Período:</strong> {{ arriendo.fecha_inicio|date:"d/m/Y" }} al {{ arriendo.fecha_fin|date:"d/m/Y"|default:"-" }}</p>
+            <p><strong>Estado:</strong> {{ arriendo.get_estado_display }}</p>
+        </div>
+    </div>
+    
+    <form method="post">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-danger">Sí, deshabilitar</button>
+        <a href="{% url 'listar_arriendos' %}" class="btn btn-secondary">Cancelar</a>
+    </form>
+</div>
+{% endblock %}

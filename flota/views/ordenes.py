@@ -1,3 +1,4 @@
+from django.urls import reverse
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib import messages
@@ -178,8 +179,6 @@ def importar_orden_compra(request):
 
     return render(request, 'flota/importar_oc.html')
 
-
-# RF_29: Registrar orden de compra
 @login_required
 @user_passes_test(es_administrador)
 def registrar_orden_compra(request):
@@ -207,17 +206,30 @@ def registrar_orden_compra(request):
     
     return render(request, 'flota/registrar_orden_compra.html', {'form': form, 'ot_preseleccionada': request.GET.get('ot')})
 
-
-# RF_30: Listar órdenes de compra
 @login_required
 def listar_ordenes_compra(request):
     ordenes = OrdenCompra.objects.all().order_by('-fecha_emision', 'nro_oc')
     
     # Filtros
+    desde_filtro = request.GET.get('desde')
+    hasta_filtro = request.GET.get('hasta')
+    vehiculo_filtro = request.GET.get('vehiculo')
+    cuenta_filtro = request.GET.get('cuenta')
     estado_filter = request.GET.get('estado')
     proveedor_filter = request.GET.get('proveedor')
     
-    # Normalizar el filtro de estado
+    if desde_filtro:
+        ordenes = ordenes.filter(fecha_emision__gte=desde_filtro)
+    
+    if hasta_filtro:
+        ordenes = ordenes.filter(fecha_emision__lte=hasta_filtro)
+    
+    if vehiculo_filtro:
+        ordenes = ordenes.filter(vehiculo__patente=vehiculo_filtro)
+    
+    if cuenta_filtro:
+        ordenes = ordenes.filter(cuenta_presupuestaria__codigo=cuenta_filtro)
+    
     if estado_filter:
         ordenes = ordenes.filter(estado=estado_filter)
     
@@ -232,24 +244,30 @@ def listar_ordenes_compra(request):
     for estado in estados_unicos:
         estados.append({
             'valor': estado,
-            'nombre': estado  # Usar el estado directamente, no normalizar_estado_visual
+            'nombre': estado
         })
     
     # Ordenar por nombre
     estados.sort(key=lambda x: x['nombre'])
     
     proveedores = Proveedor.objects.all()
+    vehiculos = Vehiculo.objects.all().order_by('patente')
+    cuentas = CuentaPresupuestaria.objects.all().order_by('codigo')
     
     return render(request, 'flota/listar_ordenes_compra.html', {
         'ordenes': ordenes,
         'proveedores': proveedores,
+        'vehiculos': vehiculos,
+        'cuentas': cuentas,
         'estados': estados,
         'estado_filter': estado_filter,
         'proveedor_filter': proveedor_filter,
+        'desde_filtro': desde_filtro,
+        'hasta_filtro': hasta_filtro,
+        'vehiculo_filtro': vehiculo_filtro,
+        'cuenta_filtro': cuenta_filtro,
     })
 
-
-# RF_31: Modificar orden de compra
 @login_required
 @user_passes_test(es_administrador)
 def modificar_orden_compra(request, id):
@@ -266,7 +284,6 @@ def modificar_orden_compra(request, id):
     return render(request, 'flota/modificar_orden_compra.html', {'form': form, 'orden': orden})
 
 
-# RF_32: Eliminar orden de compra
 @login_required
 @user_passes_test(es_administrador)
 def eliminar_orden_compra(request, id):
@@ -280,7 +297,6 @@ def eliminar_orden_compra(request, id):
     return render(request, 'flota/eliminar_orden_compra.html', {'orden': orden})
 
 
-# RF_33: Detalle de orden de compra
 @login_required
 def detalle_orden_compra(request, id):
     orden = get_object_or_404(OrdenCompra, id=id)
@@ -299,12 +315,13 @@ def registrar_orden_trabajo(request):
                 request,
                 f'Orden de Trabajo {orden_trabajo.nro_ot} registrada. Siguiente paso: registrar la Orden de Compra asociada.'
             )
-            return redirect('registrar_orden_compra' + '?ot=' + str(orden_trabajo.id))
+            # Construir la URL correctamente
+            url = reverse('registrar_orden_compra') + f'?ot={orden_trabajo.id}'
+            return redirect(url)
     else:
         form = OrdenTrabajoForm()
     
     return render(request, 'flota/registrar_orden_trabajo.html', {'form': form})
-
 
 # Listar Órdenes de Trabajo
 @login_required
@@ -312,11 +329,27 @@ def listar_ordenes_trabajo(request):
     ordenes = OrdenTrabajo.objects.all().order_by('-fecha_solicitud', 'nro_ot')
     
     # Filtros
+    desde_filtro = request.GET.get('desde')
+    hasta_filtro = request.GET.get('hasta')
+    estado_mantenimiento = request.GET.get('estado_mantenimiento')
     vehiculo_filter = request.GET.get('vehiculo')
     proveedor_filter = request.GET.get('proveedor')
     
+    if desde_filtro:
+        ordenes = ordenes.filter(fecha_solicitud__gte=desde_filtro)
+    
+    if hasta_filtro:
+        ordenes = ordenes.filter(fecha_solicitud__lte=hasta_filtro)
+    
+    if estado_mantenimiento:
+        if estado_mantenimiento == 'con':
+            ordenes = ordenes.filter(mantenimientos__isnull=False).distinct()
+        elif estado_mantenimiento == 'sin':
+            ordenes = ordenes.filter(mantenimientos__isnull=True)
+    
     if vehiculo_filter:
         ordenes = ordenes.filter(vehiculo__patente=vehiculo_filter)
+    
     if proveedor_filter:
         ordenes = ordenes.filter(proveedor__id=proveedor_filter)
     
@@ -330,8 +363,10 @@ def listar_ordenes_trabajo(request):
         'proveedores': proveedores,
         'vehiculo_filter': vehiculo_filter,
         'proveedor_filter': proveedor_filter,
+        'desde_filtro': desde_filtro,
+        'hasta_filtro': hasta_filtro,
+        'estado_mantenimiento': estado_mantenimiento,
     })
-
 
 # Detalle de Orden de Trabajo
 @login_required

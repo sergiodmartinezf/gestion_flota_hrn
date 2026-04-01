@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load moneda_clp %}
 
 {% block title %}Deshabilitar Presupuesto - Gestión de Flota{% endblock %}
 
@@ -16,9 +17,9 @@
         <h5>Presupuesto {{ presupuesto.anio }}</h5>
         <p><strong>Vehículo:</strong> {{ presupuesto.vehiculo.patente|default:"Flota General" }}</p>
         <p><strong>Cuenta SIGFE:</strong> {{ presupuesto.cuenta.codigo }} - {{ presupuesto.cuenta.nombre }}</p>
-        <p><strong>Monto Asignado:</strong> ${{ presupuesto.monto_asignado|floatformat:0 }}</p>
-        <p><strong>Monto Ejecutado:</strong> ${{ presupuesto.monto_ejecutado|floatformat:0 }}</p>
-        <p><strong>Disponible:</strong> ${{ presupuesto.disponible|floatformat:0 }}</p>
+        <p><strong>Monto Asignado:</strong> ${{ presupuesto.monto_asignado|clp }}</p>
+        <p><strong>Monto Ejecutado:</strong> ${{ presupuesto.monto_ejecutado|clp }}</p>
+        <p><strong>Disponible:</strong> ${{ presupuesto.disponible|clp }}</p>
     </div>
 </div>
 

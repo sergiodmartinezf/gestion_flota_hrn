@@ -1,0 +1,10 @@
+"id","rut_empresa","nombre_fantasia","telefono","email_contacto","es_taller","es_arrendador","es_proveedor_base","activo"
+1,"92.475.000-6","KAUFMANN S.A - SUC. OSORNO","","",True,False,True,True
+2,"16.906.109-2","FRANCISCO ALEJANDRO","","",True,False,True,True
+3,"96.962.670-5","AUTOCOLOR PAEZ SPA","","",True,False,False,True
+4,"77.619.564-2","COMERCIAL RENHET SPA","","",True,False,False,True
+5,"77.309.240-0","Comercial Aguero","","",True,False,False,True
+6,"77.337.500-3","DISTRIBUIDORA DE NEUMATICOS DEL SUR LIMITADA","","",True,False,False,True
+7,"79.985.320-5","COMERCIAL BECKER Y COMPANIA LIMITADA","","",True,False,False,True
+8,"77.329.658-8","COMERCIALIZADORA JCA SPA","","",True,False,False,True
+9,"76.399.731-6","Resmed","+56944479198","gestion@resmed.cl",False,True,False,True

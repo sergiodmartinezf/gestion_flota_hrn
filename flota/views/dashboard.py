@@ -15,7 +15,7 @@ def dashboard(request):
 
     # Estadísticas generales (Solo se ejecutan para Admin/Visualizador)
     total_vehiculos = Vehiculo.objects.count()
-    vehiculos_disponibles = Vehiculo.objects.filter(estado='Disponible').count()
+    vehiculos_disponibles = Vehiculo.objetos_operativos().filter(estado='Disponible').count()
     vehiculos_mantenimiento = Vehiculo.objects.filter(estado='En mantenimiento').count()
     
     # Costo mensual total

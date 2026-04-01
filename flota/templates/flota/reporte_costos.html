@@ -1,6 +1,7 @@
 {% extends 'base.html' %}
 
 {% load static %}
+{% load moneda_clp %}
 
 {% block title %}Reportes - Gestión de Flota{% endblock %}
 
@@ -32,13 +33,6 @@
                 type="button" 
                 role="tab">
             <i class="bi bi-cash-stack"></i> Variación Presupuestaria
-        </button>
-    </li>
-    <li class="nav-item" role="presentation">
-        <button class="nav-link {% if active_tab == 'dashboard' %}active{% endif %}"
-                id="dashboard-tab" data-bs-toggle="tab" data-bs-target="#dashboard"
-                type="button" role="tab">
-            <i class="bi bi-bar-chart-line"></i> Dashboard
         </button>
     </li>
 </ul>
@@ -74,14 +68,14 @@
                     {% for item in reporte %}
                     <tr>
                         <td><strong>{{ item.vehiculo.patente }}</strong></td>
-                        <td>${{ item.costo_mantenimientos|floatformat:0 }}</td>
-                        <td>${{ item.costo_preventivo|floatformat:0 }}</td>
-                        <td>${{ item.costo_correctivo|floatformat:0 }}</td>
-                        <td>${{ item.costo_combustible|floatformat:0 }}</td>
-                        <td>${{ item.costo_arriendos|floatformat:0 }}</td>
-                        <td><strong>${{ item.costo_total|floatformat:0 }}</strong></td>
+                        <td>${{ item.costo_mantenimientos|clp }}</td>
+                        <td>${{ item.costo_preventivo|clp }}</td>
+                        <td>${{ item.costo_correctivo|clp }}</td>
+                        <td>${{ item.costo_combustible|clp }}</td>
+                        <td>${{ item.costo_arriendos|clp }}</td>
+                        <td><strong>${{ item.costo_total|clp }}</strong></td>
                         <td>${{ item.costo_por_km|floatformat:2 }}</td>
-                        <td>${{ item.presupuesto|floatformat:0 }}</td>
+                        <td>${{ item.presupuesto|clp }}</td>
                     </tr>
                     {% empty %}
                     <tr>
@@ -97,11 +91,11 @@
     <div class="tab-pane fade {% if active_tab == 'variacion' %}show active{% endif %}" 
          id="variacion" 
          role="tabpanel">
-        <form method="get" class="mb-3">
+         <form method="get" class="mb-3">
             <div class="row">
-                <div class="col-md-4">
-                    <label>Año</label>
-                    <select name="anio" class="form-control">
+                <div class="col-md-3">
+                    <label for="anio">Año</label>
+                    <select name="anio" id="anio" class="form-control">
                         {% for anio_opcion in anios_disponibles %}
                         <option value="{{ anio_opcion }}" {% if anio_opcion == anio %}selected{% endif %}>
                             {{ anio_opcion }}
@@ -109,16 +103,26 @@
                         {% endfor %}
                     </select>
                 </div>
-                <input type="hidden" name="tab" value="variacion">
                 <div class="col-md-4">
-                    <label>&nbsp;</label><br>
+                    <label for="vehiculo">Vehículo</label>
+                    <select name="vehiculo" id="vehiculo" class="form-control">
+                        <option value="">Todos los vehículos</option>
+                        {% for v in vehiculos %}
+                        <option value="{{ v.patente }}" {% if vehiculo_filter == v.patente %}selected{% endif %}>
+                            {{ v.patente }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <input type="hidden" name="tab" value="variacion">
+                <div class="col-md-2 d-flex align-items-end">
                     <button type="submit" class="btn btn-primary">Filtrar</button>
                 </div>
             </div>
         </form>
         
         <div class="mb-3">
-            <a href="?exportar=excel&tipo=variacion&anio={{ anio }}&tab=variacion" class="btn btn-success">
+            <a href="?exportar=excel&tipo=variacion&anio={{ anio }}{% if vehiculo_filter %}&vehiculo={{ vehiculo_filter }}{% endif %}&tab=variacion" class="btn btn-success">
                 <i class="bi bi-file-earmark-excel"></i> Exportar a Excel
             </a>
         </div>
@@ -149,13 +153,13 @@
                     <tr {% if item.tiene_alerta %}class="table-warning"{% endif %}>
                         <td><strong>{{ item.vehiculo }}</strong><br><small>{{ item.marca_modelo }}</small></td>
                         <td>{{ item.cuenta_sigfe }}<br><small>{{ item.nombre_cuenta }}</small></td>
-                        <td>${{ item.monto_asignado|floatformat:0 }}</td>
-                        <td>${{ item.monto_ejecutado|floatformat:0 }}</td>
+                        <td>${{ item.monto_asignado|clp }}</td>
+                        <td>${{ item.monto_ejecutado|clp }}</td>
                         <td>
                             {% if item.diferencia > 0 %}
-                                <span class="text-danger">+${{ item.diferencia|floatformat:0 }}</span>
+                                <span class="text-danger">+${{ item.diferencia|clp }}</span>
                             {% else %}
-                                <span class="text-success">${{ item.diferencia|floatformat:0 }}</span>
+                                <span class="text-success">${{ item.diferencia|clp }}</span>
                             {% endif %}
                         </td>
                         <td>
@@ -185,7 +189,7 @@
     </div>
 
     <div class="tab-pane fade {% if active_tab == 'dashboard' %}show active{% endif %}"
-        id="dashboard" role="tabpanel">
+    id="dashboard" role="tabpanel">
         <h4>Análisis Visual de la Flota</h4>
         <div class="row mt-4">
             <div class="col-md-8">

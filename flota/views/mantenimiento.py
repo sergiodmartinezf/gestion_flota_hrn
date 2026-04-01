@@ -5,6 +5,7 @@ from django.contrib import messages
 from django.http import JsonResponse
 from django.utils import timezone
 from django.db.models import Sum
+from django.core.exceptions import ValidationError
 from decimal import Decimal
 import json
 from ..models import Mantenimiento, Vehiculo, Proveedor, Presupuesto, AlertaMantencion, CuentaPresupuestaria, OrdenTrabajo
@@ -93,21 +94,54 @@ def listar_mantenimientos(request):
             anio = timezone.now().year
         return exportar_planilla_mantenimientos_excel(anio)
     
-    patente = request.GET.get('patente')
     mantenimientos = Mantenimiento.objects.all()
     
-    if patente:
-        mantenimientos = mantenimientos.filter(vehiculo__patente=patente)
+    # Filtros
+    patente_filter = request.GET.get('patente')
+    tipo_filter = request.GET.get('tipo')
+    estado_filter = request.GET.get('estado')
+    desde_filter = request.GET.get('desde')
+    hasta_filter = request.GET.get('hasta')
+    proveedor_filter = request.GET.get('proveedor')
+    
+    if patente_filter:
+        mantenimientos = mantenimientos.filter(vehiculo__patente=patente_filter)
+    
+    if tipo_filter:
+        mantenimientos = mantenimientos.filter(tipo_mantencion=tipo_filter)
+    
+    if estado_filter:
+        mantenimientos = mantenimientos.filter(estado=estado_filter)
+    
+    if desde_filter:
+        mantenimientos = mantenimientos.filter(fecha_ingreso__gte=desde_filter)
+    
+    if hasta_filter:
+        mantenimientos = mantenimientos.filter(fecha_ingreso__lte=hasta_filter)
+    
+    if proveedor_filter:
+        mantenimientos = mantenimientos.filter(proveedor__id=proveedor_filter)
     
     mantenimientos = mantenimientos.order_by('-fecha_ingreso')
     
+    # Obtener datos para filtros
+    vehiculos = Vehiculo.objects.all().order_by('patente')
+    proveedores = Proveedor.objects.filter(es_taller=True, activo=True).order_by('nombre_fantasia')
+    
     return render(request, 'flota/listar_mantenimientos.html', {
         'mantenimientos': mantenimientos,
-        'patente_filter': patente,
+        'vehiculos': vehiculos,
+        'proveedores': proveedores,
+        'patente_filter': patente_filter,
+        'tipo_filter': tipo_filter,
+        'estado_filter': estado_filter,
+        'desde_filter': desde_filter,
+        'hasta_filter': hasta_filter,
+        'proveedor_filter': proveedor_filter,
     })
 
-
 # Cambiar estado de mantenimiento (AJAX)
+# El paso a "Finalizado" solo se permite desde finalizar_mantenimiento (con OC y costos).
 @login_required
 @user_passes_test(es_administrador)
 @require_POST
@@ -119,16 +153,18 @@ def cambiar_estado_mantenimiento(request, id):
         data = json.loads(request.body)
         nuevo_estado = data.get('estado')
         
+        if nuevo_estado == 'Finalizado':
+            return JsonResponse({
+                'success': False,
+                'error': 'Para finalizar use la opción "Finalizar mantenimiento" e ingrese costos y Orden de Compra.'
+            }, status=400)
+        
         if nuevo_estado in dict(Mantenimiento.ESTADOS):
             mantenimiento.estado = nuevo_estado
             mantenimiento.save()
             
-            # Actualizar estado del vehículo si es necesario
             vehiculo = mantenimiento.vehiculo
-            if nuevo_estado == 'Finalizado' and mantenimiento.fecha_salida:
-                vehiculo.estado = 'Disponible'
-                vehiculo.save()
-            elif nuevo_estado in ['En taller', 'Esperando repuestos']:
+            if nuevo_estado in ['En taller', 'Esperando repuestos']:
                 vehiculo.estado = 'En mantenimiento'
                 vehiculo.save()
             
@@ -147,7 +183,9 @@ def editar_mantenimiento(request, id):
         form = MantenimientoForm(request.POST, instance=mantenimiento)
         if form.is_valid():
             try:
-                form.save()
+                mant = form.save()
+                if mant.estado == 'Finalizado':
+                    mant.ejecutar_cierre_presupuestario()
                 messages.success(request, 'Mantenimiento actualizado correctamente.')
                 return redirect('listar_mantenimientos')
             except Exception as e:
@@ -174,62 +212,25 @@ def finalizar_mantenimiento(request, id):
         form = FinalizarMantenimientoForm(request.POST, request.FILES, instance=mantenimiento)
         if form.is_valid():
             mant = form.save(commit=False)
-            
-            # Calcular costo total real
-            costo_anterior = mant.costo_total_real
             mant.costo_total_real = (mant.costo_mano_obra or 0) + (mant.costo_repuestos or 0)
             mant.estado = 'Finalizado'
-            
-            # REQ: Actualizar ejecución presupuestaria
-            if mant.cuenta_presupuestaria and mant.vehiculo:
-                presupuesto = Presupuesto.objects.filter(
-                    cuenta=mant.cuenta_presupuestaria,
-                    vehiculo=mant.vehiculo,
-                    anio=mant.fecha_ingreso.year,
-                    activo=True
-                ).first()
-
-                if not presupuesto:
-                    # Buscar global
-                    presupuesto = Presupuesto.objects.filter(
-                        cuenta=mant.cuenta_presupuestaria,
-                        vehiculo__isnull=True,
-                        anio=mant.fecha_ingreso.year,
-                        activo=True
-                    ).first()
-
-                if presupuesto:
-                    # Verificar que haya saldo suficiente
-                    if presupuesto.disponible < mant.costo_total_real:
-                        messages.error(request, 
-                            f"Presupuesto insuficiente. Disponible: ${presupuesto.disponible:.0f}, "
-                            f"Requerido: ${mant.costo_total_real:.0f}. No se puede finalizar el mantenimiento."
-                        )
-                        return render(request, 'flota/finalizar_mantenimiento.html', {
-                            'form': form, 
-                            'mantenimiento': mantenimiento
-                        })
-                else:
-                    messages.error(request, 
-                        f"No hay presupuesto asignado para la cuenta {mant.cuenta_presupuestaria.codigo} "
-                        f"en el año {mant.fecha_ingreso.year}. No se puede finalizar el mantenimiento."
-                    )
-                    return render(request, 'flota/finalizar_mantenimiento.html', {
-                        'form': form, 
-                        'mantenimiento': mantenimiento
-                    })
-
             try:
                 mant.save()
-            except ValueError as e:
-                # Capturar error de presupuesto insuficiente
+            except (ValueError, ValidationError) as e:
                 messages.error(request, str(e))
                 return render(request, 'flota/finalizar_mantenimiento.html', {
-                    'form': form, 
+                    'form': form,
+                    'mantenimiento': mantenimiento
+                })
+            try:
+                mant.ejecutar_cierre_presupuestario()
+            except ValueError as e:
+                messages.error(request, str(e))
+                return render(request, 'flota/finalizar_mantenimiento.html', {
+                    'form': form,
                     'mantenimiento': mantenimiento
                 })
 
-            # Liberar vehículo
             vehiculo = mant.vehiculo
             vehiculo.estado = 'Disponible'
             vehiculo.save()
@@ -238,11 +239,10 @@ def finalizar_mantenimiento(request, id):
             return redirect('listar_mantenimientos')
 
     else:
-        # Fecha de salida como hoy por defecto
         form = FinalizarMantenimientoForm(instance=mantenimiento, initial={'fecha_salida': timezone.now().date()})
 
     return render(request, 'flota/finalizar_mantenimiento.html', {
-        'form': form, 
+        'form': form,
         'mantenimiento': mantenimiento
     })
 

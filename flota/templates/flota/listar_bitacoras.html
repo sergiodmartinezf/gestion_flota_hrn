@@ -21,6 +21,33 @@
     <div class="card mb-4">
         <div class="card-body">
             <form method="get" class="row g-3">
+                <div class="col-md-3">
+                    <label for="desde" class="form-label">Desde:</label>
+                    <input type="date" name="desde" id="desde" class="form-control" value="{{ desde_filtro }}">
+                </div>
+                <div class="col-md-3">
+                    <label for="hasta" class="form-label">Hasta:</label>
+                    <input type="date" name="hasta" id="hasta" class="form-control" value="{{ hasta_filtro }}">
+                </div>
+                <div class="col-md-3">
+                    <label for="conductor" class="form-label">Conductor:</label>
+                    <select name="conductor" id="conductor" class="form-select">
+                        <option value="">Todos los conductores</option>
+                        {% for conductor in conductores %}
+                        <option value="{{ conductor.rut }}" {% if conductor_filtro == conductor.rut %}selected{% endif %}>
+                            {{ conductor.nombre_completo }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label for="estado" class="form-label">Estado:</label>
+                    <select name="estado" id="estado" class="form-select">
+                        <option value="">Todos</option>
+                        <option value="abierta" {% if estado_filtro == 'abierta' %}selected{% endif %}>Abierta</option>
+                        <option value="cerrada" {% if estado_filtro == 'cerrada' %}selected{% endif %}>Cerrada</option>
+                    </select>
+                </div>
                 <div class="col-md-4">
                     <label for="vehiculo" class="form-label">Vehículo:</label>
                     <select name="vehiculo" id="vehiculo" class="form-select">
@@ -32,12 +59,12 @@
                         {% endfor %}
                     </select>
                 </div>
-                <div class="col-md-4 d-flex align-items-end">
+                <div class="col-md-12 d-flex align-items-end">
                     <div class="btn-group">
                         <button type="submit" class="btn btn-primary">
                             <i class="bi bi-funnel"></i> Filtrar
                         </button>
-                        {% if vehiculo_filtro %}
+                        {% if desde_filtro or hasta_filtro or conductor_filtro or estado_filtro or vehiculo_filtro %}
                         <a href="{% url 'listar_bitacoras' %}" class="btn btn-secondary">
                             <i class="bi bi-x-circle"></i> Limpiar
                         </a>
@@ -74,7 +101,7 @@
                             </td>
                             <td>{{ bitacora.conductor.nombre_completo }}</td>
                             <td>{{ bitacora.get_turno_display }}</td>
-                            <td>{{ bitacora.km_recorridos }}</td>
+                            <td>{{ bitacora.km_recorridos|floatformat:0 }}</td>
                             <td>
                                 <a href="{% url 'detalle_bitacora' bitacora.id %}" class="btn btn-sm btn-info me-1"
                                    title="Ver detalles">

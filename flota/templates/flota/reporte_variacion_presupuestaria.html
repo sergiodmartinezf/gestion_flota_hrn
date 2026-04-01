@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load moneda_clp %}
 
 {% block title %}Variación Presupuestaria - Gestión de Flota{% endblock %}
 
@@ -55,13 +56,13 @@
         <tr {% if item.tiene_alerta %}class="table-warning"{% endif %}>
             <td><strong>{{ item.vehiculo }}</strong><br><small>{{ item.marca_modelo }}</small></td>
             <td>{{ item.cuenta_sigfe }}<br><small>{{ item.nombre_cuenta }}</small></td>
-            <td>${{ item.monto_asignado|floatformat:0 }}</td>
-            <td>${{ item.monto_ejecutado|floatformat:0 }}</td>
+            <td>${{ item.monto_asignado|clp }}</td>
+            <td>${{ item.monto_ejecutado|clp }}</td>
             <td>
                 {% if item.diferencia > 0 %}
-                    <span class="text-danger">+${{ item.diferencia|floatformat:0 }}</span>
+                    <span class="text-danger">+${{ item.diferencia|clp }}</span>
                 {% else %}
-                    <span class="text-success">${{ item.diferencia|floatformat:0 }}</span>
+                    <span class="text-success">${{ item.diferencia|clp }}</span>
                 {% endif %}
             </td>
             <td>

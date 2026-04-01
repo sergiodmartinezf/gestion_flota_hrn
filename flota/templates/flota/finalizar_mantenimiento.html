@@ -10,8 +10,8 @@
             <div class="card-body">
                 <p><strong>Vehículo:</strong> {{ mantenimiento.vehiculo.patente }}</p>
                 <p><strong>Tipo:</strong> {{ mantenimiento.tipo_mantencion }}</p>
-                <p><strong>Fecha Ingreso:</strong> {{ mantenimiento.fecha_ingreso }}</p>
-                <p><strong>Costo Estimado:</strong> ${{ mantenimiento.costo_estimado }}</p>
+                <p><strong>Fecha Ingreso:</strong> {{ mantenimiento.fecha_ingreso|date:"d/m/Y" }}</p>
+                <p><strong>Costo Estimado:</strong> ${{ mantenimiento.costo_estimado|clp }}</p>
                 <p><strong>Proveedor:</strong> {{ mantenimiento.proveedor }}</p>
                 <hr>
                 <small class="text-muted">Descripción original: {{ mantenimiento.descripcion_trabajo }}</small>

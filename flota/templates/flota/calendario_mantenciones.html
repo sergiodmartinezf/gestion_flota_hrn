@@ -78,7 +78,7 @@
                         <select name="vehiculo" id="programar_vehiculo" class="form-control" required>
                             <option value="">Seleccione un vehículo</option>
                             {% for vehiculo in vehiculos %}
-                            <option value="{{ vehiculo.patente }}" data-kilometraje="{{ vehiculo.kilometraje_actual }}" {% if orden_trabajo and orden_trabajo.vehiculo.patente == vehiculo.patente %}selected{% endif %}>
+                            <option value="{{ vehiculo.id }}" data-kilometraje="{{ vehiculo.kilometraje_actual }}" {% if orden_trabajo and orden_trabajo.vehiculo.id == vehiculo.id %}selected{% endif %}>
                                 {{ vehiculo.patente }} - {{ vehiculo.marca }} {{ vehiculo.modelo }}
                             </option>
                             {% endfor %}
