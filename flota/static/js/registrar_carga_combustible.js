@@ -8,7 +8,6 @@ class FormularioCombustiblePasos {
         this.pasoActual = 1;
         this.totalPasos = 4;
         this.datos = {};
-        
         this.init();
     }
     
@@ -19,8 +18,7 @@ class FormularioCombustiblePasos {
         this.configurarVehiculoKM();
     }
     
-    // **AGREGAR AQUÍ LAS FUNCIONES DE VALIDACIÓN DEL ARCHIVO ORIGINAL**
-    // Por ejemplo, si tenías estas funciones:
+    // Métodos auxiliares (validaciones)
     validarSeleccion(valor, nombreCampo, esRequerido) {
         if (esRequerido && (!valor || valor.trim() === '')) {
             return [`Debe seleccionar un ${nombreCampo}`];
@@ -47,12 +45,13 @@ class FormularioCombustiblePasos {
         const errores = [];
         if (esRequerido && (!valor || valor.toString().trim() === '')) {
             errores.push(`Debe ingresar ${nombreCampo}`);
-        } else if (valor) {
+        } else if (valor !== undefined && valor !== null && valor !== '') {
             const num = parseInt(valor);
-            if (isNaN(num) || num < min) {
+            if (isNaN(num)) {
+                errores.push(`${nombreCampo} debe ser un número válido`);
+            } else if (num < min) {
                 errores.push(`${nombreCampo} debe ser mayor o igual a ${min}`);
-            }
-            if (num > max) {
+            } else if (num > max) {
                 errores.push(`${nombreCampo} debe ser menor o igual a ${max}`);
             }
         }
@@ -63,16 +62,90 @@ class FormularioCombustiblePasos {
         const errores = [];
         if (esRequerido && (!valor || valor.toString().trim() === '')) {
             errores.push(`Debe ingresar ${nombreCampo}`);
-        } else if (valor) {
+        } else if (valor !== undefined && valor !== null && valor !== '') {
             const num = parseFloat(valor);
-            if (isNaN(num) || num < min) {
+            if (isNaN(num)) {
+                errores.push(`${nombreCampo} debe ser un número válido`);
+            } else if (num < min) {
                 errores.push(`${nombreCampo} debe ser mayor o igual a ${min}`);
-            }
-            if (num > max) {
+            } else if (num > max) {
                 errores.push(`${nombreCampo} debe ser menor o igual a ${max}`);
             }
         }
         return errores;
+    }
+    
+    // Obtener kilometraje actual del vehículo seleccionado
+    obtenerKmActualVehiculo() {
+        const select = document.getElementById('id_patente_vehiculo');
+        if (select && select.selectedIndex >= 0) {
+            const option = select.options[select.selectedIndex];
+            const km = option.getAttribute('data-km-actual');
+            return km ? parseInt(km) : 0;
+        }
+        return 0;
+    }
+    
+    // Validación específica por paso (corregida)
+    validarPasoActual() {
+        const pasoElement = document.getElementById(`combustible-paso-${this.pasoActual}`);
+        if (!pasoElement) return true;
+        
+        let esValido = true;
+        
+        switch (this.pasoActual) {
+            case 1:
+                const fecha = document.getElementById('id_fecha').value;
+                const fechaErrores = this.validarFecha(fecha, 'fecha', true);
+                if (fechaErrores.length > 0) {
+                    fechaErrores.forEach(error => this.mostrarError('fecha', error));
+                    esValido = false;
+                }
+                
+                const vehiculo = document.getElementById('id_patente_vehiculo').value;
+                const vehiculoErrores = this.validarSeleccion(vehiculo, 'vehículo', true);
+                if (vehiculoErrores.length > 0) {
+                    vehiculoErrores.forEach(error => this.mostrarError('patente_vehiculo', error));
+                    esValido = false;
+                }
+                break;
+                
+            case 2:
+                const kilometraje = document.getElementById('id_kilometraje_al_cargar').value;
+                const kmActual = this.obtenerKmActualVehiculo();
+                // Validación genérica (>=0) pero además >= kmActual
+                let kmErrores = this.validarEnteroPositivo(kilometraje, 'kilometraje', 0, 9999999, true);
+                if (kilometraje && parseInt(kilometraje) < kmActual) {
+                    kmErrores.push(`El kilometraje al cargar (${kilometraje}) no puede ser menor al kilometraje actual del vehículo (${kmActual})`);
+                }
+                if (kmErrores.length > 0) {
+                    kmErrores.forEach(error => this.mostrarError('kilometraje_al_cargar', error));
+                    esValido = false;
+                }
+                
+                const litros = document.getElementById('id_litros').value;
+                const litrosErrores = this.validarNumeroDecimal(litros, 'litros', 0.1, 9999, true);
+                if (litrosErrores.length > 0) {
+                    litrosErrores.forEach(error => this.mostrarError('litros', error));
+                    esValido = false;
+                }
+                break;
+                
+            case 3:
+                const costo = document.getElementById('id_costo_total').value;
+                const costoErrores = this.validarNumeroDecimal(costo, 'costo total', 1, 9999999, true);
+                if (costoErrores.length > 0) {
+                    costoErrores.forEach(error => this.mostrarError('costo_total', error));
+                    esValido = false;
+                }
+                break;
+        }
+        
+        if (esValido) {
+            this.guardarDatosPaso();
+        }
+        
+        return esValido;
     }
     
     setupEventListeners() {
@@ -543,6 +616,8 @@ class FormularioCombustiblePasos {
 
 // Inicializar cuando el DOM esté listo
 document.addEventListener('DOMContentLoaded', function() {
+    const formulario = new FormularioCombustiblePasos();
+    
     const formularioCombustiblePasos = new FormularioCombustiblePasos();
     
     // Limpiar errores cuando el usuario empieza a escribir

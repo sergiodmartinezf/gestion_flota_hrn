@@ -419,7 +419,7 @@ class CargaCombustibleForm(forms.ModelForm):
             'kilometraje_al_cargar': forms.NumberInput(attrs={'class': 'form-control'}),
             'litros': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
             'precio_unitario': forms.NumberInput(attrs={'class': 'form-control', 'step': '1', 'min': '0'}),
-            'costo_total': forms.NumberInput(attrs={'class': 'form-control', 'step': '1', 'min': '0'}),
+            'costo_total': forms.NumberInput(attrs={'class': 'form-control', 'step': '1', 'min': '1'}),
             'nro_boleta': forms.TextInput(attrs={'class': 'form-control'}),
             'conductor': forms.Select(attrs={'class': 'form-control'}),
             'cuenta_presupuestaria': forms.Select(attrs={'class': 'form-control'}),
