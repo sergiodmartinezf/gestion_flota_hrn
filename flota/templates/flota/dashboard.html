@@ -99,11 +99,6 @@
                     <a href="{% url 'alertas_mantenimiento' %}" class="btn btn-warning btn-sm me-2">
                         <i class="bi bi-eye"></i> Ver Todas las Alertas
                     </a>
-                    {% if alertas_activas %}
-                    <button type="button" class="btn btn-outline-danger btn-sm" onclick="marcarComoRevisadas()">
-                        <i class="bi bi-check-all"></i> Marcar como Revisadas
-                    </button>
-                    {% endif %}
                 </div>
             </div>
         </div>

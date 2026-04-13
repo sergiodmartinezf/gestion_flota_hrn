@@ -134,6 +134,16 @@
                                 <div class="text-danger small">{{ form.cuenta_presupuestaria.errors }}</div>
                             {% endif %}
                         </div>
+
+                        <div class="mb-3">
+                            <label for="{{ form.tipo_adquisicion.id_for_label }}" class="form-label">
+                                Tipo de Adquisición *
+                            </label>
+                            {{ form.tipo_adquisicion }}
+                            {% if form.tipo_adquisicion.errors %}
+                                <div class="text-danger small">{{ form.tipo_adquisicion.errors }}</div>
+                            {% endif %}
+                        </div>
                     </div>
                 </div>
                 

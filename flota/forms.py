@@ -154,10 +154,10 @@ class VehiculoForm(forms.ModelForm):
             'modelo': forms.TextInput(attrs={'class': 'form-control'}),
             'vin': forms.TextInput(attrs={'class': 'form-control'}),
             'nro_motor': forms.TextInput(attrs={'class': 'form-control'}),
-            'anio_adquisicion': forms.NumberInput(attrs={'class': 'form-control'}),
-            'vida_util': forms.NumberInput(attrs={'class': 'form-control'}),
+            'anio_adquisicion': forms.NumberInput(attrs={'class': 'form-control', 'min': 0}),
+            'vida_util': forms.NumberInput(attrs={'class': 'form-control', 'min': 0}),
+            'umbral_mantencion': forms.NumberInput(attrs={'class': 'form-control', 'min': 0}),
             'kilometraje_actual': forms.NumberInput(attrs={'class': 'form-control'}),
-            'umbral_mantencion': forms.NumberInput(attrs={'class': 'form-control'}),
             'tipo_carroceria': forms.Select(attrs={'class': 'form-control'}),
             'clase_ambulancia': forms.Select(attrs={'class': 'form-control'}),
             'es_samu': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
@@ -199,6 +199,24 @@ class VehiculoForm(forms.ModelForm):
         if self.instance.pk and patente and self.instance.patente != patente:
             return self.instance.patente
         return patente
+
+    def clean_anio_adquisicion(self):
+        value = self.cleaned_data.get('anio_adquisicion')
+        if value is not None and value < 0:
+            raise forms.ValidationError('El año de adquisición no puede ser negativo.')
+        return value
+
+    def clean_vida_util(self):
+        value = self.cleaned_data.get('vida_util')
+        if value is not None and value < 0:
+            raise forms.ValidationError('La vida útil no puede ser negativa.')
+        return value
+
+    def clean_umbral_mantencion(self):
+        value = self.cleaned_data.get('umbral_mantencion')
+        if value is not None and value < 0:
+            raise forms.ValidationError('El umbral de mantención no puede ser negativo.')
+        return value
 
 
 class ProveedorForm(forms.ModelForm):

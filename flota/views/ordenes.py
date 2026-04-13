@@ -188,6 +188,10 @@ def registrar_orden_compra(request):
             orden_compra = form.save()
             messages.success(request, f'Orden de Compra {orden_compra.nro_oc} registrada exitosamente.')
             return redirect('listar_ordenes_compra')
+        else:
+            for field, errors in form.errors.items():
+                for error in errors:
+                    messages.error(request, f"{field}: {error}")
     else:
         # Prellenar desde OT si se viene desde registrar_orden_trabajo
         ot_id = request.GET.get('ot')
@@ -313,14 +317,11 @@ def registrar_orden_trabajo(request):
             orden_trabajo = form.save()
             messages.success(
                 request,
-                f'Orden de Trabajo {orden_trabajo.nro_ot} registrada. Siguiente paso: registrar la Orden de Compra asociada.'
+                f'Orden de Trabajo {orden_trabajo.nro_ot} registrada exitosamente.'
             )
-            # Construir la URL correctamente
-            url = reverse('registrar_orden_compra') + f'?ot={orden_trabajo.id}'
-            return redirect(url)
+            return redirect('listar_ordenes_trabajo')
     else:
         form = OrdenTrabajoForm()
-    
     return render(request, 'flota/registrar_orden_trabajo.html', {'form': form})
 
 # Listar Órdenes de Trabajo
