@@ -48,23 +48,33 @@ class ReporteCalculos:
         }
     
     @staticmethod
-    def calcular_variacion_anio(anio):
+    def calcular_variacion_anio(anio, tipo_mantencion=None):
+        """
+        Calcula la variación presupuestaria para un año dado.
+        tipo_mantencion puede ser 'Preventivo', 'Correctivo' o None (ambos).
+        """
         presupuestos = Presupuesto.objects.filter(anio=anio, activo=True).select_related('vehiculo', 'cuenta')
         reporte = []
         alertas = []
-        
+
         for presupuesto in presupuestos:
-            monto_ejecutado = Mantenimiento.objects.filter(
-                cuenta_presupuestaria=presupuesto.cuenta,
-                vehiculo=presupuesto.vehiculo,
-                fecha_ingreso__year=anio,
-                tipo_mantencion='Preventivo'
-            ).aggregate(total=Sum('costo_total_real'))['total'] or Decimal('0')
-            
+            # Construir filtro base
+            filtros = {
+                'cuenta_presupuestaria': presupuesto.cuenta,
+                'vehiculo': presupuesto.vehiculo,
+                'fecha_ingreso__year': anio,
+            }
+            if tipo_mantencion:  # 'Preventivo' o 'Correctivo'
+                filtros['tipo_mantencion'] = tipo_mantencion
+
+            monto_ejecutado = Mantenimiento.objects.filter(**filtros).aggregate(
+                total=Sum('costo_total_real')
+            )['total'] or Decimal('0')
+
             diferencia = monto_ejecutado - presupuesto.monto_asignado
             porcentaje_variacion = (diferencia / presupuesto.monto_asignado * 100) if presupuesto.monto_asignado > 0 else 0
             tiene_alerta = porcentaje_variacion > 10
-            
+
             item = {
                 'vehiculo': presupuesto.vehiculo.patente if presupuesto.vehiculo else 'Flota General',
                 'marca_modelo': f"{presupuesto.vehiculo.marca} {presupuesto.vehiculo.modelo}" if presupuesto.vehiculo else 'N/A',
@@ -77,14 +87,12 @@ class ReporteCalculos:
                 'porcentaje_ejecutado': (monto_ejecutado / presupuesto.monto_asignado * 100) if presupuesto.monto_asignado > 0 else 0,
                 'tiene_alerta': tiene_alerta,
             }
-            
             reporte.append(item)
             if tiene_alerta:
                 alertas.append(item)
-        
+
         return reporte, alertas
 
-    # Gráficos
     @staticmethod
     def obtener_datos_graficos_costos():
         vehiculos = Vehiculo.objects.all()
@@ -112,7 +120,6 @@ class ReporteCalculos:
             datos['dias_fuera_servicio'].append(total_dias)
         
         return datos
-
 
 
 class TabManager:
@@ -179,9 +186,8 @@ def exportar_costos_excel(request):
     )
 
 
-def exportar_variacion_excel(anio):
-    """Exporta reporte de variación a Excel"""
-    reporte, _ = ReporteCalculos.calcular_variacion_anio(anio)
+def exportar_variacion_excel(anio, tipo_mantencion=None):
+    reporte, _ = ReporteCalculos.calcular_variacion_anio(anio, tipo_mantencion)
     
     columnas = [
         ('Vehículo', 'vehiculo', 'texto'),
@@ -210,8 +216,15 @@ def reporte_costos(request):
     if request.GET.get('exportar') == 'excel':
         tab = request.GET.get('tab', 'costos')
         if tab == 'variacion':
-            anio = request.GET.get('anio', datetime.now().year)
-            return exportar_variacion_excel(int(anio))
+            anio_str = request.GET.get('anio', str(datetime.now().year))
+            # Eliminar cualquier carácter no numérico
+            import re
+            anio_limpio = re.sub(r'\D', '', anio_str)
+            if not anio_limpio:
+                anio_limpio = str(datetime.now().year)
+            anio = int(anio_limpio)
+            tipo_mant = request.GET.get('tipo_mantencion', '')
+            return exportar_variacion_excel(anio, tipo_mant if tipo_mant else None)
         else:
             return exportar_costos_excel(request)
     
@@ -220,7 +233,7 @@ def reporte_costos(request):
     tab_manager = TabManager(request)
     
     # Datos para pestaña de costos
-    vehiculos = Vehiculo.objects.all()
+    vehiculos = Vehiculo.objects.all().order_by('patente')
     reporte_costos_data = []
     
     for vehiculo in vehiculos:
@@ -241,7 +254,11 @@ def reporte_costos(request):
     except ValueError:
         anio = datetime.now().year
     
-    reporte_variacion, alertas_variacion = ReporteCalculos.calcular_variacion_anio(anio)
+    # Capturar tipo de mantenimiento
+    tipo_mant = request.GET.get('tipo_mantencion', '')
+    
+    # Pasar el tipo a la función
+    reporte_variacion, alertas_variacion = ReporteCalculos.calcular_variacion_anio(anio, tipo_mantencion=tipo_mant if tipo_mant else None)
     
     # Años disponibles
     from django.utils import timezone
@@ -262,7 +279,11 @@ def reporte_costos(request):
         'active_tab': active_tab,
         'tab_manager': tab_manager,
         'graficos_json': graficos_json,
+        'tipo_mantencion': tipo_mant,
+        'vehiculos': vehiculos,
+        'vehiculo_filter': request.GET.get('vehiculo', ''),
     })
+
 
 # RF_25: Generar reporte de disponibilidad (disponibilidad efectiva: días disponibles en período)
 @login_required
@@ -398,4 +419,4 @@ def reporte_servicios(request):
         'chart_labels': labels,
         'chart_data': data
     })
-
+    

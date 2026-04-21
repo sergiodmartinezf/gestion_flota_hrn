@@ -64,14 +64,12 @@ document.addEventListener('DOMContentLoaded', function() {
             document.getElementById('modalDescripcion').innerText = props.descripcion || 'Sin observaciones';
             
             // Configurar botones de acción
-            var editUrl = "/mantenimientos/" + evento.id + "/editar/";
-            var deleteUrl = "/mantenimientos/" + evento.id + "/eliminar/";
+            var editUrl = "/mantenimientos/editar/" + evento.id + "/";
             
             var btnEditar = document.getElementById('btnEditar');
             var formEliminar = document.getElementById('formEliminar');
             
             if(btnEditar) btnEditar.href = editUrl;
-            if(formEliminar) formEliminar.action = deleteUrl;
             
             // Mostrar Modal
             var modal = new bootstrap.Modal(document.getElementById('eventoModal'));

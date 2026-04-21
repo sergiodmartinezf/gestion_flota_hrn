@@ -8,7 +8,9 @@ from django.db.models import Sum
 from django.core.exceptions import ValidationError
 from decimal import Decimal
 import json
-from ..models import Mantenimiento, Vehiculo, Proveedor, Presupuesto, AlertaMantencion, CuentaPresupuestaria, OrdenTrabajo
+from django.core.serializers.json import DjangoJSONEncoder
+from ..constants import MANTENIMIENTO_CUENTAS_MAP
+from ..models import Mantenimiento, Vehiculo, Proveedor, Presupuesto, AlertaMantencion, CuentaPresupuestaria, OrdenTrabajo, OrdenCompra
 from ..forms import MantenimientoForm, ProgramarMantenimientoForm, FinalizarMantenimientoForm
 from .utilidades import es_administrador
 from ..utils import exportar_planilla_mantenimientos_excel
@@ -214,6 +216,14 @@ def finalizar_mantenimiento(request, id):
             mant = form.save(commit=False)
             mant.costo_total_real = (mant.costo_mano_obra or 0) + (mant.costo_repuestos or 0)
             mant.estado = 'Finalizado'
+
+            # --- ASIGNAR CUENTA PRESUPUESTARIA DESDE LA ORDEN DE COMPRA ---
+            if not mant.cuenta_presupuestaria and mant.orden_compra:
+                mant.cuenta_presupuestaria = mant.orden_compra.cuenta_presupuestaria
+                if not mant.cuenta_presupuestaria:
+                    messages.error(request, "La Orden de Compra seleccionada no tiene cuenta presupuestaria. No se puede finalizar.")
+                    return render(request, 'flota/finalizar_mantenimiento.html', {'form': form, 'mantenimiento': mantenimiento})
+
             try:
                 mant.save()
             except (ValueError, ValidationError) as e:
@@ -240,12 +250,17 @@ def finalizar_mantenimiento(request, id):
 
     else:
         form = FinalizarMantenimientoForm(instance=mantenimiento, initial={'fecha_salida': timezone.now().date()})
+        # Filtrar órdenes de compra disponibles para este vehículo (activas y no anuladas)
+        form.fields['orden_compra'].queryset = OrdenCompra.objects.filter(
+            vehiculo=mantenimiento.vehiculo,
+            estado__in=['EMITIDA', 'ACEPTADA']
+        ).order_by('-fecha_emision')
 
     return render(request, 'flota/finalizar_mantenimiento.html', {
         'form': form,
         'mantenimiento': mantenimiento
     })
-
+    
 
 @login_required
 @user_passes_test(es_administrador)
@@ -269,10 +284,28 @@ def calendario_mantenciones(request):
     orden_trabajo_id = request.GET.get('orden_trabajo', '').strip()
     orden_trabajo = get_object_or_404(OrdenTrabajo, id=orden_trabajo_id) if orden_trabajo_id else None
     abrir_modal = request.GET.get('abrir_modal') == '1' or bool(orden_trabajo_id)
+    # Convertir cuentas a lista de diccionarios para JSON
+    cuentas_list = [
+        {'id': c.id, 'codigo': c.codigo, 'nombre': c.nombre}
+        for c in cuentas
+    ]
+    
+    # Convertir el mapa (claves tuple) a un diccionario con claves string
+    mapa_json = {}
+    for (tipo, criticidad), ids in MANTENIMIENTO_CUENTAS_MAP.items():
+        clave = f"{tipo}_{criticidad}"
+        mapa_json[clave] = ids
+    
+    orden_trabajo_id = request.GET.get('orden_trabajo', '').strip()
+    orden_trabajo = get_object_or_404(OrdenTrabajo, id=orden_trabajo_id) if orden_trabajo_id else None
+    abrir_modal = request.GET.get('abrir_modal') == '1' or bool(orden_trabajo_id)
+    
     return render(request, 'flota/calendario_mantenciones.html', {
         'vehiculos': vehiculos,
         'proveedores': proveedores,
         'cuentas': cuentas,
+        'cuentas_json': json.dumps(cuentas_list),
+        'mapa_cuentas_json': json.dumps(mapa_json),
         'orden_trabajo': orden_trabajo,
         'abrir_modal': abrir_modal,
     })

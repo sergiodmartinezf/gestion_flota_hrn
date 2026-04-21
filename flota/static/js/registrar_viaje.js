@@ -8,24 +8,77 @@ document.addEventListener('DOMContentLoaded', function() {
     // 3. Configurar validación del formulario
     configurarValidacionFormulario();
     
-    // 4. Establecer valor por defecto de km_llegada si está vacío
-    //setDefaultKmLlegada();
-    
-    // 5. Configurar observador de cambios en pacientes
+    // 4. Configurar observador de cambios en pacientes
     const pacientesContainer = document.getElementById('pacientes-container');
     if (pacientesContainer) {
         const observer = new MutationObserver(function() {
             toggleHorasHBO();
         });
-        
         observer.observe(pacientesContainer, {
             childList: true,
             subtree: true
         });
     }
     
-    // 6. Verificar horas HBO inicialmente
+    // 5. Verificar horas HBO inicialmente
     setTimeout(toggleHorasHBO, 100);
+
+    // 6. Establecer hora actual en el campo hora_salida
+    const horaSalidaInput = document.querySelector('[name="hora_salida"]');
+    if (horaSalidaInput) {
+        const ahora = new Date();
+        const horas = ahora.getHours().toString().padStart(2, '0');
+        const minutos = ahora.getMinutes().toString().padStart(2, '0');
+        horaSalidaInput.value = `${horas}:${minutos}`;
+    }
+
+    if (window.tipoVehiculo === 'Camioneta') {
+        // Ocultar el contenedor del campo "Categoría de Traslado"
+        const catContainer = document.getElementById('categoria-container');
+        if (catContainer) catContainer.style.display = 'none';
+        
+        // Cambiar etiquetas de "Paciente" a "Pasajero" en todo el formulario
+        const labels = document.querySelectorAll('label');
+        labels.forEach(label => {
+            if (label.innerText.includes('Paciente')) {
+                label.innerText = label.innerText.replace('Paciente', 'Pasajero');
+            }
+        });
+        
+        // Cambiar el título de la sección de pacientes/pasajeros
+        const headerLabel = document.getElementById('paciente-label');
+        if (headerLabel) headerLabel.innerText = '2. Pasajeros';
+        
+        // Fijar la categoría de traslado a 'Administrativo' y deshabilitar el campo (aunque esté oculto)
+        const catSelect = document.getElementById('id_categoria_traslado');
+        if (catSelect) {
+            catSelect.value = 'Administrativo';
+            catSelect.disabled = true;
+        }
+
+        // Cambiar textos específicos adicionales
+        const addButton = document.getElementById('add-paciente');
+        if (addButton) addButton.innerHTML = '<i class="bi bi-person-plus"></i> Agregar Pasajero';
+        
+        const selectLabel = document.querySelector('label[for^="id_pacientes"]') || 
+                            document.querySelector('.paciente-anterior-select')?.closest('.row')?.querySelector('label');
+        if (selectLabel && selectLabel.innerText.includes('Paciente')) {
+            selectLabel.innerText = selectLabel.innerText.replace('Paciente', 'Pasajero');
+        }
+        
+        // Cambiar placeholder del campo nombre en las filas existentes y futuras
+        const cambiarPlaceholder = () => {
+            document.querySelectorAll('.paciente-nombre, input[name*="-nombre"]').forEach(input => {
+                if (input.placeholder === 'Nombre Paciente/Pasajero') {
+                    input.placeholder = 'Nombre Pasajero';
+                }
+            });
+        };
+        cambiarPlaceholder();
+        // Usar MutationObserver para nuevos inputs
+        const observerPlaceholder = new MutationObserver(cambiarPlaceholder);
+        observerPlaceholder.observe(document.getElementById('pacientes-container'), { childList: true, subtree: true });
+    }
 });
 
 // 1. Lógica de Categorías de Traslado
@@ -43,78 +96,93 @@ function initLogicaTraslados() {
                 altaContainer.style.display = 'none';
                 if (altaSelect) {
                     altaSelect.removeAttribute('required');
-                    altaSelect.value = ''; // Limpiar
+                    altaSelect.value = '';
                 }
             }
         });
-        // Disparar al cargar por si hay error de validación y volvemos
         catSelect.dispatchEvent(new Event('change'));
     }
 }
 
-// 2. Lógica Dinámica de Pacientes (Formset) - VERSIÓN SIMPLIFICADA Y SEGURA
+// 2. Lógica Dinámica de Pacientes (Formset)
 function initFormsetPacientes() {
     const container = document.getElementById('pacientes-container');
     const addButton = document.getElementById('add-paciente');
     const totalFormsInput = document.getElementById('id_pacientes-TOTAL_FORMS');
 
-    // A. Agregar nuevo paciente
+    if (!addButton) return;
+
     addButton.addEventListener('click', function() {
-        const formIdx = parseInt(totalFormsInput.value);
-        
-        // Crear nuevo formulario usando template
-        const template = document.getElementById('empty-form-template');
-        if (!template) {
-            console.error('No se encontró el template con id="empty-form-template"');
-            return;
+        try {
+            const formIdx = parseInt(totalFormsInput.value);
+            const template = document.getElementById('empty-form-template');
+            if (!template) {
+                console.error('No se encuentra el template vacío');
+                return;
+            }
+            const clone = template.content.cloneNode(true);
+            const newForm = clone.querySelector('.paciente-row');
+            if (!newForm) {
+                console.error('El template no contiene .paciente-row');
+                return;
+            }
+            
+            // Reemplazar __prefix__
+            const allElements = newForm.querySelectorAll('[name], [id], [for]');
+            allElements.forEach(el => {
+                if (el.name) el.name = el.name.replace('__prefix__', formIdx);
+                if (el.id) el.id = el.id.replace('__prefix__', formIdx);
+                if (el.getAttribute('for')) el.setAttribute('for', el.getAttribute('for').replace('__prefix__', formIdx));
+            });
+            
+            container.appendChild(newForm);
+            totalFormsInput.value = formIdx + 1;
+            initRowListeners(newForm);
+            
+            setTimeout(() => {
+                const firstField = newForm.querySelector('input, select');
+                if (firstField) firstField.focus();
+            }, 50);
+        } catch (e) {
+            console.error('Error al agregar paciente:', e);
+            alert('Ocurrió un error al agregar el pasajero. Recarga la página y vuelve a intentar.');
         }
-        
-        const clone = template.content.cloneNode(true);
-        const newForm = clone.querySelector('.paciente-row');
-        
-        if (!newForm) {
-            console.error('No se encontró .paciente-row en el template');
-            return;
-        }
-        
-        // Reemplazar todos los __prefix__ en el nuevo formulario
-        const allElements = newForm.querySelectorAll('[name], [id], [for]');
-        allElements.forEach(el => {
-            if (el.name) el.name = el.name.replace('__prefix__', formIdx);
-            if (el.id) el.id = el.id.replace('__prefix__', formIdx);
-            if (el.getAttribute('for')) el.setAttribute('for', el.getAttribute('for').replace('__prefix__', formIdx));
-        });
-        
-        // Agregar al contenedor
-        container.appendChild(newForm);
-        
-        // Actualizar el contador
-        totalFormsInput.value = formIdx + 1;
-        
-        // Inicializar listeners en el nuevo elemento
-        initRowListeners(newForm);
-        
-        // Enfocar el primer campo
-        setTimeout(() => {
-            const firstField = newForm.querySelector('input, select');
-            if (firstField) firstField.focus();
-        }, 50);
     });
 
-    // B. Inicializar listeners en filas existentes
-    if (container) {
-        const existingRows = container.querySelectorAll('.paciente-row');
-        existingRows.forEach(function(row) {
-            initRowListeners(row);
+    // Delegación de eventos para formatear RUT en inputs agregados dinámicamente
+    const pacientesContainer = document.getElementById('pacientes-container');
+    if (pacientesContainer) {
+        // Evento 'input' para formatear mientras escribe
+        pacientesContainer.addEventListener('input', function(e) {
+            const target = e.target;
+            if (target.matches('input[name*="-rut"]') && typeof window.formatearRUT === 'function') {
+                window.formatearRUT(target);
+            }
+        });
+        // Evento 'blur' para asegurar el formato al salir del campo
+        pacientesContainer.addEventListener('blur', function(e) {
+            const target = e.target;
+            if (target.matches('input[name*="-rut"]') && typeof window.formatearRUT === 'function') {
+                window.formatearRUT(target);
+            }
         });
     }
+
+    // Además, formatea los RUT que ya existan al cargar la página
+    document.querySelectorAll('input[name*="-rut"]').forEach(input => {
+        if (typeof window.formatearRUT === 'function') window.formatearRUT(input);
+    });
+
+    // Inicializar filas existentes
+    const existingRows = container.querySelectorAll('.paciente-row');
+    existingRows.forEach(row => initRowListeners(row));
 }
 
 // Configura el comportamiento de una fila de paciente
 function initRowListeners(rowElement) {
     if (!rowElement) return;
     
-    // 0. Lista desplegable "Paciente de traslados anteriores": autocompletar nombre, RUT y previsión
+    // Autocompletar desde pacientes anteriores
     const pacienteAnteriorSelect = rowElement.querySelector('.paciente-anterior-select');
     if (pacienteAnteriorSelect) {
         pacienteAnteriorSelect.addEventListener('change', function() {
@@ -124,27 +192,37 @@ function initRowListeners(rowElement) {
             const rut = opt.getAttribute('data-rut') || '';
             const prevision = opt.getAttribute('data-prevision') || '';
             const nombreInput = rowElement.querySelector('input[name*="-nombre"]') || rowElement.querySelector('.paciente-nombre');
+            // Formateo automático de RUT
             const rutInput = rowElement.querySelector('input[name*="-rut"]') || rowElement.querySelector('.paciente-rut');
+            if (rutInput && typeof formatearRUT === 'function') {
+                rutInput.addEventListener('input', function() { formatearRUT(this); });
+                rutInput.addEventListener('blur', function() { formatearRUT(this); });
+                // Si ya tiene un valor, formatearlo ahora
+                if (rutInput.value) formatearRUT(rutInput);
+            }
             const previsionInput = rowElement.querySelector('input[name*="-prevision"]') || rowElement.querySelector('.paciente-prevision');
             if (nombreInput) nombreInput.value = nombre;
             if (rutInput) rutInput.value = rut;
             if (previsionInput) previsionInput.value = prevision;
         });
     }
+
+    // Hacer nombre obligatorio
+    const nombreInput = rowElement.querySelector('input[name*="-nombre"]');
+    if (nombreInput) {
+        nombreInput.setAttribute('required', 'required');
+    }
     
-    // 1. Lógica Destino -> Dirección
+    // Lógica Destino -> Dirección
     const destinoSelect = rowElement.querySelector('.destino-selector');
     const dirContainer = rowElement.querySelector('.container-direccion');
     const dirInput = rowElement.querySelector('.direccion-input');
 
     if (destinoSelect) {
         const handleDestinoChange = function() {
-            // Mostrar input si es Domicilio u Otro
             if (this.value === 'DOMICILIO' || this.value === 'OTRO') {
                 if (dirContainer) dirContainer.style.display = 'block';
-                if (dirInput) {
-                    dirInput.setAttribute('required', 'required');
-                }
+                if (dirInput) dirInput.setAttribute('required', 'required');
             } else {
                 if (dirContainer) dirContainer.style.display = 'none';
                 if (dirInput) {
@@ -152,32 +230,23 @@ function initRowListeners(rowElement) {
                     if (dirInput.value) dirInput.value = '';
                 }
             }
-            
-            // Actualizar horas HBO
             setTimeout(toggleHorasHBO, 50);
         };
-        
         destinoSelect.addEventListener('change', handleDestinoChange);
-        
-        // Trigger inicial si ya tiene valor
-        if (destinoSelect.value) {
-            handleDestinoChange.call(destinoSelect);
-        }
+        if (destinoSelect.value) handleDestinoChange.call(destinoSelect);
     }
 
-    // 2. Botón Quitar
+    // Botón Quitar
     const removeBtn = rowElement.querySelector('.remove-paciente');
     if (removeBtn) {
         removeBtn.addEventListener('click', function() {
             if (rowElement && rowElement.parentNode) {
                 rowElement.remove();
-                // Actualizar TOTAL_FORMS
                 const container = document.getElementById('pacientes-container');
                 const totalFormsInput = document.getElementById('id_pacientes-TOTAL_FORMS');
                 if (container && totalFormsInput) {
                     const currentForms = container.querySelectorAll('.paciente-row').length;
                     totalFormsInput.value = currentForms;
-                    // Actualizar horas HBO después de eliminar
                     setTimeout(toggleHorasHBO, 100);
                 }
             }
@@ -187,34 +256,25 @@ function initRowListeners(rowElement) {
 
 // 3. Función para verificar si algún paciente tiene destino HBO
 function toggleHorasHBO() {
+    // Si es camioneta, no hacer nada
+    if (window.tipoVehiculo === 'Camioneta') return;
+
     const pacientesContainer = document.getElementById('pacientes-container');
     const hboContainers = document.querySelectorAll('#hbo-horas-container');
-    
     if (!pacientesContainer || hboContainers.length === 0) return;
     
-    // Verificar si algún paciente tiene destino HBO
     const destinoSelects = pacientesContainer.querySelectorAll('.destino-selector');
     let tieneDestinoHBO = false;
-    
-    destinoSelects.forEach(function(select) {
-        if (select.value === 'HBO') {
-            tieneDestinoHBO = true;
-        }
+    destinoSelects.forEach(select => {
+        if (select.value === 'HBO') tieneDestinoHBO = true;
     });
     
-    // Mostrar u ocultar contenedores
     hboContainers.forEach(container => {
-        if (tieneDestinoHBO) {
-            container.style.display = 'block';
-        } else {
-            container.style.display = 'none';
-        }
+        container.style.display = tieneDestinoHBO ? 'block' : 'none';
     });
     
-    // Manejar campos requeridos
     const horaSalidaHBO = document.querySelector('[name="hora_salida_hbo"]');
     const horaLlegadaHBO = document.querySelector('[name="hora_llegada_hbo"]');
-    
     if (tieneDestinoHBO) {
         if (horaSalidaHBO) horaSalidaHBO.setAttribute('required', 'required');
         if (horaLlegadaHBO) horaLlegadaHBO.setAttribute('required', 'required');
@@ -230,21 +290,21 @@ function toggleHorasHBO() {
     }
 }
 
-// 4. Establecer valor por defecto de km_llegada = km_salida + 1
-/*
-function setDefaultKmLlegada() {
-    const kmSalida = document.querySelector('[name="km_salida"]');
-    const kmLlegada = document.querySelector('[name="km_llegada"]');
-    if (kmSalida && kmLlegada && !kmLlegada.value) {
-        const salida = parseInt(kmSalida.value);
-        if (!isNaN(salida)) {
-            kmLlegada.value = salida + 1;
+if (rutInput) {
+    // Usar función segura
+    const safeFormatRut = (input) => {
+        if (typeof window.formatearRUT === 'function') {
+            window.formatearRUT(input);
+        } else {
+            console.warn('formatearRUT no está disponible');
         }
-    }
+    };
+    rutInput.addEventListener('input', function() { safeFormatRut(this); });
+    rutInput.addEventListener('blur', function() { safeFormatRut(this); });
+    if (rutInput.value) safeFormatRut(rutInput);
 }
-*/
 
-// 5. Configurar validación del formulario (incluye control de KM)
+// 4. Configurar validación del formulario
 function configurarValidacionFormulario() {
     const kmSalida = document.querySelector('[name="km_salida"]');
     const kmLlegada = document.querySelector('[name="km_llegada"]');
@@ -259,85 +319,80 @@ function configurarValidacionFormulario() {
                 kmLlegada.classList.remove('is-invalid');
             }
         }
-
         kmSalida.addEventListener('input', validarKmEnTiempoReal);
         kmLlegada.addEventListener('input', validarKmEnTiempoReal);
-        validarKmEnTiempoReal(); // estado inicial
+        validarKmEnTiempoReal();
     }
 
-    // --- Validación al enviar el formulario ---
     const form = document.getElementById('form-viaje');
-    if (form) {
-        // Agregar novalidate para desactivar validación nativa del navegador
-        form.setAttribute('novalidate', 'novalidate');
-        
-        form.addEventListener('submit', function(event) {
-            // Remover alertas previas
-            const oldAlert = form.parentNode.querySelector('.alert-danger');
-            if (oldAlert) oldAlert.remove();
+    if (!form) return;
+    
+    form.setAttribute('novalidate', 'novalidate');
+    form.addEventListener('submit', function(event) {
+        const oldAlert = form.parentNode.querySelector('.alert-danger');
+        if (oldAlert) oldAlert.remove();
 
-            let formIsValid = true;
-            const errorMessages = [];
-            
-            // 1. Validar campos requeridos visibles
-            const requiredFields = form.querySelectorAll('[required]');
-            requiredFields.forEach(field => {
-                if (field.offsetParent !== null && !field.value.trim()) {
-                    field.classList.add('is-invalid');
-                    formIsValid = false;
-                    
-                    const label = form.querySelector(`label[for="${field.id}"]`) || field.previousElementSibling;
-                    const labelText = label ? label.textContent.trim() : (field.name || 'Campo');
-                    errorMessages.push(`${labelText} es obligatorio`);
-                } else if (field.offsetParent !== null) {
-                    field.classList.remove('is-invalid');
-                }
-            });
-            
-            // 2. Validar que haya al menos un paciente/pasajero
-            const pacienteRows = document.querySelectorAll('.paciente-row');
-            if (pacienteRows.length === 0) {
+        let formIsValid = true;
+        const errorMessages = [];
+        
+        // 1. Validar campos requeridos visibles
+        const requiredFields = form.querySelectorAll('[required]');
+        requiredFields.forEach(field => {
+            if (field.offsetParent !== null && !field.value.trim()) {
+                field.classList.add('is-invalid');
                 formIsValid = false;
-                errorMessages.push('Debe agregar al menos un paciente/pasajero');
+                const label = form.querySelector(`label[for="${field.id}"]`) || field.previousElementSibling;
+                const labelText = label ? label.textContent.trim() : (field.name || 'Campo');
+                errorMessages.push(`${labelText} es obligatorio`);
+            } else if (field.offsetParent !== null) {
+                field.classList.remove('is-invalid');
             }
-            
-            // 3. Validar KM Llegada no menor que KM Salida
-            if (kmLlegada && kmLlegada.value.trim() !== '') {
-                const salida = parseInt(kmSalida.value);
-                const llegada = parseInt(kmLlegada.value);
-                if (!isNaN(salida) && !isNaN(llegada) && llegada < salida) {
+        });
+        
+        // 2. Validar KM Llegada no menor que KM Salida (solo si llegada no está vacío)
+        if (kmLlegada && kmLlegada.value.trim() !== '') {
+            const salida = parseInt(kmSalida.value);
+            const llegada = parseInt(kmLlegada.value);
+            if (!isNaN(salida) && !isNaN(llegada) && llegada < salida) {
+                formIsValid = false;
+                errorMessages.push('El KM de llegada no puede ser menor que el KM de salida');
+                kmLlegada.classList.add('is-invalid');
+            } else {
+                kmLlegada.classList.remove('is-invalid');
+            }
+        }
+        
+        // 3. Validar que cada paciente/pasajero (no eliminado) tenga nombre
+        const pacienteRows = document.querySelectorAll('.paciente-row');
+        pacienteRows.forEach(row => {
+            const deleteCheckbox = row.querySelector('input[name*="-DELETE"]');
+            const isDeleted = deleteCheckbox && deleteCheckbox.checked;
+            if (!isDeleted) {
+                const nombre = row.querySelector('input[name*="-nombre"]');
+                if (nombre && !nombre.value.trim()) {
                     formIsValid = false;
-                    errorMessages.push('El KM de llegada no puede ser menor que el KM de salida');
-                    kmLlegada.classList.add('is-invalid');
-                } else {
-                    kmLlegada.classList.remove('is-invalid');
+                    errorMessages.push('Complete el nombre de cada paciente/pasajero (o elimine la fila).');
+                    nombre.classList.add('is-invalid');
                 }
             }
-            
-            // Mostrar errores si los hay
-            if (!formIsValid) {
-                event.preventDefault();
-                event.stopPropagation();
-                
-                const errorDiv = document.createElement('div');
-                errorDiv.className = 'alert alert-danger mt-3';
-                errorDiv.innerHTML = `
-                    <h5 class="alert-heading">Hay errores en el formulario</h5>
-                    <ul>
-                        ${errorMessages.map(msg => `<li>${msg}</li>`).join('')}
-                    </ul>
-                `;
-                
-                // Insertar antes del formulario
-                form.parentNode.insertBefore(errorDiv, form);
-                
-                // Hacer scroll al error
-                errorDiv.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                
-                return false;
-            }
-            
-            return true;
         });
-    }
+        
+        if (!formIsValid) {
+            event.preventDefault();
+            event.stopPropagation();
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'alert alert-danger mt-3';
+            errorDiv.innerHTML = `
+                <h5 class="alert-heading">Hay errores en el formulario</h5>
+                <ul>
+                    ${errorMessages.map(msg => `<li>${msg}</li>`).join('')}
+                </ul>
+            `;
+            form.parentNode.insertBefore(errorDiv, form);
+            errorDiv.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            return false;
+        }
+        return true;
+    });
 }
+

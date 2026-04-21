@@ -147,8 +147,8 @@ def importar_orden_compra(request):
                         'folio_sigfe': '',  # Dejamos vacío o elimina el campo
                         'estado': datos.get('estado', 'Emitida'),
                         'proveedor': proveedor,
-                        'tipo_adquisicion': 'Licitación Pública',
-                        'cuenta_presupuestaria': cuenta_presupuestaria,  # Se asigna si se encontró
+                        'tipo_adquisicion': datos.get('tipo_adquisicion', 'Convenio Marco'),
+                        'cuenta_presupuestaria': cuenta_presupuestaria,
                         'presupuesto': None,
                         'archivo_adjunto': None,
                     }

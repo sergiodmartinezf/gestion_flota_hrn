@@ -1,6 +1,20 @@
 document.addEventListener('DOMContentLoaded', function() {
     console.log('Reporte cargado - tabs gestionadas por Django');
     
+    // Verificar que los datos de gráficos estén disponibles
+    if (!window.datosGraficos || !window.datosGraficos.patentes) {
+        console.error('No se pudieron cargar los datos para los gráficos. Verifica que graficos_json sea válido.');
+        // Mostrar mensaje en la interfaz (opcional)
+        const container = document.querySelector('#dashboard .card-body');
+        if (container) {
+            container.innerHTML = '<div class="alert alert-warning">No hay datos disponibles para mostrar los gráficos.</div>';
+        }
+        return; // No continuar con la creación de gráficos
+    }
+    
+    const datosGraficos = window.datosGraficos; // alias local
+    
+    // Manejo de pestañas (igual que antes)
     document.querySelectorAll('.nav-tabs .nav-link').forEach(link => {
         link.addEventListener('click', function() {
             document.querySelectorAll('.nav-tabs .nav-link').forEach(l => {
@@ -13,7 +27,6 @@ document.addEventListener('DOMContentLoaded', function() {
     const tabs = document.querySelectorAll('[data-bs-toggle="tab"]');
     tabs.forEach(tab => {
         tab.addEventListener('shown.bs.tab', function() {
-            // Guardar posición de scroll en localStorage
             localStorage.setItem('reporte_scroll_pos', window.scrollY);
         });
     });
@@ -23,26 +36,18 @@ document.addEventListener('DOMContentLoaded', function() {
         window.scrollTo(0, parseInt(savedScroll));
         localStorage.removeItem('reporte_scroll_pos');
     }
-});
 
-// 1. Obtener datos desde Django
-const datosGraficos = {{ graficos_json|safe }};
+    console.log('=== DIAGNÓSTICO DE DATOS ===');
+    console.log('Patentes:', datosGraficos.patentes);
+    console.log('Costos Mantenimiento:', datosGraficos.costos_mantenimiento);
+    console.log('Costos Combustible:', datosGraficos.costos_combustible);
+    console.log('Costos Arriendo:', datosGraficos.costos_arriendo);
 
-console.log('=== DIAGNÓSTICO DE DATOS ===');
-console.log('Patentes:', datosGraficos.patentes);
-console.log('Costos Mantenimiento:', datosGraficos.costos_mantenimiento);
-console.log('Costos Combustible:', datosGraficos.costos_combustible);
-console.log('Costos Arriendo:', datosGraficos.costos_arriendo);
-
-// Esperar a que el DOM esté completamente cargado
-document.addEventListener('DOMContentLoaded', function() {
-    console.log('DOM cargado, creando gráficos...');
-    
-    // 2. Gráfico de Costos por Vehículo (Barras Apiladas)
+    // Gráfico de Costos por Vehículo (Barras Apiladas)
     const ctxCostos = document.getElementById('chartCostosPorVehiculo');
     if (ctxCostos) {
         console.log('Creando gráfico de costos...');
-        const chartCostos = new Chart(ctxCostos, {
+        new Chart(ctxCostos, {
             type: 'bar',
             data: {
                 labels: datosGraficos.patentes,
@@ -84,9 +89,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         callbacks: {
                             label: function(context) {
                                 let label = context.dataset.label || '';
-                                if (label) {
-                                    label += ': ';
-                                }
+                                if (label) label += ': ';
                                 label += '$' + context.parsed.y.toLocaleString('es-CL');
                                 return label;
                             }
@@ -96,18 +99,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 scales: {
                     x: { 
                         stacked: true,
-                        title: {
-                            display: true,
-                            text: 'Vehículos'
-                        }
+                        title: { display: true, text: 'Vehículos' }
                     },
                     y: {
                         stacked: true,
                         beginAtZero: true,
-                        title: { 
-                            display: true, 
-                            text: 'Costo ($)'
-                        },
+                        title: { display: true, text: 'Costo ($)' },
                         ticks: {
                             callback: function(value) {
                                 return '$' + value.toLocaleString('es-CL');
@@ -115,7 +112,6 @@ document.addEventListener('DOMContentLoaded', function() {
                         }
                     }
                 },
-                // Interactividad: Al hacer clic en una barra
                 onClick: (evt, elements) => {
                     if (elements.length > 0) {
                         const index = elements[0].index;
@@ -129,11 +125,11 @@ document.addEventListener('DOMContentLoaded', function() {
         console.error('No se encontró el canvas para gráfico de costos');
     }
 
-    // 3. Gráfico de Días Fuera de Servicio
+    // Gráfico de Días Fuera de Servicio
     const ctxDias = document.getElementById('chartDiasFueraServicio');
     if (ctxDias) {
         console.log('Creando gráfico de días fuera de servicio...');
-        const chartDias = new Chart(ctxDias, {
+        new Chart(ctxDias, {
             type: 'bar',
             data: {
                 labels: datosGraficos.patentes,
@@ -146,7 +142,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 }]
             },
             options: {
-                indexAxis: 'y', // Barras horizontales
+                indexAxis: 'y',
                 responsive: true,
                 plugins: {
                     title: { 
@@ -156,56 +152,36 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
                 },
                 scales: {
-                    x: { 
-                        beginAtZero: true, 
-                        title: { 
-                            display: true, 
-                            text: 'Días' 
-                        }
-                    }
+                    x: { beginAtZero: true, title: { display: true, text: 'Días' } }
                 }
             }
         });
     }
 
-    // 4. Gráfico de Desglose (Dona)
+    // Gráfico de Desglose (Dona)
     let chartDesglose = null;
     
     function actualizarDesgloseCostos(indexVehiculo) {
         console.log('Actualizando desglose para índice:', indexVehiculo);
-        
         const canvas = document.getElementById('chartDesgloseCostos');
         if (!canvas) {
             console.error('No se encontró el canvas para desglose');
             return;
         }
-        
         const ctx = canvas.getContext('2d');
-        
-        // Datos para este vehículo específico
         const datos = [
             datosGraficos.costos_mantenimiento[indexVehiculo] || 0,
             datosGraficos.costos_combustible[indexVehiculo] || 0,
             datosGraficos.costos_arriendo[indexVehiculo] || 0
         ];
-        
         console.log('Datos para desglose:', datos);
-        
-        // Verificar si hay datos
         const total = datos.reduce((a, b) => a + b, 0);
         console.log('Total de costos:', total);
-        
-        // Destruir gráfico anterior si existe
-        if (chartDesglose) {
-            chartDesglose.destroy();
-        }
-        
+        if (chartDesglose) chartDesglose.destroy();
         if (total === 0) {
-            // Mostrar mensaje de "sin datos"
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             ctx.fillStyle = '#f5f5f5';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
-            
             ctx.fillStyle = '#999';
             ctx.font = '14px Arial';
             ctx.textAlign = 'center';
@@ -214,8 +190,6 @@ document.addEventListener('DOMContentLoaded', function() {
             ctx.fillText('para este vehículo', canvas.width / 2, canvas.height / 2 + 10);
             return;
         }
-        
-        // Crear el gráfico de desglose
         chartDesglose = new Chart(ctx, {
             type: 'doughnut',
             data: {
@@ -237,20 +211,14 @@ document.addEventListener('DOMContentLoaded', function() {
             },
             options: {
                 responsive: true,
-                cutout: '60%', // Hace el "agujero" más grande
+                cutout: '60%',
                 plugins: {
                     title: {
                         display: true,
                         text: `Desglose: ${datosGraficos.patentes[indexVehiculo]}`,
                         font: { size: 14 }
                     },
-                    legend: {
-                        position: 'bottom',
-                        labels: {
-                            padding: 20,
-                            usePointStyle: true
-                        }
-                    },
+                    legend: { position: 'bottom', labels: { padding: 20, usePointStyle: true } },
                     tooltip: {
                         callbacks: {
                             label: function(context) {
@@ -264,7 +232,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             }
         });
-        
         console.log('Gráfico de desglose creado');
     }
     
@@ -272,14 +239,13 @@ document.addEventListener('DOMContentLoaded', function() {
     let indiceInicial = 0;
     for (let i = 0; i < datosGraficos.patentes.length; i++) {
         const total = (datosGraficos.costos_mantenimiento[i] || 0) + 
-                        (datosGraficos.costos_combustible[i] || 0) + 
-                        (datosGraficos.costos_arriendo[i] || 0);
+                      (datosGraficos.costos_combustible[i] || 0) + 
+                      (datosGraficos.costos_arriendo[i] || 0);
         if (total > 0) {
             indiceInicial = i;
             break;
         }
     }
-    
     console.log('Inicializando desglose con índice:', indiceInicial);
     actualizarDesgloseCostos(indiceInicial);
 });

@@ -7,7 +7,16 @@
 
 {% block extra_js %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script src="{% static 'js/reporte_costos.js' %}"></script>
+{{ graficos_json|json_script:"graficos-data" }}
+<script>
+    try {
+        window.datosGraficos = JSON.parse(document.getElementById('graficos-data').textContent);
+        console.log('datosGraficos cargados correctamente:', window.datosGraficos);
+    } catch (e) {
+        console.error('Error al parsear datos para gráficos:', e);
+        window.datosGraficos = null;
+    }
+</script>
 <script src="{% static 'js/reporte_costos.js' %}"></script>
 {% endblock %}
 
@@ -96,25 +105,28 @@
                 <div class="col-md-3">
                     <label for="anio">Año</label>
                     <select name="anio" id="anio" class="form-control">
-                        {% for anio_opcion in anios_disponibles %}
-                        <option value="{{ anio_opcion }}" {% if anio_opcion == anio %}selected{% endif %}>
-                            {{ anio_opcion }}
-                        </option>
+                        {% for a in anios_disponibles %}
+                            <option value="{{ a }}" {% if a == anio %}selected{% endif %}>{{ a }}</option>
                         {% endfor %}
                     </select>
                 </div>
-                <div class="col-md-4">
+                <div class="col-md-3">
                     <label for="vehiculo">Vehículo</label>
                     <select name="vehiculo" id="vehiculo" class="form-control">
                         <option value="">Todos los vehículos</option>
                         {% for v in vehiculos %}
-                        <option value="{{ v.patente }}" {% if vehiculo_filter == v.patente %}selected{% endif %}>
-                            {{ v.patente }}
-                        </option>
+                            <option value="{{ v.patente }}" {% if vehiculo_filter == v.patente %}selected{% endif %}>{{ v.patente }}</option>
                         {% endfor %}
                     </select>
                 </div>
-                <input type="hidden" name="tab" value="variacion">
+                <div class="col-md-3">
+                    <label for="tipo_mantencion">Tipo Mantenimiento</label>
+                    <select name="tipo_mantencion" id="tipo_mantencion" class="form-control">
+                        <option value="">Todos (Preventivo + Correctivo)</option>
+                        <option value="Preventivo" {% if tipo_mantencion == 'Preventivo' %}selected{% endif %}>Preventivo</option>
+                        <option value="Correctivo" {% if tipo_mantencion == 'Correctivo' %}selected{% endif %}>Correctivo</option>
+                    </select>
+                </div>
                 <div class="col-md-2 d-flex align-items-end">
                     <button type="submit" class="btn btn-primary">Filtrar</button>
                 </div>
@@ -122,7 +134,7 @@
         </form>
         
         <div class="mb-3">
-            <a href="?exportar=excel&tipo=variacion&anio={{ anio }}{% if vehiculo_filter %}&vehiculo={{ vehiculo_filter }}{% endif %}&tab=variacion" class="btn btn-success">
+            <a href="?exportar=excel&tab=variacion&anio={{ anio }}{% if vehiculo_filter %}&vehiculo={{ vehiculo_filter }}{% endif %}{% if tipo_mantencion %}&tipo_mantencion={{ tipo_mantencion }}{% endif %}" class="btn btn-success">
                 <i class="bi bi-file-earmark-excel"></i> Exportar a Excel
             </a>
         </div>

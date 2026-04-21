@@ -3,25 +3,29 @@ import csv
 from datetime import datetime, time
 from django.core.management.base import BaseCommand
 from django.db import transaction, connection
-from django.db.models import Sum
 from django.utils import timezone
 from django.utils.dateparse import parse_date
 from flota.models import (
     Usuario, CuentaPresupuestaria, Proveedor, Vehiculo,
     Presupuesto, OrdenCompra, Mantenimiento, normalizar_estado_oc
 )
-from django.db.models.signals import pre_save
-from flota.signals import validar_cierre_administrativo_mantenimiento
+from django.db.models.signals import pre_save, post_save, post_delete
+from flota.signals import (
+    validar_cierre_administrativo_mantenimiento,
+    actualizar_presupuesto_orden_compra,
+    actualizar_presupuesto_al_borrar_mantenimiento
+)
+
 
 class Command(BaseCommand):
-    help = 'Carga completa desde archivos CSV (ubicados junto a este script) + correcciones.'
+    help = 'Carga completa desde archivos CSV finales (usuario.csv, cuenta_presupuestaria.csv, etc.)'
 
     def add_arguments(self, parser):
         parser.add_argument(
             '--csv_dir',
             type=str,
-            help='Directorio donde están los archivos CSV (por defecto: el mismo directorio de este script)',
-            default=os.path.dirname(os.path.abspath(__file__))
+            help='Directorio donde están los archivos CSV (por defecto: ./datos)',
+            default=os.path.join(os.path.dirname(os.path.abspath(__file__)), 'datos')
         )
 
     def handle(self, *args, **options):
@@ -29,13 +33,13 @@ class Command(BaseCommand):
         self.stdout.write(f'📂 Buscando CSVs en: {csv_dir}')
 
         csv_files = {
-            Usuario: 'data-1770918596484.csv',
-            CuentaPresupuestaria: 'data-1770918621301.csv',
-            Proveedor: 'data-1770918667631.csv',
-            Vehiculo: 'data-1770918639716.csv',
-            Presupuesto: 'data-1770918701535.csv',
-            OrdenCompra: 'data-1770918685061.csv',
-            Mantenimiento: 'data-1770918718887.csv',
+            Usuario: 'usuario.csv',
+            CuentaPresupuestaria: 'cuenta_presupuestaria.csv',
+            Proveedor: 'proveedor.csv',
+            Vehiculo: 'vehiculo.csv',
+            Presupuesto: 'presupuesto.csv',
+            OrdenCompra: 'orden_compra.csv',
+            Mantenimiento: 'mantenimiento.csv',
         }
 
         # Verificar existencia de archivos
@@ -47,6 +51,19 @@ class Command(BaseCommand):
                     '   Asegúrate de que los archivos CSV estén en la carpeta: ' + csv_dir
                 ))
                 return
+
+        # -----------------------------------------------------------------
+        # Desconectar todas las señales que modifican datos
+        # -----------------------------------------------------------------
+        self.stdout.write(self.style.WARNING('🔌 Desconectando señales...'))
+        pre_save.disconnect(validar_cierre_administrativo_mantenimiento, sender=Mantenimiento)
+        post_save.disconnect(actualizar_presupuesto_orden_compra, sender=OrdenCompra)
+        post_delete.disconnect(actualizar_presupuesto_orden_compra, sender=OrdenCompra)
+        post_delete.disconnect(actualizar_presupuesto_al_borrar_mantenimiento, sender=Mantenimiento)
+
+        # Desactivar auto_now_add en campos que lo tengan
+        self._patch_auto_now_add(Usuario, 'creado_en')
+        self._patch_auto_now_add(Vehiculo, 'creado_en')
 
         # Limpieza completa
         self.stdout.write(self.style.WARNING('🧹 Limpiando tablas existentes...'))
@@ -68,108 +85,40 @@ class Command(BaseCommand):
             self.cargar_ordenes_compra(os.path.join(csv_dir, csv_files[OrdenCompra]))
             self.cargar_mantenimientos(os.path.join(csv_dir, csv_files[Mantenimiento]))
 
+        # -----------------------------------------------------------------
+        # Reconectar señales y restaurar auto_now_add
+        # -----------------------------------------------------------------
+        self.stdout.write(self.style.WARNING('🔌 Reconectando señales...'))
+        pre_save.connect(validar_cierre_administrativo_mantenimiento, sender=Mantenimiento)
+        post_save.connect(actualizar_presupuesto_orden_compra, sender=OrdenCompra)
+        post_delete.connect(actualizar_presupuesto_orden_compra, sender=OrdenCompra)
+        post_delete.connect(actualizar_presupuesto_al_borrar_mantenimiento, sender=Mantenimiento)
+
+        self._restore_auto_now_add(Usuario, 'creado_en')
+        self._restore_auto_now_add(Vehiculo, 'creado_en')
+
         self.stdout.write(self.style.SUCCESS('🎉 Carga CSV completada.'))
-
-        with transaction.atomic():
-            self.aplicar_correcciones()
-            # =========================================================================
-            # Ajuste de kilometraje para demostración (una ambulancia en rango 8000-12000,
-            # otra sobrepasada >12000)
-            # =========================================================================
-            self.stdout.write(self.style.WARNING('\n🔧 Ajustando kilometraje para demo...'))
-
-            try:
-                # Vehículo 1: HR.PG-25 → diferencia 7000 km
-                v1 = Vehiculo.objects.get(patente='HR.PG-25')
-                ultimo_mant_v1 = v1.mantenimientos.filter(
-                    tipo_mantencion='Preventivo',
-                    estado='Finalizado'
-                ).order_by('-fecha_salida').first()
-
-                if ultimo_mant_v1:
-                    nuevo_km_ingreso = v1.kilometraje_actual - 7000
-                    if nuevo_km_ingreso >= 0:
-                        ultimo_mant_v1.km_al_ingreso = nuevo_km_ingreso
-                        ultimo_mant_v1.save()
-                        self.stdout.write(f'   ✅ {v1.patente}: último mant. preventivo actualizado (km_ingreso={nuevo_km_ingreso}) → diferencia 7000 km')
-                    else:
-                        self.stdout.write(self.style.WARNING(f'   ⚠️ {v1.patente}: no se pudo ajustar (kilometraje actual muy bajo)'))
-                else:
-                    self.stdout.write(self.style.WARNING(f'   ⚠️ {v1.patente}: no tiene mantenimientos preventivos'))
-
-                # Vehículo 2: LX-FG-16 → diferencia 7300 km
-                v2 = Vehiculo.objects.get(patente='LX-FG-16')
-                ultimo_mant_v2 = v2.mantenimientos.filter(
-                    tipo_mantencion='Preventivo',
-                    estado='Finalizado'
-                ).order_by('-fecha_salida').first()
-
-                if ultimo_mant_v2:
-                    nuevo_km_ingreso = v2.kilometraje_actual - 7300
-                    if nuevo_km_ingreso >= 0:
-                        ultimo_mant_v2.km_al_ingreso = nuevo_km_ingreso
-                        ultimo_mant_v2.save()
-                        self.stdout.write(f'   ✅ {v2.patente}: último mant. preventivo actualizado (km_ingreso={nuevo_km_ingreso}) → diferencia 7300 km')
-                    else:
-                        self.stdout.write(self.style.WARNING(f'   ⚠️ {v2.patente}: no se pudo ajustar (kilometraje actual muy bajo)'))
-                else:
-                    self.stdout.write(self.style.WARNING(f'   ⚠️ {v2.patente}: no tiene mantenimientos preventivos'))
-
-                # Vehículo 3: KX.SL-70 → diferencia 7500 km
-                v3 = Vehiculo.objects.get(patente='KX.SL-70')
-                ultimo_mant_v3 = v3.mantenimientos.filter(
-                    tipo_mantencion='Preventivo',
-                    estado='Finalizado'
-                ).order_by('-fecha_salida').first()
-
-                if ultimo_mant_v3:
-                    nuevo_km_ingreso = v3.kilometraje_actual - 7500
-                    if nuevo_km_ingreso >= 0:
-                        # Usar update para evitar señales y validaciones de presupuesto
-                        actualizados = Mantenimiento.objects.filter(id=ultimo_mant_v3.id).update(km_al_ingreso=nuevo_km_ingreso)
-                        if actualizados:
-                            self.stdout.write(f'   ✅ {v3.patente}: km_al_ingreso actualizado a {nuevo_km_ingreso} (vía update) → diferencia 7500 km')
-                        else:
-                            self.stdout.write(self.style.WARNING(f'   ⚠️ {v3.patente}: no se pudo actualizar'))
-                    else:
-                        self.stdout.write(self.style.WARNING(f'   ⚠️ {v3.patente}: no se pudo ajustar (kilometraje actual muy bajo)'))
-                else:
-                    self.stdout.write(self.style.WARNING(f'   ⚠️ {v3.patente}: no tiene mantenimientos preventivos'))
-
-            except Vehiculo.DoesNotExist as e:
-                self.stdout.write(self.style.ERROR(f'❌ Vehículo no encontrado: {e}'))
-            except Exception as e:
-                self.stdout.write(self.style.ERROR(f'❌ Error inesperado: {e}'))
-                    # Verificación final y corrección forzada
-        with transaction.atomic():
-            self.verificar_y_corregir_ejecutado()
-            # Si aún hay discrepancia, forzamos los valores correctos (solo para la demo)
-            total_mant = Mantenimiento.objects.filter(fecha_salida__year=2025, estado='Finalizado').aggregate(Sum('costo_total_real'))['costo_total_real__sum'] or 0
-            if total_mant != 20076173:
-                self.stdout.write(self.style.ERROR(f'🚨 ¡La suma sigue siendo {total_mant} y debería ser 20076173!'))
-                self.stdout.write(self.style.WARNING('   Forzando valores correctos en los presupuestos...'))
-                # Actualizar presupuestos con valores fijos
-                for p in Presupuesto.objects.filter(anio=2025, activo=True):
-                    if p.tipo_presupuesto == 'Operativo' and p.cuenta.codigo in ['22.06.002.002', '22.06.002.004']:
-                        p.monto_ejecutado = 19978979  # ejecutado real del CSV (puedes ajustar)
-                    elif p.tipo_presupuesto == 'Preventivo':
-                        # Asignar según vehículo (puedes poner los valores del CSV)
-                        if p.vehiculo and p.vehiculo.patente == 'HR.PG-25':
-                            p.monto_ejecutado = 6394452
-                        elif p.vehiculo and p.vehiculo.patente == 'LX-FG-16':
-                            p.monto_ejecutado = 7534263
-                        elif p.vehiculo and p.vehiculo.patente == 'KX.SL-70':
-                            p.monto_ejecutado = 4026574
-                        elif p.vehiculo and p.vehiculo.patente == 'HL.TS-76':
-                            p.monto_ejecutado = 2120884
-                    p.save()
-                self.stdout.write(self.style.SUCCESS('   ✅ Presupuestos forzados a valores correctos.'))
-            self.verificar_y_corregir_ejecutado()
-            self.aplicar_correcciones()
-            self.verificar_y_corregir_ejecutado()
-            self.reset_sequences()
-
+        self.reset_sequences()
         self.stdout.write(self.style.SUCCESS('🎯 Proceso finalizado exitosamente.'))
+
+    # -----------------------------------------------------------------
+    # Métodos auxiliares para parchear auto_now_add
+    # -----------------------------------------------------------------
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._saved_auto_now_add = {}
+
+    def _patch_auto_now_add(self, model, field_name):
+        """Desactiva temporalmente auto_now_add de un campo y guarda el valor original."""
+        field = model._meta.get_field(field_name)
+        self._saved_auto_now_add[(model, field_name)] = field.auto_now_add
+        field.auto_now_add = False
+
+    def _restore_auto_now_add(self, model, field_name):
+        """Restaura auto_now_add al valor original."""
+        field = model._meta.get_field(field_name)
+        original = self._saved_auto_now_add.get((model, field_name), False)
+        field.auto_now_add = original
 
     # -----------------------------------------------------------------
     # Métodos de parseo robustos
@@ -189,7 +138,6 @@ class Command(BaseCommand):
         if self._es_nulo(value):
             return 0
         try:
-            # Eliminar posibles separadores de miles (puntos) y convertir a entero
             valor_limpio = value.strip().replace('.', '')
             return int(float(valor_limpio))
         except ValueError:
@@ -211,7 +159,7 @@ class Command(BaseCommand):
         return timezone.make_aware(dt) if timezone.is_naive(dt) else dt
 
     # -----------------------------------------------------------------
-    # Métodos de carga
+    # Métodos de carga (sin cambios respecto al original)
     # -----------------------------------------------------------------
     def cargar_usuarios(self, filepath):
         self.stdout.write('📁 Cargando Usuarios...')
@@ -373,170 +321,43 @@ class Command(BaseCommand):
 
     def cargar_mantenimientos(self, filepath):
         self.stdout.write('📁 Cargando Mantenimientos...')
+        # Nota: las señales ya están desconectadas globalmente, no necesitamos desconectar aquí
+        with open(filepath, 'r', encoding='utf-8') as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                vehiculo = Vehiculo.objects.get(id=self._parse_int(row['vehiculo_id']))
+                proveedor = Proveedor.objects.get(id=self._parse_int(row['proveedor_id']))
+                oc = None
+                ocid = row['orden_compra_id']
+                if not self._es_nulo(ocid):
+                    oc = OrdenCompra.objects.get(id=self._parse_int(ocid))
+                cuenta = None
+                cid = row['cuenta_presupuestaria_id']
+                if not self._es_nulo(cid):
+                    cuenta = CuentaPresupuestaria.objects.get(id=self._parse_int(cid))
 
-        # Desconectar la señal que valida el presupuesto
-        pre_save.disconnect(validar_cierre_administrativo_mantenimiento, sender=Mantenimiento)
-
-        try:
-            with open(filepath, 'r', encoding='utf-8') as f:
-                reader = csv.DictReader(f)
-                for row in reader:
-                    vehiculo = Vehiculo.objects.get(id=self._parse_int(row['vehiculo_id']))
-                    proveedor = Proveedor.objects.get(id=self._parse_int(row['proveedor_id']))
-                    oc = None
-                    ocid = row['orden_compra_id']
-                    if not self._es_nulo(ocid):
-                        oc = OrdenCompra.objects.get(id=self._parse_int(ocid))
-                    cuenta = None
-                    cid = row['cuenta_presupuestaria_id']
-                    if not self._es_nulo(cid):
-                        cuenta = CuentaPresupuestaria.objects.get(id=self._parse_int(cid))
-
-                    Mantenimiento.objects.create(
-                        id=self._parse_int(row['id']),
-                        tipo_mantencion=row['tipo_mantencion'],
-                        fecha_ingreso=self._parse_date(row['fecha_ingreso']),
-                        fecha_salida=self._parse_date(row['fecha_salida']),
-                        fecha_programada=self._parse_date(row['fecha_programada']),
-                        km_al_ingreso=self._parse_int(row['km_al_ingreso']),
-                        descripcion_trabajo=row['descripcion_trabajo'],
-                        estado=row['estado'],
-                        nro_factura=row['nro_factura'] or None,
-                        archivo_adjunto=None,
-                        orden_compra=oc,
-                        costo_estimado=self._parse_int(row['costo_estimado']),
-                        costo_mano_obra=self._parse_int(row['costo_mano_obra']),
-                        costo_repuestos=self._parse_int(row['costo_repuestos']),
-                        costo_total_real=self._parse_int(row['costo_total_real']),
-                        vehiculo=vehiculo,
-                        orden_trabajo=None,
-                        proveedor=proveedor,
-                        cuenta_presupuestaria=cuenta,
-                    )
-            self.stdout.write(self.style.SUCCESS(f'   ✅ {Mantenimiento.objects.count()} mantenimientos.'))
-        finally:
-            # Reconectar la señal
-            pre_save.connect(validar_cierre_administrativo_mantenimiento, sender=Mantenimiento)
-
-    # -----------------------------------------------------------------
-    # Correcciones post-carga
-    # -----------------------------------------------------------------
-    def aplicar_correcciones(self):
-        self.stdout.write(self.style.WARNING('\n🔧 Aplicando correcciones post-carga...'))
-
-        try:
-            cuenta_correctivo_amb = CuentaPresupuestaria.objects.get(codigo='22.06.002.002')
-            cuenta_correctivo_cam = CuentaPresupuestaria.objects.get(codigo='22.06.002.004')
-        except CuentaPresupuestaria.DoesNotExist:
-            self.stdout.write(self.style.ERROR('❌ No existen las cuentas 22.06.002.002 / 004. Abortando.'))
-            return
-
-        try:
-            camioneta = Vehiculo.objects.get(patente='HL.TS-76')
-        except Vehiculo.DoesNotExist:
-            self.stdout.write(self.style.ERROR('❌ No existe el vehículo HL.TS-76.'))
-            return
-
-        ocs_camioneta_sin_cuenta = OrdenCompra.objects.filter(
-            vehiculo=camioneta,
-            cuenta_presupuestaria__isnull=True
-        )
-        count_ocs = ocs_camioneta_sin_cuenta.update(
-            cuenta_presupuestaria=cuenta_correctivo_cam
-        )
-        self.stdout.write(f'   ✅ {count_ocs} OC de camioneta actualizadas con cuenta 22.06.002.004.')
-
-        # --- Bloque modificado: desconectar señal antes de actualizar mantenimientos ---
-        mantos_sin_cuenta = Mantenimiento.objects.filter(
-            orden_compra__isnull=False,
-            cuenta_presupuestaria__isnull=True
-        )
-        actualizados = 0
-
-        # Desconectar la señal que valida el presupuesto
-        from django.db.models.signals import pre_save
-        from flota.signals import validar_cierre_administrativo_mantenimiento
-        pre_save.disconnect(validar_cierre_administrativo_mantenimiento, sender=Mantenimiento)
-
-        try:
-            for m in mantos_sin_cuenta:
-                if m.orden_compra.cuenta_presupuestaria:
-                    m.cuenta_presupuestaria = m.orden_compra.cuenta_presupuestaria
-                    m.save()
-                    actualizados += 1
-        finally:
-            # Reconectar la señal
-            pre_save.connect(validar_cierre_administrativo_mantenimiento, sender=Mantenimiento)
-
-        self.stdout.write(f'   ✅ {actualizados} mantenimientos actualizados con cuenta desde su OC.')
-        # --- Fin del bloque modificado ---
-
-        # Eliminar presupuestos individuales de correctivo (ya tenemos globales)
-        individuales_correctivo = Presupuesto.objects.filter(
-            anio=2025,
-            tipo_presupuesto='Operativo',
-            vehiculo__isnull=False,
-            cuenta__in=[cuenta_correctivo_amb, cuenta_correctivo_cam]
-        )
-        count_ind = individuales_correctivo.count()
-        individuales_correctivo.delete()
-        self.stdout.write(f'   ✅ {count_ind} presupuestos individuales de correctivo eliminados.')
-
-        # Ahora que las cuentas están asignadas, recalculamos los montos ejecutados
-        self.verificar_y_corregir_ejecutado()
-    # <<< NUEVA FUNCIÓN PARA VERIFICAR Y CORREGIR EL EJECUTADO >>>
-    def verificar_y_corregir_ejecutado(self):
-        self.stdout.write(self.style.WARNING('\n🔍 Verificando montos ejecutados...'))
-
-        # Obtener todos los mantenimientos finalizados de 2025
-        mantenimientos_2025 = Mantenimiento.objects.filter(
-            fecha_salida__year=2025,
-            estado='Finalizado'
-        )
-
-        total_ejecutado_real = mantenimientos_2025.aggregate(Sum('costo_total_real'))['costo_total_real__sum'] or 0
-        self.stdout.write(f'   📊 Suma de mantenimientos 2025: ${total_ejecutado_real:,.0f}')
-
-        # Valor esperado (calculado del CSV)
-        esperado = 20076173  # según nuestros cálculos
-
-        if total_ejecutado_real != esperado:
-            self.stdout.write(self.style.WARNING(f'   ⚠️ La suma real ({total_ejecutado_real}) no coincide con la esperada ({esperado}).'))
-            self.stdout.write(self.style.WARNING('   Revisando si hay registros duplicados o montos incorrectos...'))
-
-            # Listar los 10 mantenimientos con mayor monto para identificar anomalías
-            top_montos = mantenimientos_2025.order_by('-costo_total_real')[:10]
-            self.stdout.write('   Top 10 montos más altos:')
-            for m in top_montos:
-                self.stdout.write(f'      ID {m.id}: ${m.costo_total_real:,.0f} - {m.descripcion_trabajo[:50]}')
-
-            # Si la diferencia es grande, podría haber registros extraños
-            # Opcional: eliminar mantenimientos con ID mayor a 77 (si el CSV solo tiene hasta 77)
-            max_id_csv = 77
-            extras = Mantenimiento.objects.filter(id__gt=max_id_csv)
-            if extras.exists():
-                self.stdout.write(self.style.WARNING(f'   ⚠️ Hay {extras.count()} mantenimientos con ID > {max_id_csv} (fuera del CSV). Eliminando...'))
-                extras.delete()
-                # Recalcular después de eliminar
-                total_ejecutado_real = mantenimientos_2025.aggregate(Sum('costo_total_real'))['costo_total_real__sum'] or 0
-                self.stdout.write(f'   ✅ Nueva suma: ${total_ejecutado_real:,.0f}')
-
-            # Si aún no coincide, podrías forzar el valor esperado (solo como último recurso)
-            # pero mejor dejar que el administrador revise.
-
-        # Actualizar los presupuestos con el valor real
-        presupuestos_activos = Presupuesto.objects.filter(anio=2025, activo=True)
-        for p in presupuestos_activos:
-            # Calcular el ejecutado según los mantenimientos asociados a ese presupuesto
-            qs = mantenimientos_2025
-            if p.cuenta:
-                qs = qs.filter(cuenta_presupuestaria=p.cuenta)
-            if p.vehiculo:
-                qs = qs.filter(vehiculo=p.vehiculo)
-            total = qs.aggregate(Sum('costo_total_real'))['costo_total_real__sum'] or 0
-            p.monto_ejecutado = total
-            p.save()
-        self.stdout.write(f'   ✅ {presupuestos_activos.count()} presupuestos actualizados con sus ejecutados reales.')
+                Mantenimiento.objects.create(
+                    id=self._parse_int(row['id']),
+                    tipo_mantencion=row['tipo_mantencion'],
+                    fecha_ingreso=self._parse_date(row['fecha_ingreso']),
+                    fecha_salida=self._parse_date(row['fecha_salida']),
+                    fecha_programada=self._parse_date(row['fecha_programada']),
+                    km_al_ingreso=self._parse_int(row['km_al_ingreso']),
+                    descripcion_trabajo=row['descripcion_trabajo'],
+                    estado=row['estado'],
+                    nro_factura=row['nro_factura'] or None,
+                    archivo_adjunto=None,
+                    orden_compra=oc,
+                    costo_estimado=self._parse_int(row['costo_estimado']),
+                    costo_mano_obra=self._parse_int(row['costo_mano_obra']),
+                    costo_repuestos=self._parse_int(row['costo_repuestos']),
+                    costo_total_real=self._parse_int(row['costo_total_real']),
+                    vehiculo=vehiculo,
+                    orden_trabajo=None,
+                    proveedor=proveedor,
+                    cuenta_presupuestaria=cuenta,
+                )
+        self.stdout.write(self.style.SUCCESS(f'   ✅ {Mantenimiento.objects.count()} mantenimientos.'))
 
     def reset_sequences(self):
         """Resetea las secuencias de todas las tablas con AutoField (PostgreSQL)."""
@@ -557,3 +378,4 @@ class Command(BaseCommand):
                     f"(SELECT COALESCE(MAX(id), 1) FROM {tabla}));"
                 )
         self.stdout.write(self.style.SUCCESS('   ✅ Secuencias actualizadas.'))
+        

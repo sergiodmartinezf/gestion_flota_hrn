@@ -145,63 +145,72 @@ def registrar_bitacora(request):
     })
 
 @login_required
-@user_passes_test(es_conductor_o_admin)
+@user_passes_test(lambda u: u.rol == 'Conductor')
 def agregar_viaje(request, id):
     hoja = get_object_or_404(HojaRuta, id=id)
+    vehiculo_tipo = hoja.vehiculo.tipo_carroceria
     
-    # Calcular KM sugerido
     ultimo_viaje = hoja.viajes.order_by('-km_llegada').first()
     km_sugerido = ultimo_viaje.km_llegada if ultimo_viaje and ultimo_viaje.km_llegada else hoja.km_inicio
 
     if request.method == 'POST':
-        form = ViajeForm(request.POST)
+        form = ViajeForm(request.POST, vehiculo_tipo=vehiculo_tipo)
         paciente_formset = PacienteFormSet(request.POST, request.FILES)
-        
+
         if form.is_valid():
             viaje = form.save(commit=False)
             viaje.hoja_ruta = hoja
             
-            # Validación de KM
-            if viaje.km_salida < km_sugerido:
-                messages.error(request, f'Error: KM salida ({viaje.km_salida}) es menor al anterior ({km_sugerido}).')
+            # Validaciones que dependen del objeto viaje
+            km_actual_vehiculo = hoja.vehiculo.kilometraje_actual
+            errores = False
+            
+            if viaje.km_salida < km_actual_vehiculo:
+                form.add_error('km_salida', f'El KM de salida ({viaje.km_salida}) no puede ser menor al kilometraje actual del vehículo ({km_actual_vehiculo}).')
+                errores = True
+            elif viaje.km_salida < km_sugerido:
+                form.add_error('km_salida', f'Error: KM salida ({viaje.km_salida}) es menor al anterior ({km_sugerido}).')
+                errores = True
+            
+            if not errores and paciente_formset.is_valid():
+                viaje.save()
+                
+                # Actualizar kilometraje del vehículo
+                if viaje.km_llegada and viaje.km_llegada > hoja.vehiculo.kilometraje_actual:
+                    hoja.vehiculo.kilometraje_actual = viaje.km_llegada
+                    hoja.vehiculo.save()
+                
+                # Guardar pacientes
+                pacientes = paciente_formset.save(commit=False)
+                for paciente in pacientes:
+                    paciente.viaje = viaje
+                    if paciente.rut and paciente.nombre:
+                        pv, _ = PacienteViaje.objects.get_or_create(
+                            rut=paciente.rut.strip(),
+                            defaults={'nombre': paciente.nombre, 'prevision': paciente.prevision or ''}
+                        )
+                        paciente.paciente_viaje = pv
+                    paciente.save()
+                
+                for form_del in paciente_formset.deleted_forms:
+                    if form_del.instance.pk:
+                        form_del.instance.delete()
+                
+                messages.success(request, 'Viaje registrado correctamente.')
+                return redirect('agregar_viaje', id=hoja.id)
             else:
-                if paciente_formset.is_valid():
-                    viaje.save()  # Guardar viaje primero
-
-                    # ===== ACTUALIZAR KILOMETRAJE DEL VEHÍCULO =====
-                    if viaje.km_llegada:
-                        vehiculo = hoja.vehiculo
-                        if viaje.km_llegada > vehiculo.kilometraje_actual:
-                            vehiculo.kilometraje_actual = viaje.km_llegada
-                            vehiculo.save()
-                    # ===============================================
-
-                    # Guardar pacientes y actualizar tabla maestra PacienteViaje
-                    pacientes = paciente_formset.save(commit=False)
-                    for paciente in pacientes:
-                        paciente.viaje = viaje
-                        if paciente.rut and paciente.nombre:
-                            pv, _ = PacienteViaje.objects.get_or_create(
-                                rut=paciente.rut.strip(),
-                                defaults={'nombre': paciente.nombre, 'prevision': paciente.prevision or ''}
-                            )
-                            paciente.paciente_viaje = pv
-                        paciente.save()
-                    
-                    # Guardar también los que se marcaron para eliminar
-                    for form_del in paciente_formset.deleted_forms:
-                        if form_del.instance.pk:
-                            form_del.instance.delete()
-                    
-                    messages.success(request, 'Viaje registrado correctamente.')
-                    return redirect('agregar_viaje', id=hoja.id)
-                else:
+                if not errores:
                     messages.error(request, 'Error en los datos de los pacientes.')
+        else:
+            # Si el formulario principal no es válido, se mostrarán los errores en el template
+            pass
+
     else:
-        form = ViajeForm(initial={
+        initial_data = {
             'km_salida': km_sugerido,
-            'hora_salida': timezone.now().strftime('%H:%M')
-        })
+            'km_llegada': km_sugerido + 1 if km_sugerido is not None else None
+        }
+        form = ViajeForm(initial=initial_data, vehiculo_tipo=vehiculo_tipo)
         paciente_formset = PacienteFormSet(queryset=PacienteTraslado.objects.none())
 
     # Para GET también asignamos km_llegada sugerido

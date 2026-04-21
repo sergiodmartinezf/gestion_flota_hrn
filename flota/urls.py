@@ -49,7 +49,7 @@ urlpatterns = [
     path('mantenimientos/editar/<int:id>/', views.editar_mantenimiento, name='editar_mantenimiento'),
     path('mantenimientos/finalizar/<int:id>/', views.finalizar_mantenimiento, name='finalizar_mantenimiento'),
     path('mantenimientos/eliminar/<int:id>/', views.eliminar_mantenimiento, name='eliminar_mantenimiento'),
-    path('mantenimientos/estado/<int:id>/', views.cambiar_estado_mantenimiento, name='cambiar_estado_mantenimiento'),
+    path('mantenimientos/cambiar-estado/<int:id>/', views.cambiar_estado_mantenimiento, name='cambiar_estado_mantenimiento'),
 
     # Panel de control
     path('panel-control/', views.panel_control, name='panel_control'),

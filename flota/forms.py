@@ -3,13 +3,14 @@ from django import forms
 from django.forms import formset_factory, inlineformset_factory
 from django.contrib.auth.forms import UserCreationForm
 from datetime import datetime
+from django.utils import timezone
 from django.core.exceptions import ValidationError
 from .models import (
     Usuario, Vehiculo, Proveedor, OrdenCompra, OrdenTrabajo,
     Presupuesto, Arriendo, HojaRuta, Viaje, PacienteTraslado, CargaCombustible,
     Mantenimiento, FallaReportada, CuentaPresupuestaria, TIPOS_SERVICIO
 )
-
+from .constants import MANTENIMIENTO_CUENTAS_MAP
 
 class LoginForm(forms.Form):
     rut = forms.CharField(
@@ -77,6 +78,9 @@ class UsuarioForm(forms.ModelForm):
     
     def clean_password(self):
         password = self.cleaned_data.get('password')
+        if password:
+            if password.strip() == '':
+                raise forms.ValidationError('La contraseña no puede estar compuesta solo por espacios.')
         
         # Solo validar si se proporcionó una contraseña (en creación o cambio)
         if password:
@@ -107,19 +111,20 @@ class UsuarioForm(forms.ModelForm):
         password = cleaned_data.get('password')
         password_confirm = cleaned_data.get('password_confirm')
         
-        # Solo validar contraseñas si estamos creando o cambiando contraseña
-        if self.instance.pk:
-            # Edición: si se ingresó contraseña, validar
-            if password or password_confirm:
-                if password != password_confirm:
-                    raise forms.ValidationError('Las contraseñas no coinciden.')
-        else:
-            # Creación: contraseñas son obligatorias
+        # Solo validar si estamos creando usuario Y no hay error previo en password
+        if not self.instance.pk:
+            # Si el campo password tiene errores, no lanzamos el mensaje global
+            if self.errors.get('password'):
+                return cleaned_data
             if not password:
                 raise forms.ValidationError('Debe ingresar una contraseña.')
             if password != password_confirm:
                 raise forms.ValidationError('Las contraseñas no coinciden.')
-        
+        else:
+            # Edición: solo validar si se ingresó alguna contraseña
+            if password or password_confirm:
+                if password != password_confirm:
+                    raise forms.ValidationError('Las contraseñas no coinciden.')
         return cleaned_data
     
     def save(self, commit=True):
@@ -154,10 +159,10 @@ class VehiculoForm(forms.ModelForm):
             'modelo': forms.TextInput(attrs={'class': 'form-control'}),
             'vin': forms.TextInput(attrs={'class': 'form-control'}),
             'nro_motor': forms.TextInput(attrs={'class': 'form-control'}),
-            'anio_adquisicion': forms.NumberInput(attrs={'class': 'form-control', 'min': 0}),
-            'vida_util': forms.NumberInput(attrs={'class': 'form-control', 'min': 0}),
-            'umbral_mantencion': forms.NumberInput(attrs={'class': 'form-control', 'min': 0}),
-            'kilometraje_actual': forms.NumberInput(attrs={'class': 'form-control'}),
+            'anio_adquisicion': forms.NumberInput(attrs={'class': 'form-control', 'min': 1900, 'max': 2100}),
+            'vida_util': forms.NumberInput(attrs={'class': 'form-control', 'min': 1}),
+            'umbral_mantencion': forms.NumberInput(attrs={'class': 'form-control', 'min': 1}),
+            'kilometraje_actual': forms.NumberInput(attrs={'class': 'form-control', 'min': 0}),
             'tipo_carroceria': forms.Select(attrs={'class': 'form-control'}),
             'clase_ambulancia': forms.Select(attrs={'class': 'form-control'}),
             'es_samu': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
@@ -173,10 +178,22 @@ class VehiculoForm(forms.ModelForm):
             self.fields['patente'].widget.attrs['readonly'] = True  # Mantener readonly visual
             # Establecer el valor inicial para que se envíe en POST
             self.fields['patente'].initial = self.instance.patente
+        required_fields = [
+            'patente', 
+            'marca', 
+            'modelo', 
+            'anio_adquisicion', 
+            'kilometraje_actual', 
+            'umbral_mantencion', 
+            'tipo_carroceria', 
+            'establecimiento', 
+            'criticidad', 
+            'estado'
+        ]
+        for field_name in required_fields:
+            self.fields[field_name].required = True
         self.fields['es_samu'].required = False
         self.fields['es_backup'].required = False
-        self.fields['es_samu'].widget.attrs.pop('required', None)
-        self.fields['es_backup'].widget.attrs.pop('required', None)
     
     def clean(self):
         cleaned_data = super().clean()
@@ -189,34 +206,58 @@ class VehiculoForm(forms.ModelForm):
 
         return cleaned_data
 
-    def clean_patente(self):
-        """Asegurar que la patente no cambie en ediciones"""
-        patente = self.cleaned_data.get('patente')
-        # Si el campo está readonly, puede venir vacío en POST, usar el valor de la instancia
-        if not patente and self.instance.pk:
-            patente = self.instance.patente
-        # Si se intenta cambiar la patente en una edición, mantener la original
-        if self.instance.pk and patente and self.instance.patente != patente:
-            return self.instance.patente
-        return patente
-
     def clean_anio_adquisicion(self):
         value = self.cleaned_data.get('anio_adquisicion')
-        if value is not None and value < 0:
-            raise forms.ValidationError('El año de adquisición no puede ser negativo.')
+        if value is not None:
+            if value <= 0:
+                raise forms.ValidationError('El año de adquisición debe ser un número positivo.')
+            current_year = timezone.now().year
+            if value < 1900 or value > current_year + 1:
+                raise forms.ValidationError(f'Ingrese un año válido (1900-{current_year+1}).')
         return value
 
     def clean_vida_util(self):
         value = self.cleaned_data.get('vida_util')
-        if value is not None and value < 0:
-            raise forms.ValidationError('La vida útil no puede ser negativa.')
+        if value is not None and value <= 0:
+            raise forms.ValidationError('La vida útil debe ser mayor a cero.')
         return value
 
     def clean_umbral_mantencion(self):
         value = self.cleaned_data.get('umbral_mantencion')
-        if value is not None and value < 0:
-            raise forms.ValidationError('El umbral de mantención no puede ser negativo.')
+        if value is not None and value <= 0:
+            raise forms.ValidationError('El umbral de mantención debe ser mayor a cero.')
         return value
+
+    def clean_kilometraje_actual(self):
+        value = self.cleaned_data.get('kilometraje_actual')
+        if value is not None and value < 0:
+            raise forms.ValidationError('El kilometraje actual no puede ser negativo.')
+        return value
+
+    def clean_patente(self):
+        patente = self.cleaned_data.get('patente')
+        if not patente or patente.strip() == '':
+            raise forms.ValidationError('La patente es obligatoria.')
+        # Normalizar: mayúsculas y sin espacios
+        return patente.strip().upper()
+
+    def clean_marca(self):
+        marca = self.cleaned_data.get('marca')
+        if not marca or marca.strip() == '':
+            raise forms.ValidationError('La marca es obligatoria.')
+        return marca.strip()
+
+    def clean_modelo(self):
+        modelo = self.cleaned_data.get('modelo')
+        if not modelo or modelo.strip() == '':
+            raise forms.ValidationError('El modelo es obligatorio.')
+        return modelo.strip()
+
+    def clean_establecimiento(self):
+        establecimiento = self.cleaned_data.get('establecimiento')
+        if not establecimiento or establecimiento.strip() == '':
+            raise forms.ValidationError('El establecimiento es obligatorio.')
+        return establecimiento.strip()
 
 
 class ProveedorForm(forms.ModelForm):
@@ -354,11 +395,31 @@ class HojaRutaForm(forms.ModelForm):
         
         return cleaned_data
 
+    def clean_km_inicio(self):
+        km = self.cleaned_data.get('km_inicio')
+        if km is None:
+            raise ValidationError('Debe ingresar el kilometraje inicial.')
+        if km < 0:
+            raise ValidationError('El kilometraje inicial no puede ser negativo.')
+        return km
+
 
 class ViajeForm(forms.ModelForm):
+    def __init__(self, *args, **kwargs):
+        vehiculo_tipo = kwargs.pop('vehiculo_tipo', None)
+        super().__init__(*args, **kwargs)
+        if vehiculo_tipo == 'Camioneta':
+            # Limitar categorías de traslado
+            self.fields['categoria_traslado'].choices = [('Administrativo', 'Administrativo')]
+            self.fields['categoria_traslado'].initial = 'Administrativo'
+            self.fields['categoria_traslado'].disabled = True
+            # Ocultar el campo detalle_origen_alta (no aplica)
+            self.fields['detalle_origen_alta'].widget = forms.HiddenInput()
+            self.fields['detalle_origen_alta'].required = False
+            
     hora_llegada = forms.TimeField(
         widget=forms.TimeInput(attrs={'class': 'form-control', 'type': 'time'}),
-        required=False,
+        required=True,
         label="Hora de Llegada"
     )
     km_llegada = forms.IntegerField(
@@ -394,9 +455,11 @@ class ViajeForm(forms.ModelForm):
         cleaned_data = super().clean()
         km_salida = cleaned_data.get('km_salida')
         km_llegada = cleaned_data.get('km_llegada')
+        
         if km_llegada is not None and km_salida is not None:
             if km_llegada < km_salida:
                 self.add_error('km_llegada', 'El KM de llegada no puede ser menor que el KM de salida.')
+
         return cleaned_data
 
 class PacienteTrasladoForm(forms.ModelForm):
@@ -410,6 +473,18 @@ class PacienteTrasladoForm(forms.ModelForm):
             'direccion_especifica': forms.TextInput(attrs={'class': 'form-control direccion-input', 'placeholder': 'Especifique dirección'}),
             'prevision': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Tipo Servicio/Prev.'}),
         }
+
+    def clean(self):
+        cleaned_data = super().clean()
+        nombre = cleaned_data.get('nombre')
+        destino = cleaned_data.get('destino_tipo')
+        # Si el formulario no está marcado para eliminar, el nombre es obligatorio
+        if not self.cleaned_data.get('DELETE', False):
+            if not nombre or not nombre.strip():
+                self.add_error('nombre', 'El nombre del paciente/pasajero es obligatorio.')
+            if not destino:
+                self.add_error('destino_tipo', 'Debe seleccionar un destino.')
+        return cleaned_data
 
 # Factory para gestionar multiples pacientes dentro del mismo formulario de Viaje
 PacienteFormSet = inlineformset_factory(
@@ -617,10 +692,22 @@ class ProgramarMantenimientoForm(forms.ModelForm):
 
     def clean(self):
         cleaned_data = super().clean()
+        tipo = cleaned_data.get('tipo_mantencion')
         vehiculo = cleaned_data.get('vehiculo')
         cuenta_presupuestaria = cleaned_data.get('cuenta_presupuestaria')
         fecha_ingreso = cleaned_data.get('fecha_ingreso')
         costo_estimado = cleaned_data.get('costo_estimado', 0)
+
+        # Para filtro dinámico de opciones de cuentas
+        if tipo and vehiculo and cuenta_presupuestaria:
+            criticidad = vehiculo.criticidad   # 'Crítico' o 'No crítico'
+            cuentas_permitidas = MANTENIMIENTO_CUENTAS_MAP.get((tipo, criticidad), [])
+            if cuenta_presupuestaria.id not in cuentas_permitidas:
+                raise forms.ValidationError(
+                    f"La cuenta {cuenta_presupuestaria.codigo} no corresponde a un mantenimiento {tipo} "
+                    f"para un vehículo {criticidad.lower()}."
+                )
+        return cleaned_data
         
         # Validar presupuesto
         if vehiculo and cuenta_presupuestaria and fecha_ingreso:
@@ -656,6 +743,12 @@ class ProgramarMantenimientoForm(forms.ModelForm):
                 )
         
         return cleaned_data
+
+    def clean_costo_estimado(self):
+        costo = self.cleaned_data.get('costo_estimado')
+        if costo is not None and costo < 0:
+            raise forms.ValidationError('El costo estimado no puede ser negativo.')
+        return costo
 
 class FinalizarMantenimientoForm(forms.ModelForm):
     class Meta:
@@ -823,12 +916,13 @@ class ArriendoForm(forms.ModelForm):
             'motivo': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
             'vehiculo_arrendado': forms.Select(attrs={'class': 'form-select'}),
             'proveedor': forms.Select(attrs={'class': 'form-select'}),
-            'costo_diario': forms.NumberInput(attrs={'class': 'form-control'}),
+            'costo_diario': forms.NumberInput(attrs={'class': 'form-control', 'min': 1}),
         }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        # Configurar queryset para otros campos FK
+        self.fields['motivo'].required = True
+        self.fields['costo_diario'].required = True
         self.fields['vehiculo_arrendado'].queryset = Vehiculo.objects.filter(
             tipo_propiedad='Arrendado'
         ).order_by('patente')
@@ -856,6 +950,24 @@ class ArriendoForm(forms.ModelForm):
         if fecha_inicio and fecha_fin and fecha_fin < fecha_inicio:
             self.add_error('fecha_fin', "La fecha de fin no puede ser anterior a la fecha de inicio.")
         return cleaned_data
+
+    def clean_costo_diario(self):
+        costo = self.cleaned_data.get('costo_diario')
+        if costo is not None and costo <= 0:
+            raise forms.ValidationError('El costo diario debe ser mayor a cero.')
+        return costo
+
+    def clean_vehiculo_reemplazado(self):
+        vehiculo = self.cleaned_data.get('vehiculo_reemplazado')
+        if not vehiculo:
+            raise forms.ValidationError('Debe seleccionar un vehículo propio a reemplazar.')
+        return vehiculo
+
+    def clean_motivo(self):
+        motivo = self.cleaned_data.get('motivo')
+        if motivo is None or motivo.strip() == '':
+            raise forms.ValidationError('El motivo es obligatorio y no puede estar vacío.')
+        return motivo.strip()
         
 
 class OrdenCompraForm(forms.ModelForm):

@@ -67,6 +67,11 @@ def consultar_oc_mercado_publico(codigo_oc):
         response.raise_for_status()
         
         data = response.json()
+
+        # PARA DEPURACIÓN
+        print("=== RESPUESTA API ===")
+        print(data)
+        print("====================")
         
         if data.get('Cantidad', 0) == 0:
             return {'error': f'No se encontró la orden de compra {codigo_oc}.'}
@@ -111,6 +116,24 @@ def consultar_oc_mercado_publico(codigo_oc):
             'id_licitacion': oc_data.get('CodigoLicitacion', ''),
             'items_str': items_str
         }
+
+        # Extraer tipo de adquisición
+        tipo_adquisicion = 'Convenio Marco'  # valor por defecto
+        if 'TipoAdquisicion' in oc_data:
+            raw_tipo = oc_data['TipoAdquisicion']
+            # Normalizar a las opciones del modelo
+            if 'CONVENIO' in raw_tipo.upper():
+                tipo_adquisicion = 'Convenio Marco'
+            elif 'LICITACIÓN' in raw_tipo.upper() or 'LICITACION' in raw_tipo.upper():
+                tipo_adquisicion = 'Licitación Pública'
+            elif 'TRATO DIRECTO' in raw_tipo.upper():
+                tipo_adquisicion = 'Trato Directo'
+            elif 'COMPRA ÁGIL' in raw_tipo.upper() or 'COMPRA AGIL' in raw_tipo.upper():
+                tipo_adquisicion = 'Compra Ágil'
+            else:
+                tipo_adquisicion = raw_tipo  # mantener original si no coincide
+
+        info_limpia['tipo_adquisicion'] = tipo_adquisicion
         
         # ========== EXTRACCIÓN DE DATOS CLAVE ==========
         texto_completo = f"{info_limpia['descripcion']} {items_str}".upper()

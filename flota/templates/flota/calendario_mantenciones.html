@@ -41,12 +41,6 @@
                     <a href="#" id="btnEditar" class="btn btn-warning text-white">
                         <i class="bi bi-pencil"></i> Editar
                     </a>
-                    <form id="formEliminar" method="post" action="#" class="d-inline">
-                        {% csrf_token %}
-                        <button type="submit" class="btn btn-danger" onclick="return confirm('¿Estás seguro de eliminar este mantenimiento?');">
-                            <i class="bi bi-trash"></i> Eliminar
-                        </button>
-                    </form>
                 {% endif %}
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
             </div>
@@ -78,8 +72,11 @@
                         <select name="vehiculo" id="programar_vehiculo" class="form-control" required>
                             <option value="">Seleccione un vehículo</option>
                             {% for vehiculo in vehiculos %}
-                            <option value="{{ vehiculo.id }}" data-kilometraje="{{ vehiculo.kilometraje_actual }}" {% if orden_trabajo and orden_trabajo.vehiculo.id == vehiculo.id %}selected{% endif %}>
-                                {{ vehiculo.patente }} - {{ vehiculo.marca }} {{ vehiculo.modelo }}
+                            <option value="{{ vehiculo.id }}" 
+                                    data-kilometraje="{{ vehiculo.kilometraje_actual }}"
+                                    data-criticidad="{{ vehiculo.criticidad }}"
+                                    {% if orden_trabajo and orden_trabajo.vehiculo.id == vehiculo.id %}selected{% endif %}>
+                                {{ vehiculo.patente }} - {{ vehiculo.marca }} {{ vehiculo.modelo }} ({{ vehiculo.criticidad }})
                             </option>
                             {% endfor %}
                         </select>
@@ -115,7 +112,7 @@
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Descripción del trabajo *</label>
-                        <textarea name="descripcion_trabajo" id="programar_descripcion" class="form-control" rows="3" required></textarea>
+                        <textarea name="descripcion_trabajo" id="programar_descripcion" class="form-control" rows="3"></textarea>
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Costo estimado</label>
@@ -179,5 +176,61 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 });
+</script>
+<script>
+    // Datos inyectados desde la vista
+    const cuentas = {{ cuentas_json|safe }};
+    const mapaCuentas = {{ mapa_cuentas_json|safe }};
+
+    function filtrarCuentas() {
+        const tipo = document.getElementById('programar_tipo').value;
+        const vehiculoSelect = document.getElementById('programar_vehiculo');
+        const selectedOption = vehiculoSelect.options[vehiculoSelect.selectedIndex];
+        const criticidad = selectedOption ? selectedOption.getAttribute('data-criticidad') : null;
+        
+        if (!tipo || !criticidad) {
+            // Si falta dato, mostrar todas las cuentas (opcional) o vacío
+            return;
+        }
+        
+        const clave = `${tipo}_${criticidad}`;
+        const idsPermitidos = mapaCuentas[clave] || [];
+        
+        const cuentaSelect = document.getElementById('programar_cuenta');
+        const valorActual = cuentaSelect.value;
+        
+        // Limpiar select
+        cuentaSelect.innerHTML = '<option value="">Sin cuenta</option>';
+        
+        // Agregar solo las cuentas permitidas
+        cuentas.forEach(cuenta => {
+            if (idsPermitidos.includes(cuenta.id)) {
+                const option = document.createElement('option');
+                option.value = cuenta.id;
+                option.textContent = `${cuenta.codigo} - ${cuenta.nombre}`;
+                if (valorActual == cuenta.id) {
+                    option.selected = true;
+                }
+                cuentaSelect.appendChild(option);
+            }
+        });
+        
+        // Si no hay cuentas permitidas, mostrar un mensaje
+        if (cuentaSelect.options.length === 1) {
+            const option = document.createElement('option');
+            option.disabled = true;
+            option.textContent = 'No hay cuentas disponibles para esta combinación';
+            cuentaSelect.appendChild(option);
+        }
+    }
+    
+    // Vincular eventos
+    document.getElementById('programar_tipo').addEventListener('change', filtrarCuentas);
+    document.getElementById('programar_vehiculo').addEventListener('change', filtrarCuentas);
+    
+    // Ejecutar al cargar la página (si ya hay valores seleccionados)
+    document.addEventListener('DOMContentLoaded', function() {
+        filtrarCuentas();
+    });
 </script>
 {% endblock %}

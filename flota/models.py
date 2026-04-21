@@ -505,6 +505,11 @@ class Vehiculo(models.Model):
                 f'ALERTA CRÍTICA: {recorrido} km desde última mantención '
                 f'(supera los {UMBRAL_CRITICO} km). Vehículo bloqueado para operación.'
             )
+            if self.estado not in ['Fuera de servicio', 'Baja']:
+                self.estado = 'Fuera de servicio'
+                # Guardamos el cambio de estado (evitamos recursión usando update_fields)
+                Vehiculo.objects.filter(pk=self.pk).update(estado=self.estado)
+
         elif recorrido >= UMBRAL_PREVENTIVO:
             nuevo_umbral = UMBRAL_PREVENTIVO
             descripcion = (
@@ -721,8 +726,8 @@ class Mantenimiento(models.Model):
     def ejecutar_cierre_presupuestario(self):
         """
         Único punto de ejecución presupuestaria por mantenimiento.
-        Valida: OC asociada, estado Finalizado, costos reales > 0, presupuesto existe y con saldo.
-        Dispara recálculo del presupuesto afectado (idempotente por recálculo desde BD).
+        Valida: OC asociada, estado Finalizado, costos reales > 0, cuenta presupuestaria,
+        presupuesto existe y con saldo.
         """
         if self.estado != 'Finalizado':
             return
@@ -732,6 +737,12 @@ class Mantenimiento(models.Model):
             )
         if (self.costo_total_real or 0) <= 0:
             return
+        # Validar que tenga cuenta presupuestaria
+        if not self.cuenta_presupuestaria:
+            raise ValueError(
+                "El mantenimiento no tiene una cuenta presupuestaria asignada. "
+                "No se puede ejecutar el cierre presupuestario."
+            )
         presupuesto = self._obtener_presupuesto_para_cierre()
         if not presupuesto:
             raise ValueError(
@@ -884,7 +895,7 @@ class HojaRuta(models.Model):
     conductor = models.ForeignKey(Usuario, on_delete=models.PROTECT)
     fecha = models.DateField(default=timezone.now)
     turno = models.CharField(max_length=50, choices=TURNOS)
-    km_inicio = models.PositiveIntegerField()
+    km_inicio = models.IntegerField(validators=[MinValueValidator(0)])
     km_fin = models.PositiveIntegerField(null=True, blank=True)
     
     # Tripulación (Reglas: Medico/Tens obligatorios, otros opcionales)

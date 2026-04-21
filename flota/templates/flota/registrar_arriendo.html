@@ -9,7 +9,7 @@
     2) Indica qué vehículo propio está siendo reemplazado.
 </div>
 
-<form method="post">
+<form method="post" id="arriendoForm">
     {% csrf_token %}
 
     <!-- Paso 1: Origen del vehículo arrendado -->
@@ -216,7 +216,7 @@
     {% endif %}
 
     <div class="mt-4">
-        <button type="submit" class="btn btn-primary">
+        <button type="submit" class="btn btn-primary" id="btnRegistrar">
             <i class="bi bi-save"></i> Registrar Arriendo
         </button>
         <a href="{% url 'listar_arriendos' %}" class="btn btn-secondary">Cancelar</a>
@@ -264,6 +264,68 @@ document.addEventListener('DOMContentLoaded', function() {
         tipoCarroceriaSelect.addEventListener('change', actualizarClaseAmbulancia);
         actualizarClaseAmbulancia();
     }
+
+    // Validación adicional antes de enviar
+    const form = document.getElementById('arriendoForm');
+    form.addEventListener('submit', function(event) {
+        let errores = [];
+        
+        // Validar campos del arriendo (siempre presentes)
+        const vehiculoReemplazado = document.getElementById('{{ arriendo_form.vehiculo_reemplazado.id_for_label }}');
+        const motivo = document.getElementById('{{ arriendo_form.motivo.id_for_label }}');
+        const costoDiario = document.getElementById('{{ arriendo_form.costo_diario.id_for_label }}');
+        
+        if (vehiculoReemplazado && !vehiculoReemplazado.value) {
+            errores.push('Debe seleccionar un vehículo propio a reemplazar.');
+        }
+        
+        if (motivo && (!motivo.value || motivo.value.trim() === '')) {
+            errores.push('El motivo del arriendo es obligatorio y no puede estar vacío.');
+        }
+        
+        if (costoDiario && (costoDiario.value === '' || parseFloat(costoDiario.value) <= 0)) {
+            errores.push('El costo diario debe ser mayor a cero.');
+        }
+        
+        // Si el modo es "nuevo", validar campos del vehículo
+        const modoNuevo = document.getElementById('modo_nuevo').checked;
+        if (modoNuevo) {
+            const patente = document.getElementById('{{ vehiculo_form.patente.id_for_label }}');
+            const marca = document.getElementById('{{ vehiculo_form.marca.id_for_label }}');
+            const modelo = document.getElementById('{{ vehiculo_form.modelo.id_for_label }}');
+            const anio = document.getElementById('{{ vehiculo_form.anio_adquisicion.id_for_label }}');
+            const km = document.getElementById('{{ vehiculo_form.kilometraje_actual.id_for_label }}');
+            const umbral = document.getElementById('{{ vehiculo_form.umbral_mantencion.id_for_label }}');
+            const establecimiento = document.getElementById('{{ vehiculo_form.establecimiento.id_for_label }}');
+            
+            if (patente && (!patente.value || patente.value.trim() === '')) {
+                errores.push('La patente es obligatoria.');
+            }
+            if (marca && (!marca.value || marca.value.trim() === '')) {
+                errores.push('La marca es obligatoria.');
+            }
+            if (modelo && (!modelo.value || modelo.value.trim() === '')) {
+                errores.push('El modelo es obligatorio.');
+            }
+            if (anio && (anio.value === '' || parseInt(anio.value) <= 0)) {
+                errores.push('El año de adquisición debe ser un número positivo.');
+            }
+            if (km && (km.value === '' || parseInt(km.value) < 0)) {
+                errores.push('El kilometraje actual no puede ser negativo.');
+            }
+            if (umbral && (umbral.value === '' || parseInt(umbral.value) <= 0)) {
+                errores.push('El umbral de mantención debe ser mayor a cero.');
+            }
+            if (establecimiento && (!establecimiento.value || establecimiento.value.trim() === '')) {
+                errores.push('El establecimiento es obligatorio.');
+            }
+        }
+        
+        if (errores.length > 0) {
+            event.preventDefault();
+            alert('Por favor corrija los siguientes errores:\n- ' + errores.join('\n- '));
+        }
+    });
 });
 </script>
 {% endblock %}
