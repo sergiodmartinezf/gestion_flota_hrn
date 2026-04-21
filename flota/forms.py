@@ -625,7 +625,6 @@ class MantenimientoForm(forms.ModelForm):
             # Buscar presupuesto específico del vehículo
             presupuesto = Presupuesto.objects.filter(
                 cuenta=cuenta_presupuestaria,
-                vehiculo=vehiculo,
                 anio=anio,
                 activo=True
             ).first()
@@ -634,7 +633,6 @@ class MantenimientoForm(forms.ModelForm):
             if not presupuesto:
                 presupuesto = Presupuesto.objects.filter(
                     cuenta=cuenta_presupuestaria,
-                    vehiculo__isnull=True,
                     anio=anio,
                     activo=True
                 ).first()
@@ -716,7 +714,6 @@ class ProgramarMantenimientoForm(forms.ModelForm):
             # Buscar presupuesto
             presupuesto = Presupuesto.objects.filter(
                 cuenta=cuenta_presupuestaria,
-                vehiculo=vehiculo,
                 anio=anio,
                 activo=True
             ).first()
@@ -724,7 +721,6 @@ class ProgramarMantenimientoForm(forms.ModelForm):
             if not presupuesto:
                 presupuesto = Presupuesto.objects.filter(
                     cuenta=cuenta_presupuestaria,
-                    vehiculo__isnull=True,
                     anio=anio,
                     activo=True
                 ).first()
@@ -821,34 +817,27 @@ class FallaReportadaForm(forms.ModelForm):
 class PresupuestoForm(forms.ModelForm):
     class Meta:
         model = Presupuesto
-        fields = ['vehiculo', 'anio', 'cuenta', 'monto_asignado', 'activo']
+        fields = ['anio', 'cuenta', 'monto_asignado', 'activo']
         widgets = {
-            'vehiculo': forms.Select(attrs={'class': 'form-control'}),
             'anio': forms.NumberInput(attrs={'class': 'form-control', 'min': '2000', 'max': '2100'}),
             'cuenta': forms.Select(attrs={'class': 'form-control'}),
             'monto_asignado': forms.NumberInput(attrs={'class': 'form-control', 'step': '1', 'min': '0'}),
             'activo': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
         }
         labels = {
-            'vehiculo': 'Vehículo (opcional)',
             'anio': 'Año Presupuestario',
             'cuenta': 'Cuenta SIGFE',
             'monto_asignado': 'Monto Asignado',
         }
         help_texts = {
-            'vehiculo': 'Dejar en blanco para presupuesto general de flota',
             'anio': 'Ej: 2024',
             'monto_asignado': 'Monto en pesos chilenos',
         }
     
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        # Ordenar vehículos por patente
-        self.fields['vehiculo'].queryset = Vehiculo.objects.all().order_by('patente')
         # Ordenar cuentas por código
         self.fields['cuenta'].queryset = CuentaPresupuestaria.objects.all().order_by('codigo')
-        # Hacer vehículo opcional
-        self.fields['vehiculo'].required = False
         # Año actual por defecto
         if not self.instance.pk:  # Solo para creación, no edición
             self.fields['anio'].initial = datetime.now().year
@@ -860,14 +849,12 @@ class PresupuestoForm(forms.ModelForm):
         cleaned_data = super().clean()
         anio = cleaned_data.get('anio')
         cuenta = cleaned_data.get('cuenta')
-        vehiculo = cleaned_data.get('vehiculo')
         
         # Validar combinación única
         if anio and cuenta:
             existing = Presupuesto.objects.filter(
                 anio=anio,
-                cuenta=cuenta,
-                vehiculo=vehiculo
+                cuenta=cuenta
             )
             if self.instance.pk:
                 existing = existing.exclude(pk=self.instance.pk)

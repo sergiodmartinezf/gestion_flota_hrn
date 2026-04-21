@@ -3,7 +3,7 @@ Módulo principal de vistas
 """
 
 # Importar utilidades primero
-from .utilidades import es_administrador, es_conductor_o_admin, verificar_presupuesto_vehiculo
+from .utilidades import es_administrador, es_conductor_o_admin, verificar_presupuesto_cuenta
 
 # Importar vistas de autenticación
 from .autenticacion import login_view, logout_view
@@ -127,7 +127,7 @@ __all__ = [
     # Utilidades
     'es_administrador',
     'es_conductor_o_admin',
-    'verificar_presupuesto_vehiculo',
+    'verificar_presupuesto_cuenta',
     
     # Autenticación
     'login_view',

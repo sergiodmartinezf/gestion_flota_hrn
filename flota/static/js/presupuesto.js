@@ -25,7 +25,7 @@ function verificarPresupuesto() {
     }
     
     // Llamar a la API
-    fetch(`/api/verificar-presupuesto/?vehiculo=${vehiculo}&cuenta=${cuenta}&anio=${anio}&monto=${monto}`)
+    fetch(`/api/verificar-presupuesto/?cuenta=${cuenta}&anio=${anio}&monto=${monto}`)
         .then(response => response.json())
         .then(data => {
             // Mostrar mensaje de presupuesto

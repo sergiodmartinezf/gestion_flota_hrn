@@ -20,19 +20,7 @@
 <form method="post">
     {% csrf_token %}
     <div class="row">
-        <div class="col-md-6">
-            <div class="mb-3">
-                <label for="{{ form.vehiculo.id_for_label }}" class="form-label">Vehículo (opcional)</label>
-                {{ form.vehiculo }}
-                {% if form.vehiculo.errors %}
-                    <div class="text-danger small mt-1">
-                        {% for error in form.vehiculo.errors %}
-                            {{ error }}
-                        {% endfor %}
-                    </div>
-                {% endif %}
-                <div class="form-text">Dejar en blanco para presupuesto general de la flota.</div>
-            </div>
+        <div class="col-md-6"
             <div class="mb-3">
                 <label for="{{ form.anio.id_for_label }}" class="form-label">Año *</label>
                 {{ form.anio }}

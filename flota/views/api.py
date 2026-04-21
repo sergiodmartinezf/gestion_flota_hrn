@@ -3,7 +3,7 @@ from django.http import JsonResponse
 from django.utils import timezone
 from decimal import Decimal
 from ..models import Vehiculo, AlertaMantencion, CuentaPresupuestaria, Mantenimiento, Presupuesto
-from .utilidades import verificar_presupuesto_vehiculo
+from .utilidades import verificar_presupuesto_cuenta
 
 # API para obtener el kilometraje de los vehículos
 @login_required
@@ -36,33 +36,35 @@ def api_alertas_count(request):
 # API para verificar presupuesto desde JavaScript
 @login_required
 def api_verificar_presupuesto(request):
-    """API para verificar presupuesto desde el frontend"""
-    vehiculo_id = request.GET.get('vehiculo')
     cuenta_id = request.GET.get('cuenta')
-    anio = request.GET.get('anio', timezone.now().year)
+    anio = request.GET.get('anio')
     monto = request.GET.get('monto', 0)
     
+    if not cuenta_id or not anio:
+        return JsonResponse({'error': 'Faltan parámetros'}, status=400)
+    
     try:
-        monto = Decimal(monto)
-        vehiculo = Vehiculo.objects.get(patente=vehiculo_id)
         cuenta = CuentaPresupuestaria.objects.get(id=cuenta_id)
-        
-        tiene_presupuesto, mensaje, presupuesto = verificar_presupuesto_vehiculo(
-            vehiculo, cuenta, int(anio), monto
-        )
-        
-        return JsonResponse({
-            'tiene_presupuesto': tiene_presupuesto,
-            'mensaje': mensaje,
-            'disponible': float(presupuesto.disponible) if presupuesto else 0,
-            'porcentaje_ejecutado': float(presupuesto.porcentaje_ejecutado) if presupuesto else 0
-        })
-    except Exception as e:
+        anio = int(anio)
+        monto = float(monto)
+    except (ValueError, CuentaPresupuestaria.DoesNotExist):
+        return JsonResponse({'error': 'Parámetros inválidos'}, status=400)
+    
+    presupuesto = Presupuesto.objects.filter(cuenta=cuenta, anio=anio, activo=True).first()
+    
+    if not presupuesto:
         return JsonResponse({
             'tiene_presupuesto': False,
-            'mensaje': f'Error: {str(e)}',
-            'disponible': 0,
-            'porcentaje_ejecutado': 0
+            'mensaje': f'No hay presupuesto para {cuenta.codigo} en {anio}.'
         })
-
-        
+    
+    tiene_saldo = presupuesto.disponible >= monto
+    porcentaje = (presupuesto.monto_ejecutado / presupuesto.monto_asignado * 100) if presupuesto.monto_asignado else 0
+    
+    return JsonResponse({
+        'tiene_presupuesto': True,
+        'tiene_saldo': tiene_saldo,
+        'disponible': float(presupuesto.disponible),
+        'porcentaje_ejecutado': porcentaje,
+        'mensaje': f'Presupuesto disponible: ${presupuesto.disponible:.0f}'
+    })

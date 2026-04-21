@@ -94,7 +94,7 @@ class ProveedorAdmin(admin.ModelAdmin):
 
 @admin.register(Presupuesto)
 class PresupuestoAdmin(admin.ModelAdmin):
-    list_display = ('anio', 'cuenta', 'vehiculo', 'monto_asignado', 'monto_ejecutado', 'disponible', 'activo')
+    list_display = ('anio', 'cuenta', 'monto_asignado', 'monto_ejecutado', 'disponible', 'activo')
     list_filter = ('anio', 'activo', 'cuenta')
     search_fields = ('cuenta__codigo', 'cuenta__nombre')
 

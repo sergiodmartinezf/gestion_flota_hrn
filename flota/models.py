@@ -297,61 +297,43 @@ class OrdenCompra(models.Model):
         que recalculan basándose en las OCs activas (no anuladas).
         """
         is_new = self.pk is None
-        
+
         # Si es nueva OC o se cambió el monto/estado, validar presupuesto
         if self.cuenta_presupuestaria and self.monto_total > 0 and self.estado != 'Anulada':
-            # Determinar vehículo: desde orden_trabajo o directamente
-            vehiculo_oc = self.vehiculo
-            if not vehiculo_oc and self.orden_trabajo:
-                vehiculo_oc = self.orden_trabajo.vehiculo
-            
-            if vehiculo_oc:
-                anio = self.fecha_emision.year
-                
-                # Buscar presupuesto específico del vehículo
-                presupuesto = Presupuesto.objects.filter(
-                    cuenta=self.cuenta_presupuestaria,
-                    vehiculo=vehiculo_oc,
-                    anio=anio,
-                    activo=True
-                ).first()
-                
-                # Si no hay específico, buscar global
-                if not presupuesto:
-                    presupuesto = Presupuesto.objects.filter(
-                        cuenta=self.cuenta_presupuestaria,
-                        vehiculo__isnull=True,
-                        anio=anio,
-                        activo=True
-                    ).first()
-                
-                # Si es nueva OC, validar presupuesto disponible
-                if is_new and presupuesto:
-                    if not presupuesto.tiene_saldo_suficiente(self.monto_total):
-                        raise ValueError(
-                            f"Presupuesto insuficiente para generar OC. "
-                            f"Disponible: ${presupuesto.disponible:.0f}, "
-                            f"Requerido: ${self.monto_total:.0f}"
-                        )
-                # Si se está modificando y cambió el monto, validar disponibilidad
-                elif not is_new and presupuesto:
-                    # Obtener monto anterior
-                    try:
-                        oc_anterior = OrdenCompra.objects.get(pk=self.pk)
-                        monto_anterior = oc_anterior.monto_total if oc_anterior.estado != 'Anulada' else 0
-                        diferencia = self.monto_total - monto_anterior
-                        
-                        # Si aumentó el monto y no está anulada, validar disponibilidad
-                        if diferencia > 0 and self.estado != 'Anulada':
-                            if not presupuesto.tiene_saldo_suficiente(diferencia):
-                                raise ValueError(
-                                    f"Presupuesto insuficiente para aumentar OC. "
-                                    f"Disponible: ${presupuesto.disponible:.0f}, "
-                                    f"Incremento requerido: ${diferencia:.0f}"
-                                )
-                    except OrdenCompra.DoesNotExist:
-                        pass
-        
+            anio = self.fecha_emision.year
+
+            # Buscar presupuesto por cuenta y año (ya no por vehículo)
+            presupuesto = Presupuesto.objects.filter(
+                cuenta=self.cuenta_presupuestaria,
+                anio=anio,
+                activo=True
+            ).first()
+
+            # Si es nueva OC, validar presupuesto disponible
+            if is_new and presupuesto:
+                if not presupuesto.tiene_saldo_suficiente(self.monto_total):
+                    raise ValueError(
+                        f"Presupuesto insuficiente para generar OC. "
+                        f"Disponible: ${presupuesto.disponible:.0f}, "
+                        f"Requerido: ${self.monto_total:.0f}"
+                    )
+            # Si se está modificando y cambió el monto, validar disponibilidad
+            elif not is_new and presupuesto:
+                try:
+                    oc_anterior = OrdenCompra.objects.get(pk=self.pk)
+                    monto_anterior = oc_anterior.monto_total if oc_anterior.estado != 'Anulada' else 0
+                    diferencia = self.monto_total - monto_anterior
+
+                    if diferencia > 0 and self.estado != 'Anulada':
+                        if not presupuesto.tiene_saldo_suficiente(diferencia):
+                            raise ValueError(
+                                f"Presupuesto insuficiente para aumentar OC. "
+                                f"Disponible: ${presupuesto.disponible:.0f}, "
+                                f"Incremento requerido: ${diferencia:.0f}"
+                            )
+                except OrdenCompra.DoesNotExist:
+                    pass
+
         super().save(*args, **kwargs)
     
     def __str__(self):
@@ -567,9 +549,6 @@ class Presupuesto(models.Model):
     monto_asignado = models.IntegerField(validators=[MinValueValidator(0)])
     monto_ejecutado = models.IntegerField(default=0, validators=[MinValueValidator(0)])
     
-    # Opcional: Presupuesto específico por vehículo, si es null es presupuesto global de la cuenta
-    vehiculo = models.ForeignKey(Vehiculo, on_delete=models.CASCADE, related_name='presupuestos', null=True, blank=True)
-    
     # Campo para deshabilitar en vez de eliminar
     activo = models.BooleanField(default=True, verbose_name="Activo")
     
@@ -577,11 +556,10 @@ class Presupuesto(models.Model):
         db_table = 'presupuesto'
         verbose_name = 'Presupuesto'
         verbose_name_plural = 'Presupuestos'
-        unique_together = ['anio', 'vehiculo', 'cuenta']
+        unique_together = ['anio', 'cuenta']
     
     def __str__(self):
-        destino = self.vehiculo.patente if self.vehiculo else "Flota General"
-        return f"{self.anio} - {self.cuenta.codigo} - {destino}"
+        return f"{self.anio} - {self.cuenta.codigo} - {self.cuenta.nombre}"
 
     @property
     def disponible(self):

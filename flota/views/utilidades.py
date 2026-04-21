@@ -9,34 +9,19 @@ def es_conductor_o_admin(user):
 
 
 # Función helper para verificar presupuesto
-def verificar_presupuesto_vehiculo(vehiculo, cuenta_presupuestaria, anio, monto_requerido=0):
-    """
-    Verifica si un vehículo tiene presupuesto asignado.
-    Retorna (tiene_presupuesto, mensaje, presupuesto_obj)
-    """
-    # Buscar presupuesto específico del vehículo
+def verificar_presupuesto_cuenta(cuenta, anio, monto_requerido=0):
+    """Verifica presupuesto disponible para una cuenta en un año"""
     presupuesto = Presupuesto.objects.filter(
-        cuenta=cuenta_presupuestaria,
-        vehiculo=vehiculo,
+        cuenta=cuenta,
         anio=anio,
         activo=True
     ).first()
     
-    # Si no hay específico, buscar global
     if not presupuesto:
-        presupuesto = Presupuesto.objects.filter(
-            cuenta=cuenta_presupuestaria,
-            vehiculo__isnull=True,
-            anio=anio,
-            activo=True
-        ).first()
-    
-    if not presupuesto:
-        return False, f"No hay presupuesto asignado para la cuenta {cuenta_presupuestaria.codigo} en el año {anio}.", None
+        return False, f"No hay presupuesto para {cuenta.codigo} en {anio}.", None
     
     if monto_requerido > 0 and presupuesto.disponible < monto_requerido:
         return False, f"Presupuesto insuficiente. Disponible: ${presupuesto.disponible:.0f}, Requerido: ${monto_requerido:.0f}", presupuesto
     
     return True, f"Presupuesto disponible: ${presupuesto.disponible:.0f}", presupuesto
-
 

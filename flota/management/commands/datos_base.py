@@ -244,17 +244,6 @@ class Command(BaseCommand):
         with open(filepath, 'r', encoding='utf-8') as f:
             reader = csv.DictReader(f)
             for row in reader:
-                vehiculo = None
-                vid = row['vehiculo_id']
-                if not self._es_nulo(vid):
-                    vid_int = self._parse_int(vid)
-                    if vid_int > 0:
-                        try:
-                            vehiculo = Vehiculo.objects.get(id=vid_int)
-                        except Vehiculo.DoesNotExist:
-                            self.stdout.write(self.style.WARNING(
-                                f'   ⚠️ Vehículo ID {vid_int} no encontrado para presupuesto ID {row["id"]}. Se asignará null.'
-                            ))
                 Presupuesto.objects.create(
                     id=self._parse_int(row['id']),
                     anio=self._parse_int(row['anio']),
@@ -263,7 +252,6 @@ class Command(BaseCommand):
                     monto_asignado=self._parse_int(row['monto_asignado']),
                     monto_ejecutado=self._parse_int(row['monto_ejecutado']),
                     activo=self._parse_bool(row['activo']),
-                    vehiculo=vehiculo,
                 )
         self.stdout.write(self.style.SUCCESS(f'   ✅ {Presupuesto.objects.count()} presupuestos.'))
 

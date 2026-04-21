@@ -23,17 +23,6 @@
                         {% endfor %}
                     </select>
                 </div>
-                <div class="col-md-4">
-                    <label for="vehiculo" class="form-label">Vehículo:</label>
-                    <select name="vehiculo" id="vehiculo" class="form-select">
-                        <option value="">Todos los vehículos</option>
-                        {% for v in vehiculos %}
-                            <option value="{{ v.patente }}" {% if vehiculo_filter == v.patente %}selected{% endif %}>
-                                {{ v.patente }}
-                            </option>
-                        {% endfor %}
-                    </select>
-                </div>
                 <div class="col-md-4 d-flex align-items-end">
                     <div class="btn-group">
                         <button type="submit" class="btn btn-primary">
@@ -56,7 +45,7 @@
         <a href="{% url 'alertas_presupuesto' %}" class="btn btn-warning">
             <i class="bi bi-exclamation-triangle"></i> Ver Alertas
         </a>
-        <a href="?{% if mostrar_deshabilitados %}mostrar_deshabilitados=false{% else %}mostrar_deshabilitados=true{% endif %}{% if anio_filter %}&anio={{ anio_filter }}{% endif %}{% if vehiculo_filter %}&vehiculo={{ vehiculo_filter }}{% endif %}"
+        <a href="?{% if mostrar_deshabilitados %}mostrar_deshabilitados=false{% else %}mostrar_deshabilitados=true{% endif %}{% if anio_filter %}&anio={{ anio_filter }}{% endif %}"
         class="btn {% if mostrar_deshabilitados %}btn-secondary{% else %}btn-outline-secondary{% endif %}">
             <i class="bi {% if mostrar_deshabilitados %}bi-eye-slash{% else %}bi-eye{% endif %}"></i>
             {% if mostrar_deshabilitados %}Ocultar{% else %}Mostrar{% endif %} Deshabilitados
@@ -72,7 +61,6 @@
                     <thead class="table-dark">
                         <tr>
                             <th>Año</th>
-                            <th>Vehículo</th>
                             <th>Cuenta SIGFE</th>
                             <th>Monto Asignado</th>
                             <th>Monto Ejecutado</th>
@@ -85,15 +73,6 @@
                         {% for p in presupuestos %}
                         <tr>
                             <td>{{ p.anio }}</td>
-                            <td>
-                                {% if p.vehiculo %}
-                                    <a href="{% url 'ficha_vehiculo' p.vehiculo.patente %}">
-                                        {{ p.vehiculo.patente }}
-                                    </a>
-                                {% else %}
-                                    <span class="text-muted">Flota General</span>
-                                {% endif %}
-                            </td>
                             <td>
                                 <small>{{ p.cuenta.codigo }}</small><br>
                                 <span class="small text-muted">{{ p.cuenta.nombre|truncatechars:30 }}</span>

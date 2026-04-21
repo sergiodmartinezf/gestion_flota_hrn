@@ -13,16 +13,6 @@
             <div class="row">
                 <div class="col-md-6">
                     <div class="mb-3">
-                        <label for="{{ form.vehiculo.id_for_label }}" class="form-label">{{ form.vehiculo.label }}</label>
-                        {{ form.vehiculo }}
-                        {% if form.vehiculo.help_text %}
-                            <div class="form-text">{{ form.vehiculo.help_text }}</div>
-                        {% endif %}
-                        {% if form.vehiculo.errors %}
-                            <div class="text-danger small">{{ form.vehiculo.errors }}</div>
-                        {% endif %}
-                    </div>
-                    <div class="mb-3">
                         <label for="{{ form.anio.id_for_label }}" class="form-label">{{ form.anio.label }} *</label>
                         {{ form.anio }}
                         {% if form.anio.help_text %}
