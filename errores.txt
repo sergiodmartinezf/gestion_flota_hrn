@@ -1,7 +1,0 @@
-() cosas sin resolver aun.
-
-(X) cosas resueltas.
-
-ALERTAS
-
-(osea, me gusta, pero pensaba hacer un modulo de alertas neutral en vez de tener 2 específicos)las alertas requieren refactorización interna en mi opinión. deberían volverse genéricas en vez de tener alertas de distintos tipos. es decir, en vez de alertas de mantenimiento y alertas de prespuesto, tener solo alertas, y estas pueden ser de mantenimiento o de presupuesto. de ese modo se mostraría en las alertas activas las alertas de presupuestos en riesgo además de las de mantenimiento, en lugar de tecnicamente tener solo alertas de mantenimiento y tener insertadas en medio alertas que son sobre presupuestos.
