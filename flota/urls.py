@@ -22,7 +22,7 @@ urlpatterns = [
     path('vehiculos/disponibilidad/', views.disponibilidad_flota, name='disponibilidad_flota'),
     path('vehiculos/costo-km/', views.costo_por_kilometro, name='costo_por_kilometro'),
     path('vehiculos/gastos-mantenimientos/', views.gastos_mantenimientos, name='gastos_mantenimientos'),
-    path('vehiculos/alertas-mantenimiento/', views.alertas_mantenimiento, name='alertas_mantenimiento'),
+    path('alertas/', views.alertas, name='alertas'),
     # Con parámetros
     path('vehiculos/<str:patente>/', views.ficha_vehiculo, name='ficha_vehiculo'),
     path('vehiculos/modificar/<str:patente>/', views.modificar_vehiculo, name='modificar_vehiculo'),
@@ -57,7 +57,6 @@ urlpatterns = [
     # Presupuesto (RF_21-22)
     path('presupuestos/registrar/', views.registrar_presupuesto, name='registrar_presupuesto'),
     path('presupuestos/listar/', views.listar_presupuestos, name='listar_presupuestos'),
-    path('presupuestos/alertas/', views.alertas_presupuesto, name='alertas_presupuesto'),
     # Con parámetro
     path('presupuestos/modificar/<int:id>/', views.modificar_presupuesto, name='modificar_presupuesto'),
     path('presupuestos/deshabilitar/<int:id>/', views.deshabilitar_presupuesto, name='deshabilitar_presupuesto'),

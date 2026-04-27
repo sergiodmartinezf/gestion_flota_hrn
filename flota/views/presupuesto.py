@@ -98,24 +98,6 @@ def listar_presupuestos(request):
     })
 
 
-# RF_22: Visualizar alertas de presupuesto
-@login_required
-def alertas_presupuesto(request):
-    presupuestos = Presupuesto.objects.filter(activo=True)
-    alertas = []
-    
-    for presupuesto in presupuestos:
-        porcentaje = presupuesto.porcentaje_ejecutado
-        if porcentaje >= 80:  # Alerta cuando se ha gastado el 80% o más
-            alertas.append({
-                'presupuesto': presupuesto,
-                'porcentaje': porcentaje,
-                'monto_restante': presupuesto.monto_asignado - presupuesto.monto_ejecutado,
-            })
-    
-    return render(request, 'flota/alertas_presupuesto.html', {'alertas': alertas})
-
-
 # Reporte de Variación Presupuestaria
 @login_required
 def reporte_variacion_presupuestaria(request):

@@ -3,7 +3,7 @@ function marcarComoRevisadas() {
         // Crear un formulario temporal para enviar POST
         const form = document.createElement('form');
         form.method = 'POST';
-        form.action = '{% url "alertas_mantenimiento" %}';
+        form.action = '/alertas/';
 
         // Agregar token CSRF
         const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]');

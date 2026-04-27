@@ -3,7 +3,7 @@
  * Formato: 12.345.678-9
  */
 document.addEventListener('DOMContentLoaded', function() {
-    // Función para formatear RUT
+    // Función para formatear RUT (se expone global para otros scripts)
     function formatearRUT(input) {
         // Remover todo excepto números y k/K
         let valor = input.value.replace(/[^0-9kK]/g, '');
@@ -30,6 +30,8 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
     
+    window.formatearRUT = formatearRUT;
+
     // Aplicar a todos los campos con id que contenga 'rut' o 'RUT'
     const rutInputs = document.querySelectorAll('input[id*="rut"], input[id*="RUT"], input[name*="rut"], input[name*="RUT"]');
     

@@ -1,5 +1,6 @@
 {% extends 'base.html' %}
 {% load moneda_clp %}
+{% load l10n %}
 
 {% block title %}Variación Presupuestaria - Gestión de Flota{% endblock %}
 
@@ -12,8 +13,8 @@
             <label>Año</label>
             <select name="anio" class="form-control">
                 {% for anio_opcion in anios_disponibles %}
-                <option value="{{ anio_opcion }}" {% if anio_opcion == anio %}selected{% endif %}>
-                    {{ anio_opcion }}
+                <option value="{{ anio_opcion|unlocalize }}" {% if anio_opcion == anio %}selected{% endif %}>
+                    {{ anio_opcion|unlocalize }}
                 </option>
                 {% endfor %}
             </select>

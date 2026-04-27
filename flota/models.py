@@ -469,7 +469,7 @@ class Vehiculo(models.Model):
         # Si no hay mantenimiento preventivo, no se generan alertas de kilometraje
         if not ultimo_mant:
             # Eliminar posibles alertas previas de kilometraje (por si acaso)
-            AlertaMantencion.objects.filter(
+            Alerta.objects.filter(
                 vehiculo=self,
                 vigente=True,
                 valor_umbral__in=[8000, 12000]
@@ -501,7 +501,7 @@ class Vehiculo(models.Model):
             )
         else:
             # Si el recorrido es menor a 8000, no debe haber alerta de kilometraje vigente.
-            AlertaMantencion.objects.filter(
+            Alerta.objects.filter(
                 vehiculo=self,
                 vigente=True,
                 valor_umbral__in=[UMBRAL_PREVENTIVO, UMBRAL_CRITICO]
@@ -509,7 +509,7 @@ class Vehiculo(models.Model):
             return
 
         # Manejo de alertas existentes
-        alerta_existente = AlertaMantencion.objects.filter(
+        alerta_existente = Alerta.objects.filter(
             vehiculo=self,
             vigente=True,
             valor_umbral=nuevo_umbral
@@ -520,13 +520,13 @@ class Vehiculo(models.Model):
             alerta_existente.save()
         else:
             # Desactivar la otra alerta si existe
-            AlertaMantencion.objects.filter(
+            Alerta.objects.filter(
                 vehiculo=self,
                 vigente=True,
                 valor_umbral__in=[UMBRAL_PREVENTIVO, UMBRAL_CRITICO]
             ).exclude(valor_umbral=nuevo_umbral).update(vigente=False, resuelta_en=timezone.now())
 
-            AlertaMantencion.objects.create(
+            Alerta.objects.create(
                 vehiculo=self,
                 descripcion=descripcion,
                 valor_umbral=nuevo_umbral
@@ -541,7 +541,7 @@ class Presupuesto(models.Model):
 
     TIPO_PRESUPUESTO = [
         ('Preventivo', 'Preventivo (Por Vehículo)'),
-        ('Operativo', 'Operativo/Correctivo (Bolsa General)'),
+        ('Operativo', 'Correctivo (Bolsa General)'),
     ]
     tipo_presupuesto = models.CharField(max_length=20, choices=TIPO_PRESUPUESTO, default='Preventivo')
     
@@ -750,7 +750,7 @@ class Mantenimiento(models.Model):
         if self.estado == 'Finalizado':
         # Al finalizar, resolver las alertas de kilometraje de este vehículo
             from django.utils import timezone
-            AlertaMantencion.objects.filter(
+            Alerta.objects.filter(
                 vehiculo=self.vehiculo,
                 vigente=True,
                 descripcion__icontains='kilometraje'
@@ -1079,16 +1079,16 @@ class FallaReportada(models.Model):
     def __str__(self):
         return f"Falla {self.vehiculo.patente} - {self.fecha_reporte}"
 
-class AlertaMantencion(models.Model):
+class Alerta(models.Model):
     id = models.AutoField(primary_key=True)
     descripcion = models.TextField()
     valor_umbral = models.IntegerField()
     generado_en = models.DateTimeField(auto_now_add=True)
     vigente = models.BooleanField(default=True)
     resuelta_en = models.DateTimeField(null=True, blank=True)
-    vehiculo = models.ForeignKey(Vehiculo, on_delete=models.CASCADE, related_name='alertas_mantencion')
+    vehiculo = models.ForeignKey(Vehiculo, on_delete=models.CASCADE, related_name='alertas')
     
     class Meta:
-        db_table = 'alerta_mantencion'
-        verbose_name = 'Alerta de Mantenimiento'
-        verbose_name_plural = 'Alertas de Mantenimiento'
+        db_table = 'alerta'
+        verbose_name = 'Alerta'
+        verbose_name_plural = 'Alertas'

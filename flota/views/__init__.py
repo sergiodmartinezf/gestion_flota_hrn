@@ -26,7 +26,7 @@ from .vehiculos import (
     disponibilidad_flota,
     costo_por_kilometro,
     gastos_mantenimientos,
-    alertas_mantenimiento
+    alertas
 )
 
 # Importar vistas de bitácoras y viajes
@@ -67,7 +67,6 @@ from .presupuesto import (
     modificar_presupuesto,
     deshabilitar_presupuesto,
     listar_presupuestos,
-    alertas_presupuesto,
     reporte_variacion_presupuestaria
 )
 
@@ -148,7 +147,7 @@ __all__ = [
     'disponibilidad_flota',
     'costo_por_kilometro',
     'gastos_mantenimientos',
-    'alertas_mantenimiento',
+    'alertas',
     
     # Bitácoras y viajes
     'registrar_bitacora',
@@ -180,7 +179,6 @@ __all__ = [
     'modificar_presupuesto',
     'deshabilitar_presupuesto',
     'listar_presupuestos',
-    'alertas_presupuesto',
     'reporte_variacion_presupuestaria',
     
     # Reportes

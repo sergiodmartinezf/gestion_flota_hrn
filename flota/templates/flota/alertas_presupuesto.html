@@ -1,5 +1,6 @@
 {% extends 'base.html' %}
 {% load moneda_clp %}
+{% load l10n %}
 
 {% block title %}Alertas de Presupuesto - Gestión de Flota{% endblock %}
 
@@ -31,7 +32,7 @@
                     <span class="text-muted">Flota General</span>
                 {% endif %}
             </td>
-            <td>{{ item.presupuesto.anio }}</td>
+            <td>{{ item.presupuesto.anio|unlocalize }}</td>
             <td>{{ item.presupuesto.get_tipo_presupuesto_display }}</td>
             <td><span class="badge bg-danger">{{ item.porcentaje|floatformat:1 }}%</span></td>
             <td>${{ item.monto_restante|clp }}</td>

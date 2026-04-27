@@ -4,7 +4,7 @@ from django.contrib import messages
 from django.db.models import Sum
 from django.utils import timezone
 from decimal import Decimal
-from ..models import Vehiculo, Mantenimiento, CargaCombustible, Presupuesto, AlertaMantencion, CuentaPresupuestaria
+from ..models import Vehiculo, Mantenimiento, CargaCombustible, Presupuesto, Alerta, CuentaPresupuestaria
 from ..forms import VehiculoForm
 from .utilidades import es_administrador
 
@@ -65,7 +65,7 @@ def listar_flota(request):
 def ficha_vehiculo(request, patente):
     vehiculo = get_object_or_404(Vehiculo, patente=patente)
     mantenimientos = Mantenimiento.objects.filter(vehiculo=vehiculo).order_by('-fecha_ingreso')[:10]
-    alertas = AlertaMantencion.objects.filter(vehiculo=vehiculo, vigente=True)
+    alertas = Alerta.objects.filter(vehiculo=vehiculo, vigente=True)
     presupuestos = Presupuesto.objects.filter(cuenta__in=Mantenimiento.objects.filter(vehiculo=vehiculo).values_list('cuenta_presupuestaria', flat=True)).distinct().order_by('-anio')
     
     # Calcular costo por kilómetro
@@ -195,45 +195,45 @@ def gastos_mantenimientos(request):
     return render(request, 'flota/gastos_mantenimientos.html', {'gastos': gastos})
 
 
-def _alertas_mantenimiento_no_pausadas():
+def _alertas_no_pausadas():
     """Alertas vigentes excluyendo las pausadas (vehículo en taller con mantenimiento activo)."""
     ids_pausadas = set()
-    for a in AlertaMantencion.objects.filter(vigente=True):
+    for a in Alerta.objects.filter(vigente=True):
         if a.vehiculo.estado == 'En mantenimiento' and Mantenimiento.objects.filter(
             vehiculo=a.vehiculo, estado__in=['En taller', 'Esperando repuestos'], fecha_salida__isnull=True
         ).exists():
             ids_pausadas.add(a.id)
-    return AlertaMantencion.objects.filter(vigente=True).exclude(id__in=ids_pausadas).order_by('-generado_en')
+    return Alerta.objects.filter(vigente=True).exclude(id__in=ids_pausadas).order_by('-generado_en')
 
 
-# RF_14: Visualizar alertas de mantenimiento
+# RF_14: Centro unificado de alertas (mantenimiento + presupuesto)
 @login_required
-def alertas_mantenimiento(request):
+def alertas(request):
     from datetime import timedelta
     # Sincronizar alertas por tiempo: mantenimientos Programado con fecha_programada próxima o vencida
     hoy = timezone.now().date()
     umbral_dias = 7
     for mant in Mantenimiento.objects.filter(estado='Programado', fecha_programada__isnull=False):
         if mant.fecha_programada <= hoy + timedelta(days=umbral_dias):
-            if not AlertaMantencion.objects.filter(
+            if not Alerta.objects.filter(
                 vehiculo=mant.vehiculo, vigente=True,
                 descripcion__icontains='Mantenimiento programado'
             ).exists():
-                AlertaMantencion.objects.create(
+                Alerta.objects.create(
                     vehiculo=mant.vehiculo,
                     descripcion=f'Mantenimiento programado {mant.fecha_programada} ({mant.get_tipo_mantencion_display()})',
                     valor_umbral=mant.km_al_ingreso or 0,
                 )
 
     if request.method == 'POST' and request.POST.get('action') == 'marcar_revisadas':
-        AlertaMantencion.objects.filter(vigente=True).update(
+        Alerta.objects.filter(vigente=True).update(
             vigente=False,
             resuelta_en=timezone.now()
         )
         messages.success(request, 'Todas las alertas han sido marcadas como revisadas.')
-        return redirect('alertas_mantenimiento')
+        return redirect('alertas')
 
-    alertas = _alertas_mantenimiento_no_pausadas()
+    alertas = _alertas_no_pausadas()
 
     # Alertas de presupuesto (presupuestos con ≥80% ejecutado)
     alertas_presupuesto = []
@@ -246,7 +246,7 @@ def alertas_mantenimiento(request):
                 'monto_restante': presupuesto.monto_asignado - presupuesto.monto_ejecutado,
             })
 
-    return render(request, 'flota/alertas_mantenimiento.html', {
+    return render(request, 'flota/alertas.html', {
         'alertas': alertas,
         'alertas_presupuesto': alertas_presupuesto,
     })

@@ -7,7 +7,7 @@ from datetime import datetime
 import json
 
 from django.utils import timezone as tz
-from ..models import Vehiculo, Mantenimiento, CargaCombustible, Arriendo, Presupuesto, FallaReportada, HojaRuta, AlertaMantencion, PacienteTraslado
+from ..models import Vehiculo, Mantenimiento, CargaCombustible, Arriendo, Presupuesto, FallaReportada, HojaRuta, Alerta, PacienteTraslado
 from ..utils import exportar_reporte_excel
 
 

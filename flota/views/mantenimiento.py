@@ -10,7 +10,7 @@ from decimal import Decimal
 import json
 from django.core.serializers.json import DjangoJSONEncoder
 from ..constants import MANTENIMIENTO_CUENTAS_MAP
-from ..models import Mantenimiento, Vehiculo, Proveedor, Presupuesto, AlertaMantencion, CuentaPresupuestaria, OrdenTrabajo, OrdenCompra
+from ..models import Mantenimiento, Vehiculo, Proveedor, Presupuesto, Alerta, CuentaPresupuestaria, OrdenTrabajo, OrdenCompra
 from ..forms import MantenimientoForm, ProgramarMantenimientoForm, FinalizarMantenimientoForm
 from .utilidades import es_administrador
 from ..utils import exportar_planilla_mantenimientos_excel

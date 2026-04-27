@@ -4,31 +4,31 @@ Sistema web integral desarrollado en Django para la gestión completa de la flot
 
 ## Características Principales
 
-### 🎯 Gestión de Flota
+### Gestión de Flota
 - **Registro de Vehículos**: Control completo de inventario con diferentes tipos de carrocería (ambulancias, sedanes, camionetas, etc.)
 - **Estados de Vehículos**: Seguimiento de disponibilidad, mantenimiento, arriendos y baja de unidades
 - **Clasificación por Criticidad**: Identificación de vehículos críticos vs no críticos para el servicio
 - **Control de Kilometraje**: Seguimiento automático del kilometraje y alertas de mantenimiento
 
-### 👥 Gestión de Usuarios
+### Gestión de Usuarios
 - **Sistema de Roles**: Administrador, Conductor y Visualizador con permisos diferenciados
 - **Autenticación Segura**: Sistema basado en RUT chileno con validaciones específicas
 - **Control de Acceso**: Permisos granulares según rol del usuario
 
-### 🔧 Mantenimiento y Operaciones
+### Mantenimiento y Operaciones
 - **Mantenimiento Preventivo**: Programación automática basada en kilometraje y tiempo
 - **Mantenimiento Correctivo**: Registro de reparaciones por fallas reportadas
 - **Calendario Interactivo**: Visualización de mantenimientos programados
 - **Alertas Automáticas**: Notificaciones de mantenimientos pendientes
 
-### 💰 Gestión Financiera
+### Gestión Financiera
 - **Control Presupuestario**: Seguimiento de presupuestos anuales por cuenta SIGFE
 - **Órdenes de Compra**: Integración con sistema Mercado Público y registro manual
 - **Órdenes de Trabajo**: Gestión de órdenes de trabajo vinculadas a mantenimientos
 - **Trazabilidad**: Vinculación completa desde presupuesto hasta ejecución
 - **Reportes de Costos**: Análisis detallado de gastos por vehículo y período
 
-### 🚗 Operativa Diaria
+### Operativa Diaria
 - **Hojas de Ruta**: Registro completo de turnos con personal médico (médico, enfermero, TENS, camillero), kilometraje de inicio y fin
 - **Bitácoras de Viaje**: Registro detallado de viajes asociados a cada hoja de ruta con destinos, pacientes y tipo de servicio
 - **Control de Combustible**: Seguimiento de cargas, rendimiento y costos
@@ -36,18 +36,18 @@ Sistema web integral desarrollado en Django para la gestión completa de la flot
 - **Viajes por Servicio**: Clasificación por tipo (traslados, urgencias, rondas médicas, administrativos)
 - **Exportación de Datos**: Exportación consolidada de viajes a formato Excel para análisis externos
 
-### 🏢 Gestión de Proveedores
+### Gestión de Proveedores
 - **Proveedores Multi-tipo**: Talleres mecánicos y arrendadores de vehículos
 - **Control de Activos**: Habilitación/deshabilitación de proveedores
 - **Historial de Servicios**: Seguimiento de trabajos realizados por proveedor
 
-### 📊 Reportes y Analytics
+### Reportes y Analytics
 - **Dashboard Ejecutivo**: Visión general del estado de la flota
 - **Reportes de Disponibilidad**: Análisis de uptime por vehículo
 - **Costos por Kilómetro**: Métricas de eficiencia operativa
 - **Historial por Unidad**: Reportes detallados de cada vehículo
 
-### 🗓️ Sistema de Arriendos
+### Sistema de Arriendos
 - **Gestión de Reemplazos**: Arriendos temporales por mantenimiento o averías
 - **Control de Costos**: Seguimiento de costos diarios y totales
 - **Vinculación a Vehículos**: Asociación con unidades propias reemplazadas
@@ -193,7 +193,7 @@ El sistema utiliza PostgreSQL. La base de datos incluye las siguientes entidades
 - **Viaje**: Viajes individuales asociados a hojas de ruta
 - **CargaCombustible**: Registro de cargas de combustible
 - **FallaReportada**: Incidentes y fallas reportadas por conductores
-- **AlertaMantencion**: Alertas automáticas de mantenimiento
+- **Alerta**: Alertas automáticas de mantenimiento
 
 ## Requisitos del Sistema
 

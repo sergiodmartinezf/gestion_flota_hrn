@@ -8,7 +8,7 @@ from django.http import HttpResponse
 from django.utils import timezone
 from openpyxl import Workbook
 from openpyxl.styles import Font
-from ..models import HojaRuta, CargaCombustible, FallaReportada, AlertaMantencion, Viaje, Vehiculo, Usuario, PacienteTraslado, PacienteViaje
+from ..models import HojaRuta, CargaCombustible, FallaReportada, Alerta, Viaje, Vehiculo, Usuario, PacienteTraslado, PacienteViaje
 from ..forms import HojaRutaForm, CargaCombustibleForm, FallaReportadaForm, ViajeForm, PacienteFormSet
 from .utilidades import es_conductor_o_admin, es_administrador
 from datetime import datetime, timedelta
@@ -426,7 +426,7 @@ def registrar_incidente(request):
                 # Crear alerta por falla cuando se supera el umbral de mantención
                 vehiculo = falla.vehiculo
                 if vehiculo.umbral_mantencion > 0 and vehiculo.kilometraje_actual >= vehiculo.umbral_mantencion:
-                    AlertaMantencion.objects.create(
+                    Alerta.objects.create(
                         vehiculo=vehiculo,
                         descripcion=f'Falla reportada: {falla.descripcion}',
                         valor_umbral=vehiculo.kilometraje_actual,

@@ -56,48 +56,48 @@
                 {% if alertas_activas %}
                 <div class="alert alert-danger alert-dismissible fade show" role="alert">
                     <strong><i class="bi bi-exclamation-triangle-fill"></i> ¡ATENCIÓN!</strong>
-                    Hay {{ alertas_activas|length }} alerta(s) de mantenimiento activa(s):
+                    Hay {{ alertas_activas|length }} alerta(s) activa(s):
                 </div>
 
                 <div class="list-group mb-3">
                     {% for alerta in alertas_activas %}
-                    <div class="list-group-item list-group-item-warning">
+                    <div class="list-group-item {{ alerta.clase_item }}">
                         <div class="d-flex w-100 justify-content-between">
                             <h6 class="mb-1">
-                                <i class="bi bi-car-front"></i> {{ alerta.vehiculo.patente }}
+                                <i class="bi {{ alerta.icono }}"></i> {{ alerta.titulo }}
                             </h6>
-                            <small>{{ alerta.generado_en|date:"d/m H:i" }}</small>
+                            <small>{{ alerta.tipo }}{% if alerta.fecha %} - {{ alerta.fecha|date:"d/m H:i" }}{% endif %}</small>
                         </div>
                         <p class="mb-1">{{ alerta.descripcion }}</p>
-                        <small class="text-muted">Umbral: {{ alerta.valor_umbral }} km</small>
+                        <small class="text-muted">{{ alerta.detalle }}</small>
                     </div>
                     {% endfor %}
                 </div>
                 {% else %}
                 <div class="text-center text-success">
                     <i class="bi bi-check-circle-fill" style="font-size: 3rem;"></i>
-                    <p class="mt-2">No hay alertas de mantenimiento activas</p>
+                    <p class="mt-2">No hay alertas activas</p>
                 </div>
                 {% endif %}
 
                 <div class="row text-center">
                     <div class="col-6">
                         <div class="border rounded p-2">
-                            <strong>{{ alertas_vigentes }}</strong><br>
-                            <small>Alertas de Mantenimiento</small>
+                            <strong>{{ alertas_operativas_vigentes }}</strong><br>
+                            <small>Tipo: Mantenimiento</small>
                         </div>
                     </div>
                     <div class="col-6">
                         <div class="border rounded p-2">
                             <strong>{{ presupuestos_alerta }}</strong><br>
-                            <small>Presupuestos en Riesgo</small>
+                            <small>Tipo: Presupuesto</small>
                         </div>
                     </div>
                 </div>
 
                 <div class="mt-3">
-                    <a href="{% url 'alertas_mantenimiento' %}" class="btn btn-warning btn-sm me-2">
-                        <i class="bi bi-eye"></i> Ver Todas las Alertas
+                    <a href="{% url 'alertas' %}" class="btn btn-warning btn-sm me-2">
+                        <i class="bi bi-eye"></i> Ver Centro de Alertas
                     </a>
                 </div>
             </div>

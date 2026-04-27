@@ -6,59 +6,73 @@
 {% block content %}
 <h2 class="mb-4"><i class="bi bi-cash-stack"></i> Registrar Presupuesto Anual</h2>
 
-<!-- Mensajes de error -->
+<!-- Mensajes -->
 {% if messages %}
     {% for message in messages %}
-        <div class="alert alert-{% if message.tags %}{{ message.tags }}{% else %}info{% endif %} alert-dismissible fade show" role="alert">
+        <div class="alert alert-{% if message.tags == 'success' %}success{% else %}danger{% endif %} alert-dismissible fade show" role="alert">
             {{ message }}
             <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
         </div>
     {% endfor %}
 {% endif %}
 
-<form method="post">
+{% if form.errors %}
+    <div class="alert alert-danger">
+        <strong>Por favor corrige los siguientes errores:</strong>
+        <ul class="mb-0 mt-2">
+            {% for field, errors in form.errors.items %}
+                {% for error in errors %}
+                    <li>{{ field|title }}: {{ error }}</li>
+                {% endfor %}
+            {% endfor %}
+        </ul>
+    </div>
+{% endif %}
+
+<form method="post" novalidate>
     {% csrf_token %}
     <div class="row">
-        <div class="col-md-6">   <!-- ✅ Corregido: falta el ">" -->
-            <div class="mb-3">
-                <label for="{{ form.anio.id_for_label }}" class="form-label">Año *</label>
-                {{ form.anio }}
-                {% if form.anio.errors %}
+        <div class="col-md-6">
+            {% for field in form %}
+                {% if forloop.counter0|divisibleby:2 %}
+                <div class="mb-3">
+                    <label for="{{ field.id_for_label }}" class="form-label">
+                        {{ field.label }}
+                        {% if field.field.required %}<span class="text-danger">*</span>{% endif %}
+                    </label>
+                    {{ field }}
+                    {% if field.errors %}
                     <div class="text-danger small mt-1">
-                        {% for error in form.anio.errors %}
-                            {{ error }}
-                        {% endfor %}
+                        {{ field.errors|striptags }}
                     </div>
+                    {% endif %}
+                    {% if field.help_text %}
+                    <div class="form-text">{{ field.help_text }}</div>
+                    {% endif %}
+                </div>
                 {% endif %}
-            </div>
+            {% endfor %}
         </div>
         <div class="col-md-6">
-            <div class="mb-3">
-                <label for="{{ form.cuenta.id_for_label }}" class="form-label">Cuenta Presupuestaria (SIGFE) *</label>
-                {{ form.cuenta }}
-                {% if form.cuenta.errors %}
+            {% for field in form %}
+                {% if not forloop.counter0|divisibleby:2 %}
+                <div class="mb-3">
+                    <label for="{{ field.id_for_label }}" class="form-label">
+                        {{ field.label }}
+                        {% if field.field.required %}<span class="text-danger">*</span>{% endif %}
+                    </label>
+                    {{ field }}
+                    {% if field.errors %}
                     <div class="text-danger small mt-1">
-                        {% for error in form.cuenta.errors %}
-                            {{ error }}
-                        {% endfor %}
+                        {{ field.errors|striptags }}
                     </div>
+                    {% endif %}
+                    {% if field.help_text %}
+                    <div class="form-text">{{ field.help_text }}</div>
+                    {% endif %}
+                </div>
                 {% endif %}
-                <div class="form-text">Seleccione la cuenta presupuestaria</div>
-            </div>
-            <div class="mb-3">
-                <label for="{{ form.monto_asignado.id_for_label }}" class="form-label">Monto Asignado *</label>
-                {{ form.monto_asignado }}
-                {% if form.monto_asignado.errors %}
-                    <div class="text-danger small mt-1">
-                        {% for error in form.monto_asignado.errors %}
-                            {{ error }}
-                        {% endfor %}
-                    </div>
-                {% endif %}
-                {% if form.monto_asignado.help_text %}
-                    <div class="form-text">{{ form.monto_asignado.help_text }}</div>
-                {% endif %}
-            </div>
+            {% endfor %}
         </div>
     </div>
 

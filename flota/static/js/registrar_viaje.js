@@ -148,7 +148,12 @@ function initFormsetPacientes() {
             }, 50);
         } catch (e) {
             console.error('Error al agregar paciente:', e);
-            alert('Ocurrió un error al agregar el pasajero. Recarga la página y vuelve a intentar.');
+            if (typeof mostrarErroresValidacion === 'function') {
+                mostrarErroresValidacion(
+                    ['Ocurrió un error al agregar el pasajero. Recarga la página y vuelve a intentar.'],
+                    'Error al agregar pasajero'
+                );
+            }
         }
     });
 
@@ -168,7 +173,7 @@ function initFormsetPacientes() {
             if (target.matches('input[name*="-rut"]') && typeof window.formatearRUT === 'function') {
                 window.formatearRUT(target);
             }
-        });
+        }, true);
     }
 
     // Además, formatea los RUT que ya existan al cargar la página
@@ -205,7 +210,12 @@ function initRowListeners(rowElement) {
             }
             const previsionInput = rowElement.querySelector('input[name*="-prevision"]') || rowElement.querySelector('.paciente-prevision');
             if (nombreInput) nombreInput.value = nombre;
-            if (rutInput) rutInput.value = rut;
+            if (rutInput) {
+                rutInput.value = rut;
+                if (typeof formatearRUT === 'function') {
+                    formatearRUT(rutInput);
+                }
+            }
             if (previsionInput) previsionInput.value = prevision;
         });
     }

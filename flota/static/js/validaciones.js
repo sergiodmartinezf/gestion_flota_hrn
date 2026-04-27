@@ -19,7 +19,22 @@ function mostrarErroresValidacion(errores, titulo = 'Errores de Validación') {
             width: '500px'
         });
     } else {
-        alert(`${titulo}\n\n${listaErrores}`);
+        const htmlErrores = errores.map(error => `<li>${error}</li>`).join('');
+        const contenedor = document.querySelector('main.col-md-10.main-content, .container.py-4, .container-fluid');
+        if (contenedor) {
+            const alertaAnterior = contenedor.querySelector('.alert-validaciones-global');
+            if (alertaAnterior) alertaAnterior.remove();
+            const alertDiv = document.createElement('div');
+            alertDiv.className = 'alert alert-danger alert-validaciones-global';
+            alertDiv.innerHTML = `
+                <strong>${titulo}</strong>
+                <ul class="mb-0 mt-2">${htmlErrores}</ul>
+            `;
+            contenedor.insertBefore(alertDiv, contenedor.firstChild);
+            alertDiv.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        } else {
+            console.error(`${titulo}: ${errores.join(' | ')}`);
+        }
     }
     
     return true;

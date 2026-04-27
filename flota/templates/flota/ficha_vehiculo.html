@@ -1,5 +1,6 @@
 {% extends 'base.html' %}
 {% load moneda_clp %}
+{% load l10n %}
 
 {% block title %}Ficha Vehículo {{ vehiculo.patente }} - Gestión de Flota{% endblock %}
 
@@ -17,7 +18,7 @@
                 <p><strong>Marca:</strong> {{ vehiculo.marca }}</p>
                 <p><strong>Modelo:</strong> {{ vehiculo.modelo }}</p>
                 <p><strong>Tipo:</strong> {{ vehiculo.get_tipo_carroceria_display }}</p>
-                <p><strong>Año:</strong> {{ vehiculo.anio_adquisicion }}</p>
+                <p><strong>Año:</strong> {{ vehiculo.anio_adquisicion|unlocalize }}</p>
                 <p><strong>N° Motor:</strong> {{ vehiculo.nro_motor|default:"-" }}</p>
                 <p><strong>VIN:</strong> {{ vehiculo.vin|default:"-" }}</p>
                 <p><strong>Estado:</strong> 

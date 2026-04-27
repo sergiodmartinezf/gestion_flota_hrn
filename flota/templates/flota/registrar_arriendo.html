@@ -267,7 +267,27 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Validación adicional antes de enviar
     const form = document.getElementById('arriendoForm');
+    const limpiarAlertaErrores = () => {
+        const alertaExistente = form.querySelector('.errores-validacion-cliente');
+        if (alertaExistente) alertaExistente.remove();
+    };
+
+    const mostrarErroresEnFormulario = (errores) => {
+        limpiarAlertaErrores();
+        const alertDiv = document.createElement('div');
+        alertDiv.className = 'alert alert-danger mt-3 errores-validacion-cliente';
+        alertDiv.innerHTML = `
+            <strong>Por favor corrige los siguientes errores:</strong>
+            <ul class="mb-0 mt-2">
+                ${errores.map(error => `<li>${error}</li>`).join('')}
+            </ul>
+        `;
+        form.insertBefore(alertDiv, form.querySelector('.mt-4'));
+        alertDiv.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    };
+
     form.addEventListener('submit', function(event) {
+        limpiarAlertaErrores();
         let errores = [];
         
         // Validar campos del arriendo (siempre presentes)
@@ -277,14 +297,23 @@ document.addEventListener('DOMContentLoaded', function() {
         
         if (vehiculoReemplazado && !vehiculoReemplazado.value) {
             errores.push('Debe seleccionar un vehículo propio a reemplazar.');
+            vehiculoReemplazado.classList.add('is-invalid');
+        } else if (vehiculoReemplazado) {
+            vehiculoReemplazado.classList.remove('is-invalid');
         }
         
         if (motivo && (!motivo.value || motivo.value.trim() === '')) {
             errores.push('El motivo del arriendo es obligatorio y no puede estar vacío.');
+            motivo.classList.add('is-invalid');
+        } else if (motivo) {
+            motivo.classList.remove('is-invalid');
         }
         
         if (costoDiario && (costoDiario.value === '' || parseFloat(costoDiario.value) <= 0)) {
             errores.push('El costo diario debe ser mayor a cero.');
+            costoDiario.classList.add('is-invalid');
+        } else if (costoDiario) {
+            costoDiario.classList.remove('is-invalid');
         }
         
         // Si el modo es "nuevo", validar campos del vehículo
@@ -300,30 +329,51 @@ document.addEventListener('DOMContentLoaded', function() {
             
             if (patente && (!patente.value || patente.value.trim() === '')) {
                 errores.push('La patente es obligatoria.');
+                patente.classList.add('is-invalid');
+            } else if (patente) {
+                patente.classList.remove('is-invalid');
             }
             if (marca && (!marca.value || marca.value.trim() === '')) {
                 errores.push('La marca es obligatoria.');
+                marca.classList.add('is-invalid');
+            } else if (marca) {
+                marca.classList.remove('is-invalid');
             }
             if (modelo && (!modelo.value || modelo.value.trim() === '')) {
                 errores.push('El modelo es obligatorio.');
+                modelo.classList.add('is-invalid');
+            } else if (modelo) {
+                modelo.classList.remove('is-invalid');
             }
             if (anio && (anio.value === '' || parseInt(anio.value) <= 0)) {
                 errores.push('El año de adquisición debe ser un número positivo.');
+                anio.classList.add('is-invalid');
+            } else if (anio) {
+                anio.classList.remove('is-invalid');
             }
             if (km && (km.value === '' || parseInt(km.value) < 0)) {
                 errores.push('El kilometraje actual no puede ser negativo.');
+                km.classList.add('is-invalid');
+            } else if (km) {
+                km.classList.remove('is-invalid');
             }
             if (umbral && (umbral.value === '' || parseInt(umbral.value) <= 0)) {
                 errores.push('El umbral de mantención debe ser mayor a cero.');
+                umbral.classList.add('is-invalid');
+            } else if (umbral) {
+                umbral.classList.remove('is-invalid');
             }
             if (establecimiento && (!establecimiento.value || establecimiento.value.trim() === '')) {
                 errores.push('El establecimiento es obligatorio.');
+                establecimiento.classList.add('is-invalid');
+            } else if (establecimiento) {
+                establecimiento.classList.remove('is-invalid');
             }
         }
         
         if (errores.length > 0) {
             event.preventDefault();
-            alert('Por favor corrija los siguientes errores:\n- ' + errores.join('\n- '));
+            mostrarErroresEnFormulario(errores);
         }
     });
 });

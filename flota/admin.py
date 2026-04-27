@@ -54,8 +54,8 @@ class FallaReportadaAdmin(admin.ModelAdmin):
     list_filter = ('nivel_urgencia', 'vehiculo')
     date_hierarchy = 'fecha_reporte'
 
-@admin.register(AlertaMantencion)
-class AlertaMantencionAdmin(admin.ModelAdmin):
+@admin.register(Alerta)
+class AlertaAdmin(admin.ModelAdmin):
     list_display = ('vehiculo', 'descripcion', 'valor_umbral', 'vigente', 'generado_en')
     list_filter = ('vigente', 'vehiculo')
     date_hierarchy = 'generado_en'

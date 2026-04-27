@@ -19,7 +19,7 @@
                         {% for year in years_range %}
                             <option value="{{ year }}"
                                 {% if anio_filter|stringformat:"s" == year|stringformat:"s" %}selected{% endif %}>
-                                {{ year }}
+                                {{ year|unlocalize }}
                             </option>
                         {% endfor %}
                     </select>

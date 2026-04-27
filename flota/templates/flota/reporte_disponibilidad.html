@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load l10n %}
 
 {% block title %}Reporte de Disponibilidad - Gestión de Flota{% endblock %}
 
@@ -8,7 +9,7 @@
 <form method="get" class="row g-3 mb-4">
     <div class="col-md-2">
         <label for="anio" class="form-label">Año</label>
-        <input type="number" name="anio" id="anio" class="form-control" value="{{ anio }}" min="2020" max="2030">
+        <input type="number" name="anio" id="anio" class="form-control" value="{{ anio|unlocalize }}" min="2020" max="2030">
     </div>
     <div class="col-md-2">
         <label for="mes" class="form-label">Mes (opcional)</label>
@@ -34,12 +35,12 @@
 </form>
 
 <div class="mb-3">
-    <a href="?exportar=excel&anio={{ anio }}{% if mes %}&mes={{ mes }}{% endif %}" class="btn btn-success">
+    <a href="?exportar=excel&anio={{ anio|unlocalize }}{% if mes %}&mes={{ mes }}{% endif %}" class="btn btn-success">
         <i class="bi bi-file-earmark-excel"></i> Exportar a Excel
     </a>
 </div>
 
-<p class="text-muted">Período: {% if mes %}Mes {{ mes }}/{{ anio }}{% else %}Año {{ anio }}{% endif %} ({{ dias_periodo }} días).</p>
+<p class="text-muted">Período: {% if mes %}Mes {{ mes }}/{{ anio|unlocalize }}{% else %}Año {{ anio|unlocalize }}{% endif %} ({{ dias_periodo }} días).</p>
 
 <div class="table-responsive">
     <table class="table table-striped table-hover">

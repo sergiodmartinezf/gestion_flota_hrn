@@ -129,7 +129,7 @@
         </form>
         
         <div class="mb-3">
-            <a href="?exportar=excel&tab=variacion&anio={{ anio }}{% if vehiculo_filter %}&vehiculo={{ vehiculo_filter }}{% endif %}{% if tipo_mantencion %}&tipo_mantencion={{ tipo_mantencion }}{% endif %}" class="btn btn-success">
+            <a href="?exportar=excel&tab=variacion&anio={{ anio|unlocalize }}{% if vehiculo_filter %}&vehiculo={{ vehiculo_filter }}{% endif %}{% if tipo_mantencion %}&tipo_mantencion={{ tipo_mantencion }}{% endif %}" class="btn btn-success">
                 <i class="bi bi-file-earmark-excel"></i> Exportar a Excel
             </a>
         </div>
