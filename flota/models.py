@@ -33,6 +33,7 @@ TIPO_TRASLADO_CATEGORIA = [
     ('SECUNDARIO', 'Traslado Secundario (Urgencia -> Hospital Base/Red)'),
     ('OTROS', 'Otros Traslados (Rescates, Exámenes, Especialista)'),
     ('ALTA', 'Altas'),
+    ('Administrativo', 'Administrativo'),
 ]
 
 # Subcategorías para lógica de negocio
@@ -592,6 +593,12 @@ class Presupuesto(models.Model):
             return True
         return False
 
+    def save(self, *args, **kwargs):
+        # Si se supera el presupuesto asignado, se deshabilita automáticamente.
+        if self.monto_asignado > 0 and self.monto_ejecutado >= self.monto_asignado:
+            self.activo = False
+        super().save(*args, **kwargs)
+
 
 # --- OPERACIONES Y MANTENIMIENTO ---
 
@@ -682,24 +689,15 @@ class Mantenimiento(models.Model):
         return True
 
     def _obtener_presupuesto_para_cierre(self):
-        """Obtiene el presupuesto aplicable (vehículo o flota global). No modifica nada."""
+        """Obtiene el presupuesto aplicable por cuenta y año. No modifica nada."""
         if not self.cuenta_presupuestaria or not self.vehiculo:
             return None
         anio = self.fecha_ingreso.year
-        presupuesto = Presupuesto.objects.filter(
+        return Presupuesto.objects.filter(
             cuenta=self.cuenta_presupuestaria,
-            vehiculo=self.vehiculo,
             anio=anio,
             activo=True
         ).first()
-        if not presupuesto:
-            presupuesto = Presupuesto.objects.filter(
-                cuenta=self.cuenta_presupuestaria,
-                vehiculo__isnull=True,
-                anio=anio,
-                activo=True
-            ).first()
-        return presupuesto
 
     def ejecutar_cierre_presupuestario(self):
         """

@@ -6,12 +6,21 @@ let calendar;
 function actualizarKilometrajeProgramar() {
     const selectVehiculo = document.getElementById('programar_vehiculo');
     const kmInput = document.getElementById('programar_km_al_ingreso');
-    
+
     if (selectVehiculo && kmInput) {
         const selectedOption = selectVehiculo.options[selectVehiculo.selectedIndex];
-        const kilometraje = selectedOption.getAttribute('data-kilometraje');
+        let kilometraje = selectedOption.getAttribute('data-kilometraje');
         if (kilometraje) {
-            kmInput.value = kilometraje;
+            // Extraer solo dígitos (0-9)
+            const kmLimpio = String(kilometraje).replace(/\D/g, '');
+            if (kmLimpio) {
+                kmInput.value = kmLimpio;
+            } else {
+                console.warn('No se pudo extraer un kilometraje válido de:', kilometraje);
+                kmInput.value = '';
+            }
+        } else {
+            kmInput.value = '';
         }
     }
 }

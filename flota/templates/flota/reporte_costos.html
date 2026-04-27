@@ -2,20 +2,15 @@
 
 {% load static %}
 {% load moneda_clp %}
+{% load l10n %}
 
 {% block title %}Reportes - Gestión de Flota{% endblock %}
 
 {% block extra_js %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-{{ graficos_json|json_script:"graficos-data" }}
 <script>
-    try {
-        window.datosGraficos = JSON.parse(document.getElementById('graficos-data').textContent);
-        console.log('datosGraficos cargados correctamente:', window.datosGraficos);
-    } catch (e) {
-        console.error('Error al parsear datos para gráficos:', e);
-        window.datosGraficos = null;
-    }
+    window.datosGraficos = {{ graficos_json|safe }};
+    console.log('window.datosGraficos asignado', window.datosGraficos);
 </script>
 <script src="{% static 'js/reporte_costos.js' %}"></script>
 {% endblock %}
@@ -106,7 +101,7 @@
                     <label for="anio">Año</label>
                     <select name="anio" id="anio" class="form-control">
                         {% for a in anios_disponibles %}
-                            <option value="{{ a }}" {% if a == anio %}selected{% endif %}>{{ a }}</option>
+                            <option value="{{ a|unlocalize }}" {% if a == anio %}selected{% endif %}>{{ a|unlocalize }}</option>
                         {% endfor %}
                     </select>
                 </div>

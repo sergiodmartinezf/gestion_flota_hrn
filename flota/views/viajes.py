@@ -40,16 +40,13 @@ def acceso_bitacora(request):
         return redirect('listar_bitacoras')
 
     if request.user.rol == 'Conductor':
-        # Buscamos una hoja de ruta creada HOY por este conductor.
-        # Asumimos que si existe una hoja con fecha de hoy, es la activa.
+        # Retomar solo hojas explícitamente abiertas del día actual.
         hoja_activa = HojaRuta.objects.filter(
             conductor=request.user, 
-            fecha=timezone.now().date()
+            fecha=timezone.now().date(),
+            abierta=True
         ).order_by('-creado_en').first()
 
-        # Lógica adicional: Si el sistema marca km_fin como cierre definitivo, podríamos filtrar por km_fin__isnull=True
-        # Pero como el sistema actual actualiza km_fin con cada viaje, usamos la fecha como indicador de turno activo.
-        
         if hoja_activa:
             # Mensaje opcional de bienvenida
             # messages.info(request, f'Retomando turno activo en móvil {hoja_activa.vehiculo.patente}')
@@ -148,6 +145,12 @@ def registrar_bitacora(request):
 @user_passes_test(lambda u: u.rol == 'Conductor')
 def agregar_viaje(request, id):
     hoja = get_object_or_404(HojaRuta, id=id)
+    if not hoja.abierta:
+        messages.warning(request, 'Esta hoja de ruta ya está cerrada. Debe iniciar una nueva hoja para registrar más viajes.')
+        if request.user.rol == 'Conductor':
+            return redirect('registrar_bitacora')
+        return redirect('listar_bitacoras')
+
     vehiculo_tipo = hoja.vehiculo.tipo_carroceria
     
     ultimo_viaje = hoja.viajes.order_by('-km_llegada').first()

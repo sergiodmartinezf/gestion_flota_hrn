@@ -408,15 +408,19 @@ class ViajeForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         vehiculo_tipo = kwargs.pop('vehiculo_tipo', None)
         super().__init__(*args, **kwargs)
+        self.vehiculo_tipo = vehiculo_tipo  # Guardar para usar en clean
+
         if vehiculo_tipo == 'Camioneta':
             # Limitar categorías de traslado
             self.fields['categoria_traslado'].choices = [('Administrativo', 'Administrativo')]
             self.fields['categoria_traslado'].initial = 'Administrativo'
             self.fields['categoria_traslado'].disabled = True
+            self.fields['categoria_traslado'].required = False   # ← No obligatorio
+
             # Ocultar el campo detalle_origen_alta (no aplica)
             self.fields['detalle_origen_alta'].widget = forms.HiddenInput()
             self.fields['detalle_origen_alta'].required = False
-            
+
     hora_llegada = forms.TimeField(
         widget=forms.TimeInput(attrs={'class': 'form-control', 'type': 'time'}),
         required=True,
@@ -440,27 +444,33 @@ class ViajeForm(forms.ModelForm):
 
     class Meta:
         model = Viaje
-        fields = ['hora_salida', 'hora_llegada', 'km_salida', 'km_llegada', 
-                  'categoria_traslado', 'detalle_origen_alta', 
+        fields = ['hora_salida', 'hora_llegada', 'km_salida', 'km_llegada',
+                  'categoria_traslado', 'detalle_origen_alta',
                   'hora_salida_hbo', 'hora_llegada_hbo', 'observaciones']
         widgets = {
             'hora_salida': forms.TimeInput(attrs={'class': 'form-control', 'type': 'time'}),
             'km_salida': forms.NumberInput(attrs={'class': 'form-control'}),
             'categoria_traslado': forms.Select(attrs={'class': 'form-select'}),
-            'detalle_origen_alta': forms.Select(attrs={'class': 'form-select'}), # Se muestra/oculta con JS
+            'detalle_origen_alta': forms.Select(attrs={'class': 'form-select'}),
             'observaciones': forms.Textarea(attrs={'class': 'form-control', 'rows': 2}),
         }
 
     def clean(self):
         cleaned_data = super().clean()
+
+        # Para camionetas: asignar 'Administrativo' si el campo no viene en cleaned_data
+        if self.vehiculo_tipo == 'Camioneta' and not cleaned_data.get('categoria_traslado'):
+            cleaned_data['categoria_traslado'] = 'Administrativo'
+
         km_salida = cleaned_data.get('km_salida')
         km_llegada = cleaned_data.get('km_llegada')
-        
+
         if km_llegada is not None and km_salida is not None:
             if km_llegada < km_salida:
                 self.add_error('km_llegada', 'El KM de llegada no puede ser menor que el KM de salida.')
 
         return cleaned_data
+
 
 class PacienteTrasladoForm(forms.ModelForm):
     class Meta:
@@ -838,6 +848,8 @@ class PresupuestoForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         # Ordenar cuentas por código
         self.fields['cuenta'].queryset = CuentaPresupuestaria.objects.all().order_by('codigo')
+        if self.instance.pk and self.instance.monto_ejecutado > 0:
+            self.fields['anio'].disabled = True
         # Año actual por defecto
         if not self.instance.pk:  # Solo para creación, no edición
             self.fields['anio'].initial = datetime.now().year
@@ -860,9 +872,8 @@ class PresupuestoForm(forms.ModelForm):
                 existing = existing.exclude(pk=self.instance.pk)
             
             if existing.exists():
-                tipo = f"para {vehiculo.patente}" if vehiculo else "global"
                 raise forms.ValidationError(
-                    f'Ya existe un presupuesto para el año {anio}, cuenta {cuenta} {tipo}.'
+                    f'Ya existe un presupuesto para el año {anio} y la cuenta {cuenta}.'
                 )
         
         # Validar año razonable
@@ -872,6 +883,12 @@ class PresupuestoForm(forms.ModelForm):
                 raise forms.ValidationError('Por favor ingrese un año válido (2000-2030).')
         
         return cleaned_data
+
+    def clean_anio(self):
+        anio = self.cleaned_data.get('anio')
+        if self.instance.pk and self.instance.monto_ejecutado > 0:
+            return self.instance.anio
+        return anio
 
 
 class ArriendoForm(forms.ModelForm):

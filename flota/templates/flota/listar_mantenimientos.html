@@ -7,11 +7,6 @@
 
     <!-- Botones de acción -->
     <div class="mb-3">
-        {% if user.rol == 'Administrador' %}
-        <a href="{% url 'calendario_mantenciones' %}?abrir_modal=1" class="btn btn-primary me-2">
-            <i class="bi bi-plus-circle"></i> Programar o registrar mantenimiento
-        </a>
-        {% endif %}
         <a href="{% url 'calendario_mantenciones' %}" class="btn btn-info me-2">
             <i class="bi bi-calendar-week"></i> Ver Calendario
         </a>

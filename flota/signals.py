@@ -59,13 +59,6 @@ def actualizar_presupuesto_al_borrar_mantenimiento(sender, instance, **kwargs):
         anio=anio,
         activo=True
     )
-    if not presupuestos.exists():
-        presupuestos = Presupuesto.objects.filter(
-            cuenta=instance.cuenta_presupuestaria,
-            anio=anio,
-            vehiculo__isnull=True,
-            activo=True
-        )
     for p in presupuestos:
         recalcular_monto_ejecutado(p)
 
@@ -119,7 +112,7 @@ def recalcular_monto_ejecutado(presupuesto):
     total += ocs.aggregate(total=Sum('monto_total'))['total'] or Decimal(0)
     
     presupuesto.monto_ejecutado = total
-    presupuesto.save(update_fields=['monto_ejecutado'])
+    presupuesto.save(update_fields=['monto_ejecutado', 'activo'])
 
 
 @receiver(post_save, sender=OrdenCompra)

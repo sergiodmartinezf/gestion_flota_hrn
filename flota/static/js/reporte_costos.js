@@ -1,20 +1,36 @@
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('Reporte cargado - tabs gestionadas por Django');
+    console.log('=== INICIO reporte_costos.js ===');
     
-    // Verificar que los datos de gráficos estén disponibles
-    if (!window.datosGraficos || !window.datosGraficos.patentes) {
-        console.error('No se pudieron cargar los datos para los gráficos. Verifica que graficos_json sea válido.');
-        // Mostrar mensaje en la interfaz (opcional)
+    // Obtener datos directamente desde la variable global asignada en el template
+    let datosGraficos = window.datosGraficos;
+    
+    if (!datosGraficos) {
+        console.error('No se encontró window.datosGraficos');
         const container = document.querySelector('#dashboard .card-body');
         if (container) {
             container.innerHTML = '<div class="alert alert-warning">No hay datos disponibles para mostrar los gráficos.</div>';
         }
-        return; // No continuar con la creación de gráficos
+        return;
     }
     
-    const datosGraficos = window.datosGraficos; // alias local
+    if (!datosGraficos.patentes || !Array.isArray(datosGraficos.patentes) || datosGraficos.patentes.length === 0) {
+        console.error('window.datosGraficos no tiene el formato esperado', datosGraficos);
+        mostrarMensajeError();
+        return;
+    }
     
-    // Manejo de pestañas (igual que antes)
+    console.log('Validación exitosa. Continuando con gráficos...');
+    
+    function mostrarMensajeError() {
+        const container = document.querySelector('#dashboard .card-body');
+        if (container) {
+            container.innerHTML = '<div class="alert alert-warning">No hay datos disponibles para mostrar los gráficos.</div>';
+        }
+    }
+    
+    console.log('Reporte cargado - tabs gestionadas por Django');
+    
+    // Manejo de pestañas
     document.querySelectorAll('.nav-tabs .nav-link').forEach(link => {
         link.addEventListener('click', function() {
             document.querySelectorAll('.nav-tabs .nav-link').forEach(l => {

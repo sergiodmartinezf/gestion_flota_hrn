@@ -45,17 +45,9 @@ def programar_mantenimiento(request):
         anio = mantenimiento.fecha_ingreso.year
         presupuesto = Presupuesto.objects.filter(
             cuenta=mantenimiento.cuenta_presupuestaria,
-            vehiculo=mantenimiento.vehiculo,
             anio=anio,
             activo=True
         ).first()
-        if not presupuesto:
-            presupuesto = Presupuesto.objects.filter(
-                cuenta=mantenimiento.cuenta_presupuestaria,
-                vehiculo__isnull=True,
-                anio=anio,
-                activo=True
-            ).first()
         if not presupuesto:
             messages.error(request,
                 f"No hay presupuesto asignado para la cuenta {mantenimiento.cuenta_presupuestaria.codigo} "

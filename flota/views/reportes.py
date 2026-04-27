@@ -53,7 +53,7 @@ class ReporteCalculos:
         Calcula la variación presupuestaria para un año dado.
         tipo_mantencion puede ser 'Preventivo', 'Correctivo' o None (ambos).
         """
-        presupuestos = Presupuesto.objects.filter(anio=anio, activo=True).select_related('vehiculo', 'cuenta')
+        presupuestos = Presupuesto.objects.filter(anio=anio, activo=True).select_related('cuenta')
         reporte = []
         alertas = []
 
@@ -61,7 +61,6 @@ class ReporteCalculos:
             # Construir filtro base
             filtros = {
                 'cuenta_presupuestaria': presupuesto.cuenta,
-                'vehiculo': presupuesto.vehiculo,
                 'fecha_ingreso__year': anio,
             }
             if tipo_mantencion:  # 'Preventivo' o 'Correctivo'
@@ -76,8 +75,8 @@ class ReporteCalculos:
             tiene_alerta = porcentaje_variacion > 10
 
             item = {
-                'vehiculo': presupuesto.vehiculo.patente if presupuesto.vehiculo else 'Flota General',
-                'marca_modelo': f"{presupuesto.vehiculo.marca} {presupuesto.vehiculo.modelo}" if presupuesto.vehiculo else 'N/A',
+                'vehiculo': 'Flota General',
+                'marca_modelo': 'N/A',
                 'cuenta_sigfe': presupuesto.cuenta.codigo,
                 'nombre_cuenta': presupuesto.cuenta.nombre,
                 'monto_asignado': presupuesto.monto_asignado,
@@ -162,7 +161,7 @@ def exportar_costos_excel(request):
             'costo_total': calculos['costo_total'],
             'costo_por_km': calculos['costo_por_km'],
             'presupuesto': Presupuesto.objects.filter(
-                vehiculo=vehiculo
+                activo=True
             ).aggregate(total=Sum('monto_asignado'))['total'] or Decimal('0'),
         })
     
@@ -243,7 +242,7 @@ def reporte_costos(request):
             'patente': vehiculo.patente,
             'marca_modelo': f"{vehiculo.marca} {vehiculo.modelo}",
             'presupuesto': Presupuesto.objects.filter(
-                vehiculo=vehiculo
+                activo=True
             ).aggregate(total=Sum('monto_asignado'))['total'] or Decimal('0'),
         })
     

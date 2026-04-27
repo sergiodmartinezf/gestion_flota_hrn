@@ -88,6 +88,7 @@
                             <th>Conductor</th>
                             <th>Turno</th>
                             <th>Km Recorridos</th>
+                            <th>Estado</th>               <!-- Nueva columna -->
                             <th>Acciones</th>
                         </tr>
                     </thead>
@@ -102,14 +103,22 @@
                             <td>{{ bitacora.conductor.nombre_completo }}</td>
                             <td>{{ bitacora.get_turno_display }}</td>
                             <td>{{ bitacora.km_recorridos|floatformat:0 }}</td>
+                            
+                            <!-- Celda de estado -->
                             <td>
-                                <a href="{% url 'detalle_bitacora' bitacora.id %}" class="btn btn-sm btn-info me-1"
-                                   title="Ver detalles">
+                                {% if bitacora.abierta %}
+                                    <span class="badge bg-success">Abierta</span>
+                                {% else %}
+                                    <span class="badge bg-secondary">Cerrada</span>
+                                {% endif %}
+                            </td>
+                            
+                            <td>
+                                <a href="{% url 'detalle_bitacora' bitacora.id %}" class="btn btn-sm btn-info me-1" title="Ver detalles">
                                     <i class="bi bi-eye"></i>
                                 </a>
                                 {% if user.rol == 'Administrador' %}
-                                <a href="{% url 'modificar_bitacora' bitacora.id %}" class="btn btn-sm btn-warning"
-                                   title="Modificar">
+                                <a href="{% url 'modificar_bitacora' bitacora.id %}" class="btn btn-sm btn-warning" title="Modificar">
                                     <i class="bi bi-pencil"></i>
                                 </a>
                                 {% endif %}

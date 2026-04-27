@@ -66,7 +66,7 @@ def ficha_vehiculo(request, patente):
     vehiculo = get_object_or_404(Vehiculo, patente=patente)
     mantenimientos = Mantenimiento.objects.filter(vehiculo=vehiculo).order_by('-fecha_ingreso')[:10]
     alertas = AlertaMantencion.objects.filter(vehiculo=vehiculo, vigente=True)
-    presupuestos = Presupuesto.objects.filter(vehiculo=vehiculo).order_by('-anio')
+    presupuestos = Presupuesto.objects.filter(cuenta__in=Mantenimiento.objects.filter(vehiculo=vehiculo).values_list('cuenta_presupuestaria', flat=True)).distinct().order_by('-anio')
     
     # Calcular costo por kilómetro
     total_mantenimientos = Mantenimiento.objects.filter(vehiculo=vehiculo).aggregate(
@@ -176,7 +176,7 @@ def gastos_mantenimientos(request):
     gastos = []
     
     for vehiculo in vehiculos:
-        presupuestos = Presupuesto.objects.filter(vehiculo=vehiculo)
+        presupuestos = Presupuesto.objects.filter(cuenta__in=Mantenimiento.objects.filter(vehiculo=vehiculo).values_list('cuenta_presupuestaria', flat=True)).distinct()
         gasto_acumulado = Mantenimiento.objects.filter(vehiculo=vehiculo).aggregate(
             total=Sum('costo_total_real')
         )['total'] or Decimal('0')
@@ -237,7 +237,7 @@ def alertas_mantenimiento(request):
 
     # Alertas de presupuesto (presupuestos con ≥80% ejecutado)
     alertas_presupuesto = []
-    for presupuesto in Presupuesto.objects.filter(activo=True).exclude(monto_asignado=0).select_related('vehiculo', 'cuenta'):
+    for presupuesto in Presupuesto.objects.filter(activo=True).exclude(monto_asignado=0).select_related('cuenta'):
         porcentaje = presupuesto.porcentaje_ejecutado
         if porcentaje >= 80:
             alertas_presupuesto.append({

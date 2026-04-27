@@ -37,6 +37,26 @@
                 <div class="card-body">
                     <form method="post" id="form-viaje" novalidate>
                         {% csrf_token %}
+
+                        <!-- Mostrar errores de llenado de formulario -->
+                        {% if form.non_field_errors %}
+                        <div class="alert alert-danger">
+                            {% for error in form.non_field_errors %}
+                                {{ error }}
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                    
+                    {% for field in form %}
+                        {% if field.errors %}
+                            <div class="alert alert-danger">
+                                <strong>{{ field.label }}:</strong>
+                                {% for error in field.errors %}
+                                    {{ error }}
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    {% endfor %}
                         
                         <h5 class="border-bottom pb-2 mb-3">1. Datos Operativos</h5>
 
@@ -308,11 +328,14 @@
 
         // 4. Deshabilitar la opción 'HBO' en todos los selects de destino
         const deshabilitarHBO = function() {
+            const suffix = ' (no disponible)';
             document.querySelectorAll('.destino-selector').forEach(select => {
                 Array.from(select.options).forEach(option => {
-                    if (option.value === 'HBO') {
+                    if (option.value === 'HBO' && !option.hasAttribute('data-disabled')) {
                         option.disabled = true;
-                        option.textContent += ' (no disponible)';
+                        option.setAttribute('data-disabled', 'true');
+                        // Solo añade el sufijo la primera vez
+                        option.textContent += suffix;
                     }
                 });
             });

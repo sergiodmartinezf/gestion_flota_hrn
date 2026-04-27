@@ -110,11 +110,14 @@ function initFormsetPacientes() {
     const addButton = document.getElementById('add-paciente');
     const totalFormsInput = document.getElementById('id_pacientes-TOTAL_FORMS');
 
-    if (!addButton) return;
+    if (!addButton || !container || !totalFormsInput) return;
 
     addButton.addEventListener('click', function() {
         try {
-            const formIdx = parseInt(totalFormsInput.value);
+            let formIdx = parseInt(totalFormsInput.value, 10);
+            if (Number.isNaN(formIdx) || formIdx < 0) {
+                formIdx = container.querySelectorAll('.paciente-row').length;
+            }
             const template = document.getElementById('empty-form-template');
             if (!template) {
                 console.error('No se encuentra el template vacío');
@@ -242,15 +245,22 @@ function initRowListeners(rowElement) {
         removeBtn.addEventListener('click', function() {
             if (rowElement && rowElement.parentNode) {
                 rowElement.remove();
-                const container = document.getElementById('pacientes-container');
-                const totalFormsInput = document.getElementById('id_pacientes-TOTAL_FORMS');
-                if (container && totalFormsInput) {
-                    const currentForms = container.querySelectorAll('.paciente-row').length;
-                    totalFormsInput.value = currentForms;
-                    setTimeout(toggleHorasHBO, 100);
-                }
+                setTimeout(toggleHorasHBO, 100);
             }
         });
+    }
+
+    // Para filas dinámicas de pacientes/pasajeros en registro de viajes
+    if (destinoSelect && window.tipoVehiculo === 'Camioneta') {
+        const hboOption = Array.from(destinoSelect.options).find(opt => opt.value === 'HBO');
+        if (hboOption && !hboOption.disabled) {
+            hboOption.disabled = true;
+            // Si se quiere el texto modificado, hacerlo aquí una sola vez
+            if (!hboOption.hasAttribute('data-disabled')) {
+                hboOption.setAttribute('data-disabled', 'true');
+                hboOption.textContent += ' (no disponible)';
+            }
+        }
     }
 }
 
@@ -288,20 +298,6 @@ function toggleHorasHBO() {
             if (horaLlegadaHBO.value) horaLlegadaHBO.value = '';
         }
     }
-}
-
-if (rutInput) {
-    // Usar función segura
-    const safeFormatRut = (input) => {
-        if (typeof window.formatearRUT === 'function') {
-            window.formatearRUT(input);
-        } else {
-            console.warn('formatearRUT no está disponible');
-        }
-    };
-    rutInput.addEventListener('input', function() { safeFormatRut(this); });
-    rutInput.addEventListener('blur', function() { safeFormatRut(this); });
-    if (rutInput.value) safeFormatRut(rutInput);
 }
 
 // 4. Configurar validación del formulario
