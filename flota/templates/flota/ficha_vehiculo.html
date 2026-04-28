@@ -1,6 +1,7 @@
 {% extends 'base.html' %}
 {% load moneda_clp %}
 {% load l10n %}
+{% load km_miles %}
 
 {% block title %}Ficha Vehículo {{ vehiculo.patente }} - Gestión de Flota{% endblock %}
 
@@ -30,8 +31,8 @@
                         <span class="badge bg-secondary">{{ vehiculo.estado }}</span>
                     {% endif %}
                 </p>
-                <p><strong>Kilometraje Actual:</strong> {{ vehiculo.kilometraje_actual|floatformat:0 }} km</p>
-                <p><strong>Kilometraje para Mantención:</strong> {{ vehiculo.kilometraje_para_mantencion|floatformat:0 }} km</p>
+                <p><strong>Kilometraje Actual:</strong> {{ vehiculo.kilometraje_actual|km }} km</p>
+                <p><strong>Kilometraje para Mantención:</strong> {{ vehiculo.kilometraje_para_mantencion|km }} km</p>
                 <p><strong>Tipo Propiedad:</strong> {{ vehiculo.get_tipo_propiedad_display }}</p>
                 <p><strong>Criticidad:</strong> {{ vehiculo.get_criticidad_display }}</p>
             </div>

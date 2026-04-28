@@ -1,5 +1,6 @@
 {% extends 'base.html' %}
 {% load static %}
+{% load km_miles %}
 
 {% block title %}Detalle Hoja de Ruta #{{ hoja.id }}{% endblock %}
 
@@ -39,11 +40,11 @@
                         </div>
                         <div class="col-md-6 mb-2">
                             <strong>KM Inicio:</strong><br>
-                            {{ hoja.km_inicio }} km
+                            {{ hoja.km_inicio|km }} km
                         </div>
                         <div class="col-md-6 mb-2">
                             <strong>KM Fin:</strong><br>
-                            {{ hoja.km_fin|default:"No registrado" }} km
+                            {{ hoja.km_fin|km|default:"No registrado" }} km
                         </div>
                         <div class="col-md-6 mb-2">
                             <strong>Estado:</strong><br>
@@ -60,17 +61,17 @@
                     <i class="bi bi-speedometer"></i> Resumen de Kilometraje
                 </div>
                 <div class="card-body text-center">
-                    <h3 class="text-primary">{{ total_km_viajes }} km</h3>
+                    <h3 class="text-primary">{{ total_km_viajes|km }} km</h3>
                     <p class="text-muted mb-0">Total recorrido en {{ viajes|length }} viaje{{ viajes|pluralize }}</p>
                     <hr>
                     <div class="row">
                         <div class="col-6">
                             <small class="text-muted">Inicio</small><br>
-                            <strong>{{ hoja.km_inicio }} km</strong>
+                            <strong>{{ hoja.km_inicio|km }} km</strong>
                         </div>
                         <div class="col-6">
                             <small class="text-muted">Fin</small><br>
-                            <strong>{{ km_fin_hoja|default:hoja.km_inicio }} km</strong>
+                            <strong>{{ km_fin_hoja|km|default:hoja.km_inicio }} km</strong>
                         </div>
                     </div>
                 </div>
@@ -132,16 +133,16 @@
                                             -
                                         {% endfor %}
                                     </td>
-                                    <td>{{ viaje.km_salida }} km</td>
-                                    <td>{{ viaje.km_llegada|default:"-" }} km</td>
-                                    <td><strong class="text-success">{{ viaje.km_recorridos_calculados }} km</strong></td>
+                                    <td>{{ viaje.km_salida|km }} km</td>
+                                    <td>{{ viaje.km_llegada|km|default:"-" }} km</td>
+                                    <td><strong class="text-success">{{ viaje.km_recorridos_calculados|km }} km</strong></td>
                                 </tr>
                             {% endfor %}
                         </tbody>
                         <tfoot>
                             <tr class="table-active">
                                 <td colspan="7" class="text-end"><strong>Total KM Recorridos:</strong></td>
-                                <td><strong class="text-success">{{ total_km_viajes }} km</strong></td>
+                                <td><strong class="text-success">{{ total_km_viajes|km }} km</strong></td>
                             </tr>
                         </tfoot>
                     </table>

@@ -1,5 +1,8 @@
 {% extends 'base.html' %}
+{% load km_miles %}
+
 {% block content %}
+
 <div class="container-fluid">
     <h2 class="mb-4"><i class="bi bi-journal-text"></i> Bitácoras</h2>
 
@@ -102,7 +105,7 @@
                             </td>
                             <td>{{ bitacora.conductor.nombre_completo }}</td>
                             <td>{{ bitacora.get_turno_display }}</td>
-                            <td>{{ bitacora.km_recorridos|floatformat:0 }}</td>
+                            <td>{{ bitacora.km_recorridos|km }}  km</td>
                             
                             <!-- Celda de estado -->
                             <td>
