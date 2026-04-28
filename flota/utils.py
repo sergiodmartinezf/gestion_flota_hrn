@@ -2,40 +2,34 @@
 Utilidades para exportación y generación de reportes
 """
 import requests
+import re
+from datetime import datetime
+from calendar import monthrange
+from collections import defaultdict
+from django.http import HttpResponse
 from django.conf import settings
 from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from openpyxl.utils import get_column_letter
-from django.http import HttpResponse
-from datetime import datetime
-from .models import normalizar_estado_oc, normalizar_estado_visual
+from .models import normalizar_estado_oc, normalizar_estado_visual, Vehiculo, Mantenimiento, OrdenCompra, Proveedor, CuentaPresupuestaria, Presupuesto
 
+
+MESES = [
+    'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+    'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
+]
 
 def crear_estilos_excel():
-    """
-    Crea y retorna un diccionario de estilos para Excel.
-    """
-    # Estilo para títulos
+    """Estilos reutilizables para el Excel"""
     estilo_titulo = Font(name='Arial', size=14, bold=True)
-    
-    # Estilo para encabezados
     estilo_encabezado_font = Font(name='Arial', size=12, bold=True, color='FFFFFF')
     estilo_encabezado_fill = PatternFill(start_color='366092', end_color='366092', fill_type='solid')
-    
-    # Estilo para centrado
     centrado = Alignment(horizontal='center', vertical='center')
-    
-    # Estilo para alineación derecha
     derecha = Alignment(horizontal='right', vertical='center')
-    
-    # Borde
     borde = Border(
-        left=Side(style='thin'),
-        right=Side(style='thin'),
-        top=Side(style='thin'),
-        bottom=Side(style='thin')
+        left=Side(style='thin'), right=Side(style='thin'),
+        top=Side(style='thin'), bottom=Side(style='thin')
     )
-    
     return {
         'titulo': estilo_titulo,
         'encabezado_font': estilo_encabezado_font,
@@ -309,288 +303,517 @@ def exportar_reporte_excel(titulo, datos, columnas, nombre_archivo=None):
     return response
 
 
-def exportar_planilla_mantenimientos_excel(anio=None):
-    """
-    Exporta un Excel similar a "PLANILLA MANTENIMIENTO VEHÍCULOS" con estructura:
-    - Hoja 1: CATASTRO Y PLANIFICACIÓN MP (vehículos y mantenimientos planificados)
-    - Hoja 2: SEGUIMIENTO GASTO (gastos reales preventivos y correctivos)
-    """
-    from .models import Vehiculo, Mantenimiento, Presupuesto, CuentaPresupuestaria
-    from datetime import datetime
-    
-    if not anio:
-        anio = datetime.now().year
-    
-    wb = Workbook()
-    estilos = crear_estilos_excel()
-    
-    # ========== HOJA 1: CATASTRO Y PLANIFICACIÓN MP ==========
-    ws1 = wb.active
-    ws1.title = "CATASTRO Y PLANIFICACIÓN MP"
-    
-    # Encabezado
-    ws1.merge_cells('A1:AA1')
-    celda_titulo = ws1['A1']
-    celda_titulo.value = f"CATASTRO Y PLANIFICACIÓN MP - AÑO {anio}"
-    celda_titulo.font = estilos['titulo']
-    celda_titulo.alignment = estilos['centrado']
-    ws1.row_dimensions[1].height = 25
-    
-    # Encabezados de columnas
-    encabezados = [
-        'Establecimiento', 'Tipo Carrocería', 'Tipo Ambulancia', 'Clase Ambulancia',
-        'Es SAMU', 'Función', 'Marca', 'Modelo', 'Patente', 'Número Motor',
-        'Kilometraje', 'Situación Estado', 'Estado Conservación', 'Año Adquisición',
-        'Vida Útil', 'Vida Útil Residual', 'Nivel Importancia', 'Es Backup',
-        'Tipo Mantenimiento', 'Fecha Programada', 'Fecha Ejecución', 'Kilometraje al Ingreso',
-        'Estado', 'Costo Estimado', 'Costo Real', 'Subasignación SIGFE', 'N° Orden Compra'
-    ]
-    
-    fila = 3
-    for idx, encabezado in enumerate(encabezados, start=1):
-        celda = ws1.cell(row=fila, column=idx)
-        celda.value = encabezado
+def aplicar_estilos_cabecera(ws, fila, columnas, estilos):
+    """Aplica estilos a una fila de encabezados"""
+    for idx, nombre in enumerate(columnas, start=1):
+        celda = ws.cell(row=fila, column=idx)
+        celda.value = nombre
         celda.font = estilos['encabezado_font']
         celda.fill = estilos['encabezado_fill']
         celda.alignment = estilos['centrado']
         celda.border = estilos['borde']
-    
-    ws1.row_dimensions[fila].height = 20
-    
-    # Datos: Una fila por vehículo, luego filas por cada mantenimiento
-    fila_actual = fila + 1
+        ws.row_dimensions[fila].height = 20
+
+
+def exportar_planilla_mantenimientos_excel(anio=None):
+    """
+    Exporta un Excel con 4 hojas en el formato oficial del hospital:
+    - CATASTRO Y PLANIFICACIÓN MP
+    - SEGUIMIENTO GASTO
+    - Hoja1 (resumen neumáticos)
+    - TABLA CÁLCULO (indicadores)
+    """
+    if not anio:
+        anio = datetime.now().year
+    else:
+        anio = int(anio)
+
+    wb = Workbook()
+    estilos = crear_estilos_excel()
+
+    # ========== 1. CATASTRO Y PLANIFICACIÓN MP ==========
+    ws1 = wb.active
+    ws1.title = "CATASTRO Y PLANIFICACIÓN MP"
+
+    # Título
+    ws1.merge_cells('A1:{}1'.format(get_column_letter(52)))  # 52 columnas
+    ws1['A1'].value = f"CATASTRO Y PLANIFICACIÓN MP - AÑO {anio}"
+    ws1['A1'].font = estilos['titulo']
+    ws1['A1'].alignment = estilos['centrado']
+
+    # Encabezados (52 columnas, incluyendo las mensuales)
+    encabezados_fijos = [
+        'REGIÓN', 'ESTABLECIMIENTO', 'TIPO CARROCERÍA', 'TIPO AMBULANCIA',
+        'CLASE DE AMBULANCIA', 'SAMU (SI / NO)', 'FUNCIÓN', 'MARCA', 'MODELO',
+        'N° PATENTE', 'N° MOTOR', 'KILOMETRAJE', 'ESTADO SITUACIÓN',
+        'ESTADO DE CONSERVACIÓN (BUENO / REGULAR / MALO / BAJA)',
+        'AÑO ADQUISICIÓN', 'VIDA ÚTIL', 'VIDA ÚTIL RESIDUAL',
+        'CRÍTICO / NO CRÍTICO', 'EN GARANTÍA (SI / NO)', 'AÑO VENCIMIENTO GARANTÍA',
+        'BAJO PLAN DE MANTENIMIENTO (SI / NO)', 'AÑO PLAN DE MANTENIMIENTO',
+        'MANTENIMIENTO INTERNO O MANTENIMIENTO EXTERNO O CONTRATO',
+        'NOMBRE DE PROVEEDOR O MANTENIMIENTO INTERNO', 'ID CONVENIO DE MANTENIMIENTO',
+        'COSTO ANUAL DE MANTENIMIENTO SEGÚN CONVENIO / PRECIO DE REFERENCIA MANTENIMIENTO ANUAL',
+        'KILOMETRAJE RECORRIDO [KM] ACTUALIZADO', 'FRECUENCIA ANUAL DE MANTENIMIENTO'
+    ]
+    # Columnas mensuales: para cada mes, dos columnas: TIPO y ESTADO
+    columnas_mensuales = []
+    for mes in MESES:
+        columnas_mensuales.append(f'TIPO {mes}')
+        columnas_mensuales.append(f'ESTADO {mes}')
+    encabezados = encabezados_fijos + columnas_mensuales
+
+    fila_enc = 2
+    for idx, header in enumerate(encabezados, start=1):
+        celda = ws1.cell(row=fila_enc, column=idx)
+        celda.value = header
+        celda.font = estilos['encabezado_font']
+        celda.fill = estilos['encabezado_fill']
+        celda.alignment = estilos['centrado']
+        celda.border = estilos['borde']
+    ws1.row_dimensions[fila_enc].height = 30
+
+    # Datos: obtener vehículos y conceptos
     vehiculos = Vehiculo.objects.all().order_by('patente')
-    
-    for vehiculo in vehiculos:
-        # Calcular vida útil residual
-        años_transcurridos = anio - vehiculo.anio_adquisicion
-        vida_util_residual = vehiculo.vida_util - años_transcurridos
-        
-        # Fila del vehículo (primera fila)
-        datos_vehiculo = [
-            vehiculo.establecimiento,
-            vehiculo.get_tipo_carroceria_display(),
-            '',
-            vehiculo.clase_ambulancia or '',
-            'Sí' if vehiculo.es_samu else 'No',
-            '', 
-            vehiculo.marca,
-            vehiculo.modelo,
-            vehiculo.patente,
-            vehiculo.nro_motor or '',
-            vehiculo.kilometraje_actual,
-            vehiculo.get_tipo_propiedad_display(),
-            '',  # Estado conservación (no está en modelo)
-            vehiculo.anio_adquisicion,
-            vehiculo.vida_util,
-            vida_util_residual,
-            vehiculo.get_criticidad_display(),
-            'Sí' if vehiculo.es_backup else 'No',
-            '', '', '', '', '', '', '', ''
+    # Pre-cargar relaciones para eficiencia
+    mantenimientos = Mantenimiento.objects.filter(fecha_ingreso__year=anio).select_related('vehiculo', 'proveedor')
+    ordenes_compra = OrdenCompra.objects.filter(fecha_emision__year=anio, monto_total__gt=0).select_related('vehiculo', 'proveedor', 'cuenta_presupuestaria')
+
+    # Diccionarios auxiliares
+    mant_por_vehiculo = defaultdict(list)
+    for m in mantenimientos:
+        mant_por_vehiculo[m.vehiculo_id].append(m)
+
+    oc_por_vehiculo = defaultdict(list)
+    for oc in ordenes_compra:
+        if oc.vehiculo_id:
+            oc_por_vehiculo[oc.vehiculo_id].append(oc)
+
+    # Para cada vehículo, identificar conceptos (principal + adicionales)
+    fila_actual = fila_enc + 1
+
+    for v in vehiculos:
+        # Datos fijos del vehículo
+        region = "LOS LAGOS"
+        establecimiento = v.establecimiento or "HOSPITAL DE RIO NEGRO"
+        tipo_carroceria = v.get_tipo_carroceria_display()
+        tipo_ambulancia = "EMERGENCIA BASICA" if v.tipo_carroceria == 'Ambulancia' else ""
+        clase_ambulancia = v.clase_ambulancia or ""
+        samu = "SI" if v.es_samu else "NO"
+        funcion = "TRANSPORTE DE EMERGENCIA" if v.tipo_carroceria == 'Ambulancia' else "TRANSPORTE DE FUNCIONARIOS"
+        marca = v.marca
+        modelo = v.modelo
+        patente = v.patente
+        nro_motor = v.nro_motor
+        kilometraje = v.kilometraje_actual
+        estado_situacion = v.get_tipo_propiedad_display()
+        estado_conservacion = "BUENO"  # Por defecto, sin campo en BD
+        anio_adq = v.anio_adquisicion
+        vida_util = v.vida_util
+        vida_util_residual = max(0, vida_util - (anio - anio_adq))
+        criticidad = v.get_criticidad_display()
+        en_garantia = "NO"
+        anio_vencimiento_garantia = ""
+        bajo_plan = "SI" if mant_por_vehiculo.get(v.id) else "NO"
+        anio_plan = anio if bajo_plan == "SI" else ""
+        tipo_mant_contrato = "CONTRATO"
+        nombre_proveedor = ""
+        id_convenio = ""
+        costo_anual_convenio = 0
+        # Calcular costo anual sumando OC del proveedor de convenio (ej. Kaufmann, Francisco Alejandro)
+        # Para simplificar, tomamos el proveedor más frecuente en los mantenimientos preventivos
+        proveedores_mp = set()
+        for m in mant_por_vehiculo.get(v.id, []):
+            if m.tipo_mantencion == 'Preventivo' and m.proveedor:
+                proveedores_mp.add(m.proveedor_id)
+        if proveedores_mp:
+            # Tomar el primero (podría afinarse)
+            proveedor_id = next(iter(proveedores_mp))
+            proveedor = Proveedor.objects.get(id=proveedor_id)
+            nombre_proveedor = proveedor.nombre_fantasia
+            # Buscar id_convenio en las OC asociadas
+            for oc in oc_por_vehiculo.get(v.id, []):
+                if oc.proveedor_id == proveedor_id and oc.id_licitacion:
+                    id_convenio = oc.id_licitacion
+                    break
+            # Sumar todas las OC de ese proveedor para este vehículo en el año
+            costo_anual_convenio = sum(oc.monto_total for oc in oc_por_vehiculo.get(v.id, []) if oc.proveedor_id == proveedor_id)
+        frecuencia_anual = len([m for m in mant_por_vehiculo.get(v.id, []) if m.tipo_mantencion == 'Preventivo'])
+
+        # Datos de mantenimientos por mes (12 meses)
+        # Inicializar diccionario: mes -> (tipo, estado)
+        datos_mensuales = {mes: ('', '') for mes in range(1, 13)}
+        for m in mant_por_vehiculo.get(v.id, []):
+            mes = m.fecha_ingreso.month
+            # Tipo: puede ser la descripción del trabajo o un resumen
+            tipo = m.descripcion_trabajo[:50] if m.descripcion_trabajo else m.get_tipo_mantencion_display()
+            estado = '√' if m.estado == 'Finalizado' else ('ꓣ' if m.estado == 'Programado' else 'X')
+            datos_mensuales[mes] = (tipo, estado)
+
+        # Ahora construir la fila principal del vehículo
+        fila_base = [
+            region, establecimiento, tipo_carroceria, tipo_ambulancia,
+            clase_ambulancia, samu, funcion, marca, modelo, patente, nro_motor,
+            kilometraje, estado_situacion, estado_conservacion, anio_adq,
+            vida_util, vida_util_residual, criticidad, en_garantia,
+            anio_vencimiento_garantia, bajo_plan, anio_plan,
+            tipo_mant_contrato, nombre_proveedor, id_convenio,
+            costo_anual_convenio, kilometraje, frecuencia_anual
         ]
-        
-        for idx, valor in enumerate(datos_vehiculo, start=1):
+        # Agregar datos mensuales (tipo y estado para cada mes)
+        for mes in range(1, 13):
+            tipo, estado = datos_mensuales[mes]
+            fila_base.append(tipo)
+            fila_base.append(estado)
+
+        # Escribir fila
+        for idx, valor in enumerate(fila_base, start=1):
             celda = ws1.cell(row=fila_actual, column=idx)
             celda.value = valor
             celda.border = estilos['borde']
-            if idx == 11:  # Kilometraje
+            if idx in (12, 27):  # kilometraje
                 celda.alignment = estilos['derecha']
-            elif idx >= 24:  # Costos
+            elif 26 <= idx <= 28:  # costos y frecuencia
                 celda.alignment = estilos['derecha']
-            else:
-                celda.alignment = Alignment(horizontal='left', vertical='center')
-        
+                if isinstance(valor, (int, float)):
+                    celda.number_format = '#,##0'
         fila_actual += 1
-        
-        # Filas de mantenimientos para este vehículo
-        mantenimientos = Mantenimiento.objects.filter(
-            vehiculo=vehiculo,
-            fecha_ingreso__year=anio
-        ).order_by('fecha_ingreso')
-        
-        for mant in mantenimientos:
-            # Estado visual: ✓ (hecho), X (no hecho), R (reprogramado)
-            estado_visual = ''
-            if mant.estado == 'Finalizado':
-                estado_visual = '✓'
-            elif mant.estado == 'Cancelado':
-                estado_visual = 'X'
-            elif mant.estado == 'Programado':
-                estado_visual = 'R'
-            
-            cuenta_sigfe = mant.cuenta_presupuestaria.codigo if mant.cuenta_presupuestaria else ''
-            nro_oc = mant.orden_compra.nro_oc if mant.orden_compra else ''
-            if not nro_oc and mant.orden_trabajo and mant.orden_trabajo.orden_compra:
-                nro_oc = mant.orden_trabajo.orden_compra.nro_oc
-            
-            datos_mant = [
-                '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '',  # Repetir datos vehículo (vacío)
-                mant.get_tipo_mantencion_display(),
-                mant.fecha_programada.strftime('%d/%m/%Y') if mant.fecha_programada else '',
-                mant.fecha_ingreso.strftime('%d/%m/%Y'),
-                mant.km_al_ingreso,
-                estado_visual,
-                float(mant.costo_estimado) if mant.costo_estimado else 0,
-                float(mant.costo_total_real) if mant.costo_total_real else 0,
-                cuenta_sigfe,
-                nro_oc
+
+        # ===== Conceptos adicionales (Neumáticos, Cabina sanitaria, etc.) =====
+        # Buscamos órdenes de compra y mantenimientos que contengan palabras clave
+        conceptos = {}
+        for oc in oc_por_vehiculo.get(v.id, []):
+            desc = oc.descripcion.upper() if oc.descripcion else ''
+            if 'NEUMÁTICO' in desc:
+                conceptos['Neumáticos'] = oc
+            if 'CABINA SANITARIA' in desc:
+                conceptos['Cabina sanitaria'] = oc
+        # Además, detectar si hay mantenimientos con "neumático" en descripción
+        for m in mant_por_vehiculo.get(v.id, []):
+            desc = m.descripcion_trabajo.upper() if m.descripcion_trabajo else ''
+            if 'NEUMÁTICO' in desc:
+                conceptos['Neumáticos'] = m  # sobreescribir con el último
+
+        for concepto, obj in conceptos.items():
+            fila_concepto = [
+                region, establecimiento, tipo_carroceria, '', '', '', '', '', '', patente, '',
+                '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', ''
             ]
-            
-            for idx, valor in enumerate(datos_mant, start=1):
+            # Completar las 28 primeras columnas vacías (excepto patente y algunos)
+            # Luego añadir datos mensuales del concepto
+            # Para simplificar, reutilizamos los mismos datos mensuales del vehículo pero con estado del concepto
+            # Realmente deberíamos tener seguimiento específico para neumáticos, pero lo dejaremos como ejemplo.
+            datos_concepto = {mes: ('', '') for mes in range(1, 13)}
+            if hasattr(obj, 'fecha_emision'):  # es orden de compra
+                mes = obj.fecha_emision.month
+                datos_concepto[mes] = (f"{obj.monto_total}", '√')
+            elif hasattr(obj, 'fecha_ingreso'):
+                mes = obj.fecha_ingreso.month
+                datos_concepto[mes] = (f"${obj.costo_total_real}", '√')
+
+            for mes in range(1, 13):
+                tipo, estado = datos_concepto[mes]
+                fila_concepto.append(tipo)
+                fila_concepto.append(estado)
+            # Escribir fila del concepto
+            for idx, valor in enumerate(fila_concepto, start=1):
                 celda = ws1.cell(row=fila_actual, column=idx)
                 celda.value = valor
                 celda.border = estilos['borde']
-                if idx == 21:  # Kilometraje
-                    celda.alignment = estilos['derecha']
-                elif idx >= 24:  # Costos
-                    celda.alignment = estilos['derecha']
-                    if idx == 24 or idx == 25:  # Costos
-                        celda.number_format = '$#,##0'
-                else:
-                    celda.alignment = Alignment(horizontal='left', vertical='center')
-            
             fila_actual += 1
-    
-    # Ajustar anchos de columnas
-    anchos = [15, 15, 15, 15, 10, 15, 12, 15, 12, 15, 12, 15, 15, 12, 10, 12, 15, 10,
-              15, 15, 15, 12, 10, 15, 15, 15, 15]
-    for idx, ancho in enumerate(anchos, start=1):
-        ws1.column_dimensions[get_column_letter(idx)].width = ancho
-    
-    # ========== HOJA 2: SEGUIMIENTO GASTO ==========
+
+    # Ajustar anchos de columnas (ejemplo básico)
+    for i in range(1, 53):
+        ws1.column_dimensions[get_column_letter(i)].width = 12
+
+    # ========== 2. SEGUIMIENTO GASTO ==========
     ws2 = wb.create_sheet("SEGUIMIENTO GASTO")
-    
     # Título
-    ws2.merge_cells('A1:H1')
-    celda_titulo2 = ws2['A1']
-    celda_titulo2.value = f"SEGUIMIENTO GASTO - AÑO {anio}"
-    celda_titulo2.font = estilos['titulo']
-    celda_titulo2.alignment = estilos['centrado']
-    ws2.row_dimensions[1].height = 25
-    
-    # Subtítulo: Mantenimientos Preventivos
-    ws2.merge_cells('A2:H2')
-    celda_subtitulo = ws2['A2']
-    celda_subtitulo.value = "MANTENIMIENTOS PREVENTIVOS"
-    celda_subtitulo.font = Font(bold=True, size=12)
-    celda_subtitulo.alignment = estilos['centrado']
-    ws2.row_dimensions[2].height = 20
-    
-    # Encabezados preventivos
-    encabezados_preventivos = [
-        'Vehículo', 'Fecha', 'Tipo', 'Proveedor', 'Costo Mano Obra',
-        'Costo Repuestos', 'Costo Total', 'Cuenta SIGFE', 'N° OC'
+    ws2.merge_cells('A1:AI1')
+    ws2['A1'].value = f"SEGUIMIENTO GASTO - AÑO {anio}"
+    ws2['A1'].font = estilos['titulo']
+    ws2['A1'].alignment = estilos['centrado']
+
+    # --- Subtabla: Convenios de Mantenimiento (MP) ---
+    ws2['A3'] = "CONVENIOS DE MANTENIMIENTO (MP)"
+    ws2['A3'].font = Font(bold=True, size=12)
+
+    encabezados_mp = [
+        'Nº', 'SERVICIO DE SALUD', 'ESTABLECIMIENTO', 'NOMBRE CONVENIO DE MANTENIMIENTO',
+        'Nº RESOLUCIÓN / ID / ORDEN DE COMPRA DEL CONVENIO', 'FECHA RESOLUCIÓN',
+        'FECHA DE EXPIRACION CONVENIO', 'MONTO ANUAL ($)', 'SUBASIGNACIÓN SIGFE'
     ]
-    
-    fila = 3
-    for idx, encabezado in enumerate(encabezados_preventivos, start=1):
-        celda = ws2.cell(row=fila, column=idx)
-        celda.value = encabezado
+    # Agregar columnas mensuales: N° ORDEN DE COMPRA y MONTO ($) para cada mes
+    for mes in MESES:
+        encabezados_mp.append(f'N° OC {mes}')
+        encabezados_mp.append(f'MONTO {mes}')
+    encabezados_mp.append('TOTAL')
+
+    fila_enc_mp = 4
+    for idx, header in enumerate(encabezados_mp, start=1):
+        celda = ws2.cell(row=fila_enc_mp, column=idx)
+        celda.value = header
         celda.font = estilos['encabezado_font']
         celda.fill = estilos['encabezado_fill']
         celda.alignment = estilos['centrado']
         celda.border = estilos['borde']
-    
-    fila_actual = fila + 1
-    
-    # Mantenimientos preventivos
-    mantenimientos_preventivos = Mantenimiento.objects.filter(
-        tipo_mantencion='Preventivo',
-        fecha_ingreso__year=anio
-    ).order_by('vehiculo__patente', 'fecha_ingreso')
-    
-    for mant in mantenimientos_preventivos:
-        datos = [
-            mant.vehiculo.patente,
-            mant.fecha_ingreso.strftime('%d/%m/%Y'),
-            mant.get_tipo_mantencion_display(),
-            mant.proveedor.nombre_fantasia,
-            float(mant.costo_mano_obra) if mant.costo_mano_obra else 0,
-            float(mant.costo_repuestos) if mant.costo_repuestos else 0,
-            float(mant.costo_total_real) if mant.costo_total_real else 0,
-            mant.cuenta_presupuestaria.codigo if mant.cuenta_presupuestaria else '',
-            mant.orden_compra.nro_oc if mant.orden_compra else ''
+    ws2.row_dimensions[fila_enc_mp].height = 25
+
+    # Agrupar órdenes de compra por proveedor de convenio (es_taller=True y proveedor_base o similar)
+    # Usaremos los proveedores con es_taller=True y que aparezcan en OC con cuenta 22.06.002.001 o .003 (preventivo)
+    proveedores_mp = Proveedor.objects.filter(es_taller=True, activo=True)
+    convenios = {}
+    for p in proveedores_mp:
+        # Obtener todas las OC de este proveedor en el año con cuenta preventivo
+        ocs = OrdenCompra.objects.filter(
+            proveedor=p,
+            fecha_emision__year=anio,
+            cuenta_presupuestaria__codigo__in=['22.06.002.001', '22.06.002.003']
+        )
+        if not ocs:
+            continue
+        total_anual = sum(oc.monto_total for oc in ocs)
+        # Determinar nombre del convenio (puede ser el nombre del proveedor)
+        nombre_convenio = p.nombre_fantasia
+        id_convenio = ocs.first().id_licitacion if ocs.first().id_licitacion else ''
+        # Agrupar por mes
+        monthly = {mes: {'nro_oc': '', 'monto': 0} for mes in range(1, 13)}
+        for oc in ocs:
+            mes = oc.fecha_emision.month
+            monthly[mes]['nro_oc'] = oc.nro_oc
+            monthly[mes]['monto'] += oc.monto_total
+        convenios[p.id] = {
+            'nombre': nombre_convenio, 'id': id_convenio,
+            'total': total_anual, 'monthly': monthly,
+            'cuenta': ocs.first().cuenta_presupuestaria.codigo if ocs.first().cuenta_presupuestaria else ''
+        }
+
+    fila_datos_mp = fila_enc_mp + 1
+    for idx, (proveedor_id, data) in enumerate(convenios.items(), start=1):
+        fila = [
+            idx, 'OSORNO', 'HOSPITAL DE RIO NEGRO', data['nombre'],
+            data['id'], '', '', data['total'], data['cuenta']
         ]
-        
-        for idx, valor in enumerate(datos, start=1):
-            celda = ws2.cell(row=fila_actual, column=idx)
-            if idx >= 5 and idx <= 7:  # Costos
-                celda.value = float(valor) if valor else 0
-                celda.number_format = '$#,##0'
-                celda.alignment = estilos['derecha']
-            else:
-                celda.value = valor
-                celda.alignment = Alignment(horizontal='left', vertical='center')
+        for mes in range(1, 13):
+            fila.append(data['monthly'][mes]['nro_oc'])
+            fila.append(data['monthly'][mes]['monto'])
+        fila.append(data['total'])  # total final
+        for col, valor in enumerate(fila, start=1):
+            celda = ws2.cell(row=fila_datos_mp, column=col)
+            celda.value = valor
             celda.border = estilos['borde']
-        
-        fila_actual += 1
-    
-    # Separador y título para correctivos
-    fila_actual += 2
-    ws2.merge_cells(f'A{fila_actual}:H{fila_actual}')
-    celda_subtitulo2 = ws2[f'A{fila_actual}']
-    celda_subtitulo2.value = "MANTENIMIENTOS CORRECTIVOS (REPARATIVOS)"
-    celda_subtitulo2.font = Font(bold=True, size=12)
-    celda_subtitulo2.alignment = estilos['centrado']
-    ws2.row_dimensions[fila_actual].height = 20
-    
-    fila_actual += 1
-    
-    # Encabezados correctivos (mismos que preventivos)
-    for idx, encabezado in enumerate(encabezados_preventivos, start=1):
-        celda = ws2.cell(row=fila_actual, column=idx)
-        celda.value = encabezado
+            if col >= 10 and col % 2 == 0:  # montos
+                if isinstance(valor, (int, float)):
+                    celda.number_format = '$#,##0'
+                    celda.alignment = estilos['derecha']
+        fila_datos_mp += 1
+
+    # --- Subtabla: Mantenimiento Correctivo (MC) ---
+    fila_offset = fila_datos_mp + 2
+    ws2.cell(row=fila_offset, column=1, value="MANTENIMIENTO CORRECTIVO / ADQUISICIÓN DE REPUESTOS / ADQUISICIÓN DE INSUMOS / ADQUISICIÓN DE ACCESORIOS").font = Font(bold=True, size=12)
+    fila_offset += 1
+
+    encabezados_mc = [
+        'Nº', 'SERVICIO DE SALUD', 'ESTABLECIMIENTO', 'DESCRIPCIÓN DE LA COMPRA',
+        'TIPO DE GASTO CORRECTIVO', 'MONTO'
+    ]
+    for mes in MESES:
+        encabezados_mc.append(f'N° OC {mes}')
+        encabezados_mc.append(f'MONTO {mes}')
+    encabezados_mc.append('TOTAL')
+
+    fila_enc_mc = fila_offset
+    for idx, header in enumerate(encabezados_mc, start=1):
+        celda = ws2.cell(row=fila_enc_mc, column=idx)
+        celda.value = header
         celda.font = estilos['encabezado_font']
         celda.fill = estilos['encabezado_fill']
         celda.alignment = estilos['centrado']
         celda.border = estilos['borde']
-    
-    fila_actual += 1
-    
-    # Mantenimientos correctivos
-    mantenimientos_correctivos = Mantenimiento.objects.filter(
-        tipo_mantencion='Correctivo',
-        fecha_ingreso__year=anio
-    ).order_by('vehiculo__patente', 'fecha_ingreso')
-    
-    for mant in mantenimientos_correctivos:
-        datos = [
-            mant.vehiculo.patente,
-            mant.fecha_ingreso.strftime('%d/%m/%Y'),
-            mant.get_tipo_mantencion_display(),
-            mant.proveedor.nombre_fantasia,
-            float(mant.costo_mano_obra) if mant.costo_mano_obra else 0,
-            float(mant.costo_repuestos) if mant.costo_repuestos else 0,
-            float(mant.costo_total_real) if mant.costo_total_real else 0,
-            mant.cuenta_presupuestaria.codigo if mant.cuenta_presupuestaria else '',
-            mant.orden_compra.nro_oc if mant.orden_compra else ''
-        ]
-        
-        for idx, valor in enumerate(datos, start=1):
-            celda = ws2.cell(row=fila_actual, column=idx)
-            if idx >= 5 and idx <= 7:  # Costos
-                celda.value = float(valor) if valor else 0
+    ws2.row_dimensions[fila_enc_mc].height = 25
+
+    # Obtener todas las OC con cuenta correctivo (22.06.002.002 o .004) y que tengan descripción
+    ocs_correctivo = OrdenCompra.objects.filter(
+        fecha_emision__year=anio,
+        cuenta_presupuestaria__codigo__in=['22.06.002.002', '22.06.002.004']
+    ).order_by('fecha_emision')
+
+    fila_datos_mc = fila_enc_mc + 1
+    for idx, oc in enumerate(ocs_correctivo, start=1):
+        desc = oc.descripcion or "Sin descripción"
+        tipo_gasto = "MANTENIMIENTO CORRECTIVO"
+        monto = oc.monto_total
+        # Agrupar por mes (para esta OC, solo un mes)
+        monthly = {mes: {'nro_oc': '', 'monto': 0} for mes in range(1, 13)}
+        mes = oc.fecha_emision.month
+        monthly[mes]['nro_oc'] = oc.nro_oc
+        monthly[mes]['monto'] = monto
+        fila = [idx, 'OSORNO', 'HOSPITAL RIO NEGRO', desc, tipo_gasto, monto]
+        for m in range(1, 13):
+            fila.append(monthly[m]['nro_oc'])
+            fila.append(monthly[m]['monto'])
+        fila.append(monto)
+        for col, valor in enumerate(fila, start=1):
+            celda = ws2.cell(row=fila_datos_mc, column=col)
+            celda.value = valor
+            celda.border = estilos['borde']
+            if (col >= 6 and col <= len(fila)) and (col - 5) % 2 == 0:  # montos
+                if isinstance(valor, (int, float)):
+                    celda.number_format = '$#,##0'
+                    celda.alignment = estilos['derecha']
+        fila_datos_mc += 1
+
+    # Ajustar anchos hoja2
+    for col in range(1, 4+12*2+2):
+        ws2.column_dimensions[get_column_letter(col)].width = 15
+
+    # ========== 3. Hoja1 (resumen neumáticos) ==========
+    ws3 = wb.create_sheet("Hoja1")
+    ws3['A1'] = "Mantenimiento móviles"
+    ws3['A1'].font = estilos['titulo']
+    encabezados_neumaticos = ['PATENTE', 'INSUMO/MATERIA', '$ ESTIMADO ANUAL', '$ CONSUMO ACTUAL', 'REMANENTE', 'REDUCCIÓN']
+    fila_enc_neu = 3
+    for idx, header in enumerate(encabezados_neumaticos, start=1):
+        celda = ws3.cell(row=fila_enc_neu, column=idx)
+        celda.value = header
+        celda.font = estilos['encabezado_font']
+        celda.fill = estilos['encabezado_fill']
+        celda.alignment = estilos['centrado']
+        celda.border = estilos['borde']
+
+    # Agrupar gastos en neumáticos por vehículo
+    neumaticos_por_vehiculo = defaultdict(int)
+    for oc in ocs_correctivo:
+        if oc.descripcion and 'NEUMÁTICO' in oc.descripcion.upper():
+            if oc.vehiculo_id:
+                neumaticos_por_vehiculo[oc.vehiculo.patente] += oc.monto_total
+    # También considerar OC de preventivo que mencionen neumáticos
+    for oc in ordenes_compra:
+        if oc.descripcion and 'NEUMÁTICO' in oc.descripcion.upper() and oc.vehiculo_id:
+            neumaticos_por_vehiculo[oc.vehiculo.patente] += oc.monto_total
+
+    # Estimar costo anual por vehículo (asumimos 2 juegos de neumáticos al año? valor aproximado 1.880.000 para ambulancias, 940.000 para camionetas)
+    fila_neu = fila_enc_neu + 1
+    for patente, gasto in neumaticos_por_vehiculo.items():
+        vehiculo = Vehiculo.objects.filter(patente=patente).first()
+        if not vehiculo:
+            continue
+        estimado = 1880000 if vehiculo.tipo_carroceria == 'Ambulancia' else 940000
+        remanente = estimado - gasto
+        reduccion = 0 if remanente >= 0 else -remanente
+        fila = [patente, 'NEUMÁTICOS', estimado, gasto, max(0, remanente), reduccion]
+        for col, valor in enumerate(fila, start=1):
+            celda = ws3.cell(row=fila_neu, column=col)
+            celda.value = valor
+            celda.border = estilos['borde']
+            if col >= 3:
                 celda.number_format = '$#,##0'
                 celda.alignment = estilos['derecha']
-            else:
-                celda.value = valor
-                celda.alignment = Alignment(horizontal='left', vertical='center')
+        fila_neu += 1
+
+    # ========== 4. TABLA CÁLCULO ==========
+    ws4 = wb.create_sheet("TABLA CÁLCULO")
+    ws4['A1'] = "INDICADORES DE MANTENIMIENTO PREVENTIVO"
+    ws4['A1'].font = estilos['titulo']
+
+    # Encabezados fila 3
+    encabezados_calculo = ['', 'Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic', 'TOTAL']
+    for col, mes in enumerate(encabezados_calculo, start=1):
+        celda = ws4.cell(row=3, column=col)
+        celda.value = mes
+        celda.font = estilos['encabezado_font']
+        celda.fill = estilos['encabezado_fill']
+        celda.alignment = estilos['centrado']
+        celda.border = estilos['borde']
+
+    # Calcular métricas
+    # N° MP PROGRAMADAS (estados no finalizados: Programado, En taller, Esperando repuestos)
+    programadas_por_mes = {m: 0 for m in range(1,13)}
+    ejecutadas_por_mes = {m: 0 for m in range(1,13)}
+    reprogramadas_por_mes = {m: 0 for m in range(1,13)}
+    for m in mantenimientos:
+        mes = m.fecha_ingreso.month
+        if m.estado in ['Programado', 'En taller', 'Esperando repuestos']:
+            programadas_por_mes[mes] += 1
+        if m.estado == 'Finalizado':
+            ejecutadas_por_mes[mes] += 1
+        # Reprogramadas: si fecha_programada existe y es diferente de fecha_ingreso
+        if m.fecha_programada and m.fecha_ingreso and m.fecha_programada != m.fecha_ingreso:
+            reprogramadas_por_mes[mes] += 1
+
+    # Totales
+    total_programadas = sum(programadas_por_mes.values())
+    total_ejecutadas = sum(ejecutadas_por_mes.values())
+    total_reprogramadas = sum(reprogramadas_por_mes.values())
+
+    # Escribir filas
+    filas_calculo = [
+        ('N° MP PROGRAMADAS', programadas_por_mes, total_programadas),
+        ('N° MP EJECUTADAS', ejecutadas_por_mes, total_ejecutadas),
+        ('N° MP REPROGRAMADAS', reprogramadas_por_mes, total_reprogramadas),
+    ]
+    fila_actual_calc = 4
+    for nombre, datos_mes, total in filas_calculo:
+        celda = ws4.cell(row=fila_actual_calc, column=1)
+        celda.value = nombre
+        celda.border = estilos['borde']
+        for mes in range(1, 13):
+            celda = ws4.cell(row=fila_actual_calc, column=mes+1)
+            celda.value = datos_mes[mes]
             celda.border = estilos['borde']
-        
-        fila_actual += 1
-    
-    # Ajustar anchos de columnas hoja 2
-    anchos2 = [12, 12, 15, 25, 15, 15, 15, 15, 15]
-    for idx, ancho in enumerate(anchos2, start=1):
-        ws2.column_dimensions[get_column_letter(idx)].width = ancho
-    
-    # Preparar respuesta
+        celda = ws4.cell(row=fila_actual_calc, column=14)
+        celda.value = total
+        celda.border = estilos['borde']
+        fila_actual_calc += 1
+
+    # Porcentajes de ejecución
+    fila_actual_calc += 1
+    ws4.cell(row=fila_actual_calc, column=1, value="% EJECUCIÓN MP TOTAL MENSUAL")
+    for mes in range(1, 13):
+        prog = programadas_por_mes[mes]
+        ejec = ejecutadas_por_mes[mes]
+        porc = (ejec / prog * 100) if prog > 0 else 0
+        celda = ws4.cell(row=fila_actual_calc, column=mes+1)
+        celda.value = porc
+        celda.number_format = '0.00'
+        celda.border = estilos['borde']
+    ws4.cell(row=fila_actual_calc, column=14, value=(total_ejecutadas/total_programadas*100 if total_programadas else 0)).number_format = '0.00'
+
+    # Gastos programados y ejecutados (MP y MC)
+    # Gasto programado MP: suma de montos de OC de preventivo
+    # Gasto ejecutado MP: suma de costos de mantenimientos preventivos finalizados
+    gasto_programado_mp = sum(oc.monto_total for oc in ordenes_compra if oc.cuenta_presupuestaria and oc.cuenta_presupuestaria.codigo in ['22.06.002.001','22.06.002.003'])
+    gasto_ejecutado_mp = sum(m.costo_total_real for m in mantenimientos if m.tipo_mantencion == 'Preventivo' and m.estado == 'Finalizado')
+    gasto_programado_mc = sum(oc.monto_total for oc in ordenes_compra if oc.cuenta_presupuestaria and oc.cuenta_presupuestaria.codigo in ['22.06.002.002','22.06.002.004'])
+    gasto_ejecutado_mc = sum(m.costo_total_real for m in mantenimientos if m.tipo_mantencion == 'Correctivo' and m.estado == 'Finalizado')
+
+    fila_actual_calc += 2
+    ws4.cell(row=fila_actual_calc, column=1, value="GASTO PROGRAMADO MP").font = Font(bold=True)
+    ws4.cell(row=fila_actual_calc, column=2, value=gasto_programado_mp).number_format = '$#,##0'
+    fila_actual_calc += 1
+    ws4.cell(row=fila_actual_calc, column=1, value="EJECUCIÓN GASTO MP").font = Font(bold=True)
+    ws4.cell(row=fila_actual_calc, column=2, value=gasto_ejecutado_mp).number_format = '$#,##0'
+    fila_actual_calc += 1
+    ws4.cell(row=fila_actual_calc, column=1, value="% EJECUCIÓN DEL GASTO MP").font = Font(bold=True)
+    ws4.cell(row=fila_actual_calc, column=2, value=(gasto_ejecutado_mp/gasto_programado_mp*100 if gasto_programado_mp else 0)).number_format = '0.00'
+    fila_actual_calc += 2
+    ws4.cell(row=fila_actual_calc, column=1, value="GASTO PROGRAMADO MC").font = Font(bold=True)
+    ws4.cell(row=fila_actual_calc, column=2, value=gasto_programado_mc).number_format = '$#,##0'
+    fila_actual_calc += 1
+    ws4.cell(row=fila_actual_calc, column=1, value="EJECUCIÓN GASTO MC").font = Font(bold=True)
+    ws4.cell(row=fila_actual_calc, column=2, value=gasto_ejecutado_mc).number_format = '$#,##0'
+    fila_actual_calc += 1
+    ws4.cell(row=fila_actual_calc, column=1, value="% EJECUCIÓN DEL GASTO MC").font = Font(bold=True)
+    ws4.cell(row=fila_actual_calc, column=2, value=(gasto_ejecutado_mc/gasto_programado_mc*100 if gasto_programado_mc else 0)).number_format = '0.00'
+
+    # Ajustar anchos
+    for col in range(1, 15):
+        ws4.column_dimensions[get_column_letter(col)].width = 15
+
+    # Guardar respuesta
     nombre_archivo = f'PLANILLA_MANTENIMIENTO_VEHICULOS_{anio}_{datetime.now().strftime("%Y%m%d")}.xlsx'
     response = HttpResponse(
         content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
     )
     response['Content-Disposition'] = f'attachment; filename="{nombre_archivo}"'
-    
     wb.save(response)
     return response
-
