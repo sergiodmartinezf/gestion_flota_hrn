@@ -17,10 +17,10 @@
                     <select name="anio" id="anio" class="form-select">
                         <option value="">Todos los años</option>
                         {% for year in years_range %}
-                            <option value="{{ year }}"
-                                {% if anio_filter|stringformat:"s" == year|stringformat:"s" %}selected{% endif %}>
-                                {{ year|unlocalize }}
-                            </option>
+                        <<option value="{% localize off %}{{ year }}{% endlocalize %}"
+                            {% if anio_filter|stringformat:"s" == year|stringformat:"s" %}selected{% endif %}>
+                            {% localize off %}{{ year }}{% endlocalize %}
+                        </option>
                         {% endfor %}
                     </select>
                 </div>
