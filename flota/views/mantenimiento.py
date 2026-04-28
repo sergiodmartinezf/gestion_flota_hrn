@@ -92,6 +92,7 @@ def listar_mantenimientos(request):
     
     # Filtros
     patente_filter = request.GET.get('patente')
+    anio_filter = request.GET.get('anio')
     tipo_filter = request.GET.get('tipo')
     estado_filter = request.GET.get('estado')
     desde_filter = request.GET.get('desde')
@@ -100,6 +101,13 @@ def listar_mantenimientos(request):
     
     if patente_filter:
         mantenimientos = mantenimientos.filter(vehiculo__patente=patente_filter)
+
+    if anio_filter:
+        try:
+            anio_filter = int(anio_filter)
+            mantenimientos = mantenimientos.filter(fecha_ingreso__year=anio_filter)
+        except (ValueError, TypeError):
+            anio_filter = ''
     
     if tipo_filter:
         mantenimientos = mantenimientos.filter(tipo_mantencion=tipo_filter)
@@ -121,17 +129,23 @@ def listar_mantenimientos(request):
     # Obtener datos para filtros
     vehiculos = Vehiculo.objects.all().order_by('patente')
     proveedores = Proveedor.objects.filter(es_taller=True, activo=True).order_by('nombre_fantasia')
+    anios_disponibles = Mantenimiento.objects.dates('fecha_ingreso', 'year', order='DESC')
     
+    anio_export = anio_filter if anio_filter else timezone.now().year
+
     return render(request, 'flota/listar_mantenimientos.html', {
         'mantenimientos': mantenimientos,
         'vehiculos': vehiculos,
         'proveedores': proveedores,
         'patente_filter': patente_filter,
+        'anio_filter': anio_filter,
         'tipo_filter': tipo_filter,
         'estado_filter': estado_filter,
         'desde_filter': desde_filter,
         'hasta_filter': hasta_filter,
         'proveedor_filter': proveedor_filter,
+        'anios_disponibles': anios_disponibles,
+        'anio_export': anio_export,
     })
 
 # Cambiar estado de mantenimiento (AJAX)

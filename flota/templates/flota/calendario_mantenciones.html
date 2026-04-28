@@ -12,9 +12,6 @@
     <h2><i class="bi bi-calendar-week"></i> Calendario de Operaciones</h2>
     <div>
         <a href="{% url 'listar_mantenimientos' %}" class="btn btn-secondary"><i class="bi bi-list-ul"></i> Ver Listado</a>
-        {% if user.rol == 'Administrador' %}
-        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalProgramar"><i class="bi bi-plus-lg"></i> Programar o registrar mantenimiento</button>
-        {% endif %}
     </div>
 </div>
 

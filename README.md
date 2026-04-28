@@ -19,6 +19,7 @@ Sistema web integral desarrollado en Django para la gestión completa de la flot
 - **Mantenimiento Preventivo**: Programación automática basada en kilometraje y tiempo
 - **Mantenimiento Correctivo**: Registro de reparaciones por fallas reportadas
 - **Calendario Interactivo**: Visualización de mantenimientos programados
+- **Listado de Mantenimientos**: Filtros por vehículo, año, tipo, estado, proveedor y rango de fechas
 - **Alertas Automáticas**: Notificaciones de mantenimientos pendientes
 
 ### Gestión Financiera
