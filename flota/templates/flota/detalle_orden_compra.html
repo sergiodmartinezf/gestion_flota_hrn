@@ -1,4 +1,6 @@
 {% extends 'base.html' %}
+{% load moneda_clp %}
+
 {% block content %}
 <h2>Detalle Orden de Compra: {{ orden.nro_oc }}</h2>
 
@@ -16,9 +18,9 @@
             </div>
             <div class="col-md-6">
                 <h5>Información Financiera</h5>
-                <p><strong>Monto Neto:</strong> ${{ orden.monto_neto|floatformat:2 }}</p>
-                <p><strong>Impuesto (IVA):</strong> ${{ orden.impuesto|floatformat:2 }}</p>
-                <p><strong>Monto Total:</strong> ${{ orden.monto_total|floatformat:2 }}</p>
+                <p><strong>Monto Neto:</strong> ${{ orden.monto_neto|clp }}</p>
+                <p><strong>Impuesto (IVA):</strong> ${{ orden.impuesto|clp }}</p>
+                <p><strong>Monto Total:</strong> ${{ orden.monto_total|clp }}</p>
                 <p><strong>Cuenta Presupuestaria:</strong> {{ orden.cuenta_presupuestaria|default:"No asignada" }}</p>
                 {% if orden.orden_trabajo %}
                 <p><strong>Orden de Trabajo:</strong>
