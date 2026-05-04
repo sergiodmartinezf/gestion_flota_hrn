@@ -27,9 +27,9 @@ class LoginForm(forms.Form):
 class UsuarioForm(forms.ModelForm):
     password = forms.CharField(
         label='Contraseña',
-        widget=forms.PasswordInput(attrs={'class': 'form-control', 'placeholder': 'Mínimo 8 caracteres, mayúscula, minúscula, número y símbolo'}),
+        widget=forms.PasswordInput(attrs={'class': 'form-control', 'placeholder': 'Mínimo 4 caracteres y al menos un número'}),
         required=True,
-        help_text='Requisitos: 8+ caracteres, al menos 1 mayúscula, 1 minúscula, 1 número y 1 símbolo especial'
+        help_text='Requisitos: mínimo 4 caracteres y al menos un número (0-9)'
     )
     password_confirm = forms.CharField(
         label='Confirmar Contraseña',
@@ -85,24 +85,12 @@ class UsuarioForm(forms.ModelForm):
         # Solo validar si se proporcionó una contraseña (en creación o cambio)
         if password:
             # Validar longitud mínima
-            if len(password) < 8:
-                raise forms.ValidationError('La contraseña debe tener al menos 8 caracteres.')
-            
-            # Validar al menos una mayúscula
-            if not re.search(r'[A-Z]', password):
-                raise forms.ValidationError('La contraseña debe contener al menos una letra mayúscula.')
-            
-            # Validar al menos una minúscula
-            if not re.search(r'[a-z]', password):
-                raise forms.ValidationError('La contraseña debe contener al menos una letra minúscula.')
-            
+            if len(password) < 4:
+                raise forms.ValidationError('La contraseña debe tener al menos 4 caracteres.')
+
             # Validar al menos un número
             if not re.search(r'[0-9]', password):
                 raise forms.ValidationError('La contraseña debe contener al menos un número.')
-            
-            # Validar al menos un símbolo especial
-            if not re.search(r'[!@#$%^&*()_+\-=\[\]{};\':"\\|,.<>\/?]', password):
-                raise forms.ValidationError('La contraseña debe contener al menos un símbolo especial.')
         
         return password
     
@@ -408,18 +396,7 @@ class ViajeForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         vehiculo_tipo = kwargs.pop('vehiculo_tipo', None)
         super().__init__(*args, **kwargs)
-        self.vehiculo_tipo = vehiculo_tipo  # Guardar para usar en clean
-
-        if vehiculo_tipo == 'Camioneta':
-            # Limitar categorías de traslado
-            self.fields['categoria_traslado'].choices = [('Administrativo', 'Administrativo')]
-            self.fields['categoria_traslado'].initial = 'Administrativo'
-            self.fields['categoria_traslado'].disabled = True
-            self.fields['categoria_traslado'].required = False   # ← No obligatorio
-
-            # Ocultar el campo detalle_origen_alta (no aplica)
-            self.fields['detalle_origen_alta'].widget = forms.HiddenInput()
-            self.fields['detalle_origen_alta'].required = False
+        self.vehiculo_tipo = vehiculo_tipo  # Usado por la vista/plantilla (p. ej. camioneta)
 
     hora_llegada = forms.TimeField(
         widget=forms.TimeInput(attrs={'class': 'form-control', 'type': 'time'}),
@@ -445,22 +422,15 @@ class ViajeForm(forms.ModelForm):
     class Meta:
         model = Viaje
         fields = ['hora_salida', 'hora_llegada', 'km_salida', 'km_llegada',
-                  'categoria_traslado', 'detalle_origen_alta',
                   'hora_salida_hbo', 'hora_llegada_hbo', 'observaciones']
         widgets = {
             'hora_salida': forms.TimeInput(attrs={'class': 'form-control', 'type': 'time'}),
             'km_salida': forms.NumberInput(attrs={'class': 'form-control'}),
-            'categoria_traslado': forms.Select(attrs={'class': 'form-select'}),
-            'detalle_origen_alta': forms.Select(attrs={'class': 'form-select'}),
             'observaciones': forms.Textarea(attrs={'class': 'form-control', 'rows': 2}),
         }
 
     def clean(self):
         cleaned_data = super().clean()
-
-        # Para camionetas: asignar 'Administrativo' si el campo no viene en cleaned_data
-        if self.vehiculo_tipo == 'Camioneta' and not cleaned_data.get('categoria_traslado'):
-            cleaned_data['categoria_traslado'] = 'Administrativo'
 
         km_salida = cleaned_data.get('km_salida')
         km_llegada = cleaned_data.get('km_llegada')
@@ -473,27 +443,59 @@ class ViajeForm(forms.ModelForm):
 
 
 class PacienteTrasladoForm(forms.ModelForm):
+    def __init__(self, *args, **kwargs):
+        self.vehiculo_tipo = kwargs.pop('vehiculo_tipo', None)
+        super().__init__(*args, **kwargs)
+        if self.vehiculo_tipo == 'Camioneta':
+            self.fields['categoria_traslado'].choices = [('Administrativo', 'Administrativo')]
+            self.fields['categoria_traslado'].initial = 'Administrativo'
+            self.fields['categoria_traslado'].disabled = True
+            self.fields['categoria_traslado'].required = False
+            self.fields['detalle_origen_alta'].widget = forms.HiddenInput()
+            self.fields['detalle_origen_alta'].required = False
+            self.fields['sentido'].widget = forms.HiddenInput()
+            self.fields['sentido'].required = False
+
     class Meta:
         model = PacienteTraslado
-        fields = ['nombre', 'rut', 'destino_tipo', 'direccion_especifica', 'prevision']
+        fields = [
+            'nombre', 'rut', 'destino_tipo', 'direccion_especifica', 'prevision',
+            'categoria_traslado', 'sentido', 'detalle_origen_alta',
+        ]
         widgets = {
             'nombre': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Nombre Paciente/Pasajero'}),
             'rut': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'RUT'}),
-            'destino_tipo': forms.Select(attrs={'class': 'form-select destino-selector'}), # Clase para JS
+            'destino_tipo': forms.Select(attrs={'class': 'form-select destino-selector'}),
             'direccion_especifica': forms.TextInput(attrs={'class': 'form-control direccion-input', 'placeholder': 'Especifique dirección'}),
             'prevision': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Tipo Servicio/Prev.'}),
+            'categoria_traslado': forms.Select(attrs={'class': 'form-select categoria-traslado-select'}),
+            'sentido': forms.Select(attrs={'class': 'form-select sentido-select'}),
+            'detalle_origen_alta': forms.Select(attrs={'class': 'form-select detalle-origen-alta-select'}),
         }
 
     def clean(self):
         cleaned_data = super().clean()
+        if cleaned_data.get('DELETE'):
+            return cleaned_data
+
+        if self.vehiculo_tipo == 'Camioneta':
+            cleaned_data['categoria_traslado'] = 'Administrativo'
+            cleaned_data['sentido'] = 'IDA'
+            cleaned_data['detalle_origen_alta'] = None
+        else:
+            categoria = cleaned_data.get('categoria_traslado')
+            if categoria == 'ALTA':
+                if not cleaned_data.get('detalle_origen_alta'):
+                    self.add_error('detalle_origen_alta', 'Debe indicar el origen del alta.')
+            else:
+                cleaned_data['detalle_origen_alta'] = None
+
         nombre = cleaned_data.get('nombre')
         destino = cleaned_data.get('destino_tipo')
-        # Si el formulario no está marcado para eliminar, el nombre es obligatorio
-        if not self.cleaned_data.get('DELETE', False):
-            if not nombre or not nombre.strip():
-                self.add_error('nombre', 'El nombre del paciente/pasajero es obligatorio.')
-            if not destino:
-                self.add_error('destino_tipo', 'Debe seleccionar un destino.')
+        if not nombre or not nombre.strip():
+            self.add_error('nombre', 'El nombre del paciente/pasajero es obligatorio.')
+        if not destino:
+            self.add_error('destino_tipo', 'Debe seleccionar un destino.')
         return cleaned_data
 
 # Factory para gestionar multiples pacientes dentro del mismo formulario de Viaje

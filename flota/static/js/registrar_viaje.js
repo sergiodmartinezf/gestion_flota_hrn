@@ -1,9 +1,6 @@
 document.addEventListener('DOMContentLoaded', function() {
-    // 1. Inicializar lógica de traslados
-    initLogicaTraslados();
-    
-    // 2. Inicializar formset de pacientes
     initFormsetPacientes();
+    restriccionesCamionetaFilas();
     
     // 3. Configurar validación del formulario
     configurarValidacionFormulario();
@@ -33,10 +30,6 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     if (window.tipoVehiculo === 'Camioneta') {
-        // Ocultar el contenedor del campo "Categoría de Traslado"
-        const catContainer = document.getElementById('categoria-container');
-        if (catContainer) catContainer.style.display = 'none';
-        
         // Cambiar etiquetas de "Paciente" a "Pasajero" en todo el formulario
         const labels = document.querySelectorAll('label');
         labels.forEach(label => {
@@ -50,12 +43,6 @@ document.addEventListener('DOMContentLoaded', function() {
         if (headerLabel) headerLabel.innerText = '2. Pasajeros';
         
         // Fijar la categoría de traslado a 'Administrativo' y deshabilitar el campo (aunque esté oculto)
-        const catSelect = document.getElementById('id_categoria_traslado');
-        if (catSelect) {
-            catSelect.value = 'Administrativo';
-            catSelect.disabled = true;
-        }
-
         // Cambiar textos específicos adicionales
         const addButton = document.getElementById('add-paciente');
         if (addButton) addButton.innerHTML = '<i class="bi bi-person-plus"></i> Agregar Pasajero';
@@ -81,30 +68,39 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 
-// 1. Lógica de Categorías de Traslado
-function initLogicaTraslados() {
-    const catSelect = document.getElementById('id_categoria_traslado');
-    const altaContainer = document.getElementById('container-origen-alta');
-    const altaSelect = document.getElementById('id_detalle_origen_alta');
-
-    if (catSelect) {
-        catSelect.addEventListener('change', function() {
-            if (this.value === 'ALTA') {
-                altaContainer.style.display = 'block';
-                if (altaSelect) altaSelect.setAttribute('required', 'required');
-            } else {
-                altaContainer.style.display = 'none';
-                if (altaSelect) {
-                    altaSelect.removeAttribute('required');
-                    altaSelect.value = '';
-                }
-            }
-        });
-        catSelect.dispatchEvent(new Event('change'));
-    }
+/** Oculta categoría/sentido visualmente en camioneta (valores fijos vienen del servidor). */
+function restriccionesCamionetaFilas() {
+    if (window.tipoVehiculo !== 'Camioneta') return;
+    document.querySelectorAll('.fila-categoria-paciente').forEach(function (row) {
+        row.style.display = 'none';
+    });
 }
 
-// 2. Lógica Dinámica de Pacientes (Formset)
+/** Por fila: mostrar origen alta solo si categoría es ALTA. */
+function initFilaPaciente(row) {
+    if (!row) return;
+    const cat = row.querySelector('.categoria-traslado-select');
+    const altaBox = row.querySelector('.container-origen-alta');
+    const altaSel = row.querySelector('.detalle-origen-alta-select');
+    if (!cat || !altaBox) return;
+
+    function syncAlta() {
+        if (cat.value === 'ALTA') {
+            altaBox.style.display = 'block';
+            if (altaSel) altaSel.setAttribute('required', 'required');
+        } else {
+            altaBox.style.display = 'none';
+            if (altaSel) {
+                altaSel.removeAttribute('required');
+                altaSel.value = '';
+            }
+        }
+    }
+    cat.addEventListener('change', syncAlta);
+    syncAlta();
+}
+
+// Lógica Dinámica de Pacientes (Formset)
 function initFormsetPacientes() {
     const container = document.getElementById('pacientes-container');
     const addButton = document.getElementById('add-paciente');
@@ -141,7 +137,8 @@ function initFormsetPacientes() {
             container.appendChild(newForm);
             totalFormsInput.value = formIdx + 1;
             initRowListeners(newForm);
-            
+            restriccionesCamionetaFilas();
+
             setTimeout(() => {
                 const firstField = newForm.querySelector('input, select');
                 if (firstField) firstField.focus();
@@ -272,6 +269,8 @@ function initRowListeners(rowElement) {
             }
         }
     }
+
+    initFilaPaciente(rowElement);
 }
 
 // 3. Función para verificar si algún paciente tiene destino HBO

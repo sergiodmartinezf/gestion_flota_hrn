@@ -3,12 +3,19 @@ from django.contrib.auth.decorators import login_required
 from django.http import HttpResponse
 from django.db.models import Sum, Count
 from decimal import Decimal
+from calendar import monthrange
 from datetime import datetime
 import json
 
 from django.utils import timezone as tz
 from ..models import Vehiculo, Mantenimiento, CargaCombustible, Arriendo, Presupuesto, FallaReportada, HojaRuta, Alerta, PacienteTraslado
 from ..utils import exportar_reporte_excel
+from ..indicadores import (
+    frecuencia_fallas_por_vehiculo,
+    indicadores_costos_combustible,
+    promedio_dias_indisponibilidad_por_vehiculo,
+    rango_fechas_reporte,
+)
 
 
 class ReporteCalculos:
@@ -145,12 +152,22 @@ class TabManager:
 
 
 def exportar_costos_excel(request):
-    """Exporta reporte de costos a Excel"""
-    vehiculos = Vehiculo.objects.all()
+    """Exporta reporte de costos a Excel (incluye indicadores de combustible del año indicado)."""
+    anio_str = request.GET.get('anio', str(datetime.now().year))
+    try:
+        anio_excel = int(anio_str)
+    except (TypeError, ValueError):
+        anio_excel = datetime.now().year
+    fecha_desde, fecha_hasta = rango_fechas_reporte(anio_excel, None)
+
+    vehiculos = Vehiculo.objects.all().order_by('patente')
+    v_ids = [v.id for v in vehiculos]
+    ind_map = indicadores_costos_combustible(v_ids, fecha_desde, fecha_hasta)
     datos = []
-    
+
     for vehiculo in vehiculos:
         calculos = ReporteCalculos.calcular_costos_vehiculo(vehiculo)
+        ind = ind_map.get(vehiculo.id, {})
         datos.append({
             'patente': vehiculo.patente,
             'costo_mantenimientos': calculos['costo_mantenimientos'],
@@ -160,11 +177,14 @@ def exportar_costos_excel(request):
             'costo_arriendos': calculos['costo_arriendos'],
             'costo_total': calculos['costo_total'],
             'costo_por_km': calculos['costo_por_km'],
+            'rendimiento_km_l': ind.get('rendimiento', 'N/A'),
+            'costo_combustible_km': ind.get('costo_combustible_km', 'N/A'),
+            'indice_eficiencia': ind.get('indice_eficiencia', 'N/A'),
             'presupuesto': Presupuesto.objects.filter(
                 activo=True
             ).aggregate(total=Sum('monto_asignado'))['total'] or Decimal('0'),
         })
-    
+
     columnas = [
         ('Vehículo', 'patente', 'texto'),
         ('Costo Mantenimientos', 'costo_mantenimientos', 'moneda'),
@@ -174,6 +194,9 @@ def exportar_costos_excel(request):
         ('Costo Arriendos', 'costo_arriendos', 'moneda'),
         ('Costo Total', 'costo_total', 'moneda'),
         ('Costo por Km', 'costo_por_km', 'decimal'),
+        ('Rendimiento km/l (período)', 'rendimiento_km_l', 'texto'),
+        ('Costo combustible $/km (período)', 'costo_combustible_km', 'texto'),
+        ('Índice eficiencia $/L efectivo (período)', 'indice_eficiencia', 'texto'),
         ('Presupuesto', 'presupuesto', 'moneda'),
     ]
     
@@ -209,14 +232,13 @@ def exportar_variacion_excel(anio, tipo_mantencion=None):
 
 
 @login_required
-def reporte_costos(request):
-    """Vista principal unificada - compatibilidad total"""
+def reportes(request):  # antes se llamaba reporte_costos
+    """Vista principal unificada - incluye costos, variación, dashboard y disponibilidad"""
     # Detectar si es exportación
     if request.GET.get('exportar') == 'excel':
         tab = request.GET.get('tab', 'costos')
         if tab == 'variacion':
             anio_str = request.GET.get('anio', str(datetime.now().year))
-            # Eliminar cualquier carácter no numérico
             import re
             anio_limpio = re.sub(r'\D', '', anio_str)
             if not anio_limpio:
@@ -224,65 +246,145 @@ def reporte_costos(request):
             anio = int(anio_limpio)
             tipo_mant = request.GET.get('tipo_mantencion', '')
             return exportar_variacion_excel(anio, tipo_mant if tipo_mant else None)
+        elif tab == 'disponibilidad':
+            # Exportar disponibilidad a Excel
+            anio_disp = request.GET.get('anio_disp', str(datetime.now().year))
+            mes_disp = request.GET.get('mes_disp')
+            try:
+                anio_disp = int(anio_disp)
+            except ValueError:
+                anio_disp = datetime.now().year
+            if mes_disp and str(mes_disp).isdigit():
+                mes_disp = int(mes_disp)
+            else:
+                mes_disp = None
+            return exportar_disponibilidad_excel(request, anio_disp, mes_disp)
         else:
             return exportar_costos_excel(request)
-    
+
     # Procesamiento normal para HTML
     active_tab = request.GET.get('tab', 'costos')
     tab_manager = TabManager(request)
-    
-    # Datos para pestaña de costos
+
+    # ========== Pestaña COSTOS ==========
+    try:
+        anio_costos = int(request.GET.get('anio', datetime.now().year))
+    except (TypeError, ValueError):
+        anio_costos = datetime.now().year
+    fecha_desde_c, fecha_hasta_c = rango_fechas_reporte(anio_costos, None)
+
     vehiculos = Vehiculo.objects.all().order_by('patente')
+    v_ids = [v.id for v in vehiculos]
+    ind_costos_map = indicadores_costos_combustible(v_ids, fecha_desde_c, fecha_hasta_c)
     reporte_costos_data = []
-    
+
     for vehiculo in vehiculos:
         calculos = ReporteCalculos.calcular_costos_vehiculo(vehiculo)
+        ind_c = ind_costos_map.get(vehiculo.id, {})
         reporte_costos_data.append({
             **calculos,
             'patente': vehiculo.patente,
             'marca_modelo': f"{vehiculo.marca} {vehiculo.modelo}",
-            'presupuesto': Presupuesto.objects.filter(
-                activo=True
-            ).aggregate(total=Sum('monto_asignado'))['total'] or Decimal('0'),
+            'presupuesto': Presupuesto.objects.filter(activo=True).aggregate(total=Sum('monto_asignado'))['total'] or Decimal('0'),
+            'rendimiento_km_l': ind_c.get('rendimiento', '—'),
+            'costo_combustible_km': ind_c.get('costo_combustible_km', 'N/A'),
+            'indice_eficiencia': ind_c.get('indice_eficiencia', '—'),
         })
-    
-    # Datos para pestaña de variación
+
+    # ========== Pestaña VARIACIÓN PRESUPUESTARIA ==========
     anio = request.GET.get('anio', datetime.now().year)
     try:
         anio = int(anio)
     except ValueError:
         anio = datetime.now().year
-    
-    # Capturar tipo de mantenimiento
     tipo_mant = request.GET.get('tipo_mantencion', '')
+    vehiculo_filter = request.GET.get('vehiculo', '')
     
-    # Pasar el tipo a la función
     reporte_variacion, alertas_variacion = ReporteCalculos.calcular_variacion_anio(anio, tipo_mantencion=tipo_mant if tipo_mant else None)
     
     # Años disponibles
-    from django.utils import timezone
-    anio_actual = timezone.now().year
+    anio_actual = datetime.now().year
     anios_con_presupuestos = list(Presupuesto.objects.values_list('anio', flat=True).distinct())
     anios_disponibles = sorted(set([anio_actual] + anios_con_presupuestos), reverse=True)
 
-    # Para gráficos
+    # ========== Datos para gráficos (dashboard) ==========
     datos_graficos = ReporteCalculos.obtener_datos_graficos_costos()
     graficos_json = json.dumps(datos_graficos)
-    
-    return render(request, 'flota/reporte_costos.html', {
+
+    # ========== Pestaña DISPONIBILIDAD ==========
+    anio_disp = request.GET.get('anio_disp', str(datetime.now().year))
+    mes_disp = request.GET.get('mes_disp')
+    try:
+        anio_disp = int(anio_disp)
+    except ValueError:
+        anio_disp = datetime.now().year
+    if mes_disp and str(mes_disp).isdigit():
+        mes_disp = int(mes_disp)
+    else:
+        mes_disp = None
+
+    # Días del período
+    if mes_disp:
+        dias_periodo = monthrange(anio_disp, mes_disp)[1]
+    else:
+        dias_periodo = 366 if (anio_disp % 4 == 0 and (anio_disp % 100 != 0 or anio_disp % 400 == 0)) else 365
+
+    fecha_desde_disp, fecha_hasta_disp = rango_fechas_reporte(anio_disp, mes_disp)
+    vehiculos_disp = Vehiculo.objects.all().order_by('patente')
+    v_ids_disp = [v.id for v in vehiculos_disp]
+    frecuencia_map = frecuencia_fallas_por_vehiculo(v_ids_disp, fecha_desde_disp, fecha_hasta_disp)
+    indisp_prom_map = promedio_dias_indisponibilidad_por_vehiculo(v_ids_disp, fecha_desde_disp, fecha_hasta_disp)
+
+    reporte_disponibilidad = []
+    for vehiculo in vehiculos_disp:
+        mantenimientos = Mantenimiento.objects.filter(vehiculo=vehiculo)
+        if mes_disp:
+            mantenimientos = mantenimientos.filter(fecha_ingreso__year=anio_disp, fecha_ingreso__month=mes_disp)
+        else:
+            mantenimientos = mantenimientos.filter(fecha_ingreso__year=anio_disp)
+
+        total_dias_fuera = 0
+        for mant in mantenimientos:
+            if mant.fecha_salida:
+                dias = (mant.fecha_salida - mant.fecha_ingreso).days
+                total_dias_fuera += max(0, dias)
+
+        incidentes = FallaReportada.objects.filter(vehiculo=vehiculo).count()
+        dias_disponibles = max(0, dias_periodo - total_dias_fuera)
+
+        reporte_disponibilidad.append({
+            'vehiculo': vehiculo,
+            'patente': vehiculo.patente,
+            'marca_modelo': f"{vehiculo.marca} {vehiculo.modelo}",
+            'dias_fuera_servicio': total_dias_fuera,
+            'dias_disponibles': dias_disponibles,
+            'dias_periodo': dias_periodo,
+            'incidentes': incidentes,
+            'estado': vehiculo.get_estado_display(),
+            'frecuencia_fallas': frecuencia_map.get(vehiculo.id, 'N/A'),
+            'promedio_indisponibilidad': indisp_prom_map.get(vehiculo.id, 'N/A'),
+        })
+
+    return render(request, 'flota/reportes.html', {
         'reporte': reporte_costos_data,
         'reporte_variacion': reporte_variacion,
         'alertas_variacion': alertas_variacion,
         'anio': anio,
+        'anio_costos': anio_costos,
         'anios_disponibles': anios_disponibles,
         'active_tab': active_tab,
         'tab_manager': tab_manager,
         'graficos_json': graficos_json,
         'tipo_mantencion': tipo_mant,
         'vehiculos': vehiculos,
-        'vehiculo_filter': request.GET.get('vehiculo', ''),
+        'vehiculo_filter': vehiculo_filter,
+        # Datos de disponibilidad
+        'reporte_disponibilidad': reporte_disponibilidad,
+        'anio_disp': anio_disp,
+        'mes_disp': mes_disp,
+        'dias_periodo_disp': dias_periodo,
     })
-
+    
 
 # RF_25: Generar reporte de disponibilidad (disponibilidad efectiva: días disponibles en período)
 @login_required
@@ -305,6 +407,11 @@ def reporte_disponibilidad(request):
     else:
         dias_periodo = 366 if (anio % 4 == 0 and (anio % 100 != 0 or anio % 400 == 0)) else 365
     
+    fecha_desde_d, fecha_hasta_d = rango_fechas_reporte(anio, mes)
+    v_ids = list(vehiculos.values_list('id', flat=True))
+    frecuencia_map = frecuencia_fallas_por_vehiculo(v_ids, fecha_desde_d, fecha_hasta_d)
+    indisp_prom_map = promedio_dias_indisponibilidad_por_vehiculo(v_ids, fecha_desde_d, fecha_hasta_d)
+
     reporte = []
     for vehiculo in vehiculos:
         mantenimientos = Mantenimiento.objects.filter(vehiculo=vehiculo)
@@ -333,6 +440,8 @@ def reporte_disponibilidad(request):
             'incidentes': incidentes,
             'estado': vehiculo.get_estado_display(),
             'vehiculo': vehiculo,
+            'frecuencia_fallas': frecuencia_map.get(vehiculo.id, 'N/A'),
+            'promedio_indisponibilidad': indisp_prom_map.get(vehiculo.id, 'N/A'),
         })
     
     if request.GET.get('exportar') == 'excel':
@@ -342,6 +451,8 @@ def reporte_disponibilidad(request):
             ('Días Fuera de Servicio', 'dias_fuera_servicio', 'entero'),
             ('Días Disponibles (disponibilidad efectiva)', 'dias_disponibles', 'entero'),
             ('Número de Incidentes', 'incidentes', 'entero'),
+            ('Frec. fallas /10.000 km', 'frecuencia_fallas', 'texto'),
+            ('Prom. días indisponibilidad', 'promedio_indisponibilidad', 'texto'),
             ('Estado Actual', 'estado', 'texto'),
         ]
         return exportar_reporte_excel(

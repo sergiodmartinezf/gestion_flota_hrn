@@ -131,35 +131,14 @@ function validarFortalezaPassword(password, campo = 'contraseña', mostrarAlerta
     
     if (!password) {
         errores.push(`La ${campo} es obligatoria`);
+    } else if (password.trim() === '') {
+        errores.push(`La ${campo} no puede estar compuesta solo por espacios`);
     } else {
-        // Mínimo 8 caracteres
-        if (password.length < 8) {
-            errores.push(`La ${campo} debe tener al menos 8 caracteres`);
+        if (password.length < 4) {
+            errores.push(`La ${campo} debe tener al menos 4 caracteres`);
         }
-        
-        // Al menos una mayúscula
-        if (!/[A-Z]/.test(password)) {
-            errores.push(`La ${campo} debe contener al menos una letra mayúscula (A-Z)`);
-        }
-        
-        // Al menos una minúscula
-        if (!/[a-z]/.test(password)) {
-            errores.push(`La ${campo} debe contener al menos una letra minúscula (a-z)`);
-        }
-        
-        // Al menos un número
         if (!/[0-9]/.test(password)) {
             errores.push(`La ${campo} debe contener al menos un número (0-9)`);
-        }
-        
-        // Al menos un símbolo especial (lista más completa)
-        if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?~`]/.test(password)) {
-            errores.push(`La ${campo} debe contener al menos un símbolo especial (ej: !@#$%^&*)`);
-        }
-        
-        // Opcional: Validar caracteres no permitidos
-        if (/[áéíóúÁÉÍÓÚñÑ]/.test(password)) {
-            errores.push(`La ${campo} no debe contener caracteres acentuados ni la letra ñ`);
         }
     }
     

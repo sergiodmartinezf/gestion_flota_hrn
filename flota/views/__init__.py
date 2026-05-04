@@ -72,7 +72,7 @@ from .presupuesto import (
 
 # Importar vistas de reportes
 from .reportes import (
-    reporte_costos,
+    reportes,
     reporte_disponibilidad,
     reporte_historial_unidad
 )
@@ -182,7 +182,7 @@ __all__ = [
     'reporte_variacion_presupuestaria',
     
     # Reportes
-    'reporte_costos',
+    'reportes',
     'reporte_disponibilidad',
     'reporte_historial_unidad',
     

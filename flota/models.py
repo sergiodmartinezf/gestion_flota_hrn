@@ -954,10 +954,6 @@ class Viaje(models.Model):
     hora_salida_hbo = models.TimeField(null=True, blank=True, verbose_name="Hora Salida HBO")
     hora_llegada_hbo = models.TimeField(null=True, blank=True, verbose_name="Hora Llegada HBO")
     
-    # Categorización del Viaje
-    categoria_traslado = models.CharField(max_length=20, choices=TIPO_TRASLADO_CATEGORIA)
-    detalle_origen_alta = models.CharField(max_length=20, choices=ORIGEN_ALTA, blank=True, null=True, verbose_name="Origen del Alta")
-    
     observaciones = models.TextField(blank=True, null=True)
     
     creado_en = models.DateTimeField(auto_now_add=True)
@@ -1023,6 +1019,18 @@ class PacienteTraslado(models.Model):
     )
     nombre = models.CharField(max_length=150)
     rut = models.CharField(max_length=12, blank=True, null=True)
+
+    categoria_traslado = models.CharField(
+        max_length=20, choices=TIPO_TRASLADO_CATEGORIA, default='Administrativo'
+    )
+    detalle_origen_alta = models.CharField(
+        max_length=20, choices=ORIGEN_ALTA, blank=True, null=True, verbose_name="Origen del Alta"
+    )
+    sentido = models.CharField(
+        max_length=10,
+        choices=[('IDA', 'Ida'), ('REGRESO', 'Regreso')],
+        default='IDA',
+    )
     
     # Requerimiento: Cada paciente tiene su destino y tipo de servicio
     destino_tipo = models.CharField(max_length=20, choices=DESTINOS_COMUNES)

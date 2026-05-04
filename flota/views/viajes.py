@@ -158,7 +158,11 @@ def agregar_viaje(request, id):
 
     if request.method == 'POST':
         form = ViajeForm(request.POST, vehiculo_tipo=vehiculo_tipo)
-        paciente_formset = PacienteFormSet(request.POST, request.FILES)
+        paciente_formset = PacienteFormSet(
+            request.POST,
+            request.FILES,
+            form_kwargs={'vehiculo_tipo': vehiculo_tipo},
+        )
 
         if form.is_valid():
             viaje = form.save(commit=False)
@@ -209,22 +213,17 @@ def agregar_viaje(request, id):
             pass
 
     else:
-        initial_data = {
-            'km_salida': km_sugerido,
-            'km_llegada': km_sugerido + 1 if km_sugerido is not None else None
-        }
-        form = ViajeForm(initial=initial_data, vehiculo_tipo=vehiculo_tipo)
-        paciente_formset = PacienteFormSet(queryset=PacienteTraslado.objects.none())
-
-    # Para GET también asignamos km_llegada sugerido
-    if request.method == 'GET':
         km_sugerido = ultimo_viaje.km_llegada if ultimo_viaje and ultimo_viaje.km_llegada else hoja.km_inicio
         initial_data = {
             'km_salida': km_sugerido,
             'km_llegada': km_sugerido + 1 if km_sugerido is not None else None,
-            'hora_salida': timezone.now().strftime('%H:%M')
+            'hora_salida': timezone.now().strftime('%H:%M'),
         }
-        form = ViajeForm(initial=initial_data)
+        form = ViajeForm(initial=initial_data, vehiculo_tipo=vehiculo_tipo)
+        paciente_formset = PacienteFormSet(
+            queryset=PacienteTraslado.objects.none(),
+            form_kwargs={'vehiculo_tipo': vehiculo_tipo},
+        )
 
     pacientes_anteriores = PacienteViaje.objects.all().order_by('nombre')[:300]
     km_actual_vehiculo = hoja.vehiculo.kilometraje_actual
@@ -540,7 +539,7 @@ def exportar_consolidado_viajes(request):
 
     headers = [
         'Fecha', 'Vehículo', 'Conductor', 'Turno', 'Hora Salida', 'Hora Llegada',
-        'Destino', 'Paciente', 'RUT Paciente', 'Tipo Servicio', 'Kms Viaje'
+        'Destino', 'Paciente', 'RUT Paciente', 'Categoría Traslado', 'Sentido', 'Kms Viaje'
     ]
     for col_num, header in enumerate(headers, 1):
         cell = ws.cell(row=1, column=col_num, value=header)
@@ -568,8 +567,9 @@ def exportar_consolidado_viajes(request):
             ws.cell(row=row_num, column=7, value='-')
             ws.cell(row=row_num, column=8, value='Sin pacientes')
             ws.cell(row=row_num, column=9, value='')
-            ws.cell(row=row_num, column=10, value='')
-            ws.cell(row=row_num, column=11, value=km_viaje)
+            ws.cell(row=row_num, column=10, value='-')
+            ws.cell(row=row_num, column=11, value='-')
+            ws.cell(row=row_num, column=12, value=km_viaje)
             row_num += 1
         else:
             for p in pacientes:
@@ -585,8 +585,9 @@ def exportar_consolidado_viajes(request):
                 ws.cell(row=row_num, column=7, value=destino_display)
                 ws.cell(row=row_num, column=8, value=p.nombre)
                 ws.cell(row=row_num, column=9, value=p.rut or '')
-                ws.cell(row=row_num, column=10, value=p.prevision or '')
-                ws.cell(row=row_num, column=11, value=km_viaje)
+                ws.cell(row=row_num, column=10, value=p.get_categoria_traslado_display())
+                ws.cell(row=row_num, column=11, value=p.get_sentido_display())
+                ws.cell(row=row_num, column=12, value=km_viaje)
                 row_num += 1
 
     response = HttpResponse(

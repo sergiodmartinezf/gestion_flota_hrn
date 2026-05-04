@@ -25,8 +25,8 @@ class HojaRutaAdmin(admin.ModelAdmin):
 
 @admin.register(Viaje)
 class ViajeAdmin(admin.ModelAdmin):
-    list_display = ('id', 'hoja_ruta', 'hora_salida', 'categoria_traslado')
-    list_filter = ('categoria_traslado', 'hoja_ruta__fecha')
+    list_display = ('id', 'hoja_ruta', 'hora_salida')
+    list_filter = ('hoja_ruta__fecha',)
     inlines = [ViajePacienteInline]
 
 @admin.register(PacienteViaje)
@@ -38,8 +38,8 @@ class PacienteViajeAdmin(admin.ModelAdmin):
 
 @admin.register(PacienteTraslado)
 class PacienteTrasladoAdmin(admin.ModelAdmin):
-    list_display = ('viaje', 'nombre', 'rut', 'destino_tipo', 'prevision', 'paciente_viaje')
-    list_filter = ('destino_tipo',)
+    list_display = ('viaje', 'nombre', 'rut', 'categoria_traslado', 'sentido', 'destino_tipo', 'prevision', 'paciente_viaje')
+    list_filter = ('destino_tipo', 'categoria_traslado', 'sentido')
     search_fields = ('nombre', 'rut')
 
 @admin.register(CargaCombustible)

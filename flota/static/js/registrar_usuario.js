@@ -10,14 +10,13 @@ document.addEventListener('DOMContentLoaded', function() {
     const passwordConfirmId = form.dataset.passwordConfirmId;
     const esNuevoUsuario = form.dataset.esNuevoUsuario === 'true';
 
-    // Referencias a los inputs
-    const nombreInput = document.getElementById('{{ form.nombre.id_for_label }}');
-    const apellidoInput = document.getElementById('{{ form.apellido.id_for_label }}');
-    const emailInput = document.getElementById('{{ form.email.id_for_label }}');
+    const nombreInput = form.querySelector('[name="nombre"]');
+    const apellidoInput = form.querySelector('[name="apellido"]');
+    const emailInput = form.querySelector('[name="email"]');
     const passwordInput = document.getElementById(passwordId);
     const passwordConfirmInput = document.getElementById(passwordConfirmId);
-    const rolSelect = document.getElementById('{{ form.rol.id_for_label }}');
-    const activoCheck = document.getElementById('{{ form.activo.id_for_label }}');
+    const rolSelect = form.querySelector('[name="rol"]');
+    const activoCheck = form.querySelector('[name="activo"]');
 
     // Si alguno de los campos críticos no existe, abortar
     if (!nombreInput || !apellidoInput || !emailInput || !passwordInput || !passwordConfirmInput) return;
@@ -72,11 +71,8 @@ document.addEventListener('DOMContentLoaded', function() {
         if (trimmed === '') {
             errores.push('La contraseña no puede estar compuesta solo por espacios.');
         } else {
-            if (password.length < 8) errores.push('La contraseña debe tener al menos 8 caracteres.');
-            if (!/[A-Z]/.test(password)) errores.push('Debe contener al menos una letra mayúscula.');
-            if (!/[a-z]/.test(password)) errores.push('Debe contener al menos una letra minúscula.');
-            if (!/[0-9]/.test(password)) errores.push('Debe contener al menos un número.');
-            if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)) errores.push('Debe contener al menos un símbolo especial.');
+            if (password.length < 4) errores.push('La contraseña debe tener al menos 4 caracteres.');
+            if (!/[0-9]/.test(password)) errores.push('La contraseña debe contener al menos un número.');
         }
         return errores;
     }

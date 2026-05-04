@@ -79,16 +79,6 @@
                                 <label>KM Llegada</label>
                                 {{ form.km_llegada }}
                             </div>
-                            
-                            <div class="col-md-6" id="categoria-container">
-                                <label>Categoría de Traslado</label>
-                                {{ form.categoria_traslado }}
-                            </div>
-                            
-                            <div class="col-md-6" id="container-origen-alta" style="display:none;">
-                                <label class="text-primary">Especifique Origen Alta</label>
-                                {{ form.detalle_origen_alta }}
-                            </div>
 
                             <div class="col-12">
                                 <label>Observaciones generales</label>
@@ -183,6 +173,21 @@
                                             {{ form_paciente.prevision }}
                                         </div>
                                     </div>
+
+                                    <div class="row g-2 mt-1 align-items-end fila-categoria-paciente">
+                                        <div class="col-md-4">
+                                            <label class="small">Categoría traslado</label>
+                                            {{ form_paciente.categoria_traslado }}
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label class="small">Sentido</label>
+                                            {{ form_paciente.sentido }}
+                                        </div>
+                                        <div class="col-md-4 container-origen-alta" style="display:none;">
+                                            <label class="small text-primary">Origen del alta</label>
+                                            {{ form_paciente.detalle_origen_alta }}
+                                        </div>
+                                    </div>
                                     
                                     <!-- Botón Quitar solo para nuevos pacientes -->
                                     {% if not form_paciente.instance.pk %}
@@ -237,6 +242,34 @@
                                             <input type="text" name="pacientes-__prefix__-prevision" class="form-control paciente-prevision" maxlength="50">
                                         </div>
                                     </div>
+                                    <div class="row g-2 mt-1 align-items-end fila-categoria-paciente">
+                                        <div class="col-md-4">
+                                            <label class="small">Categoría traslado</label>
+                                            <select name="pacientes-__prefix__-categoria_traslado" class="form-select categoria-traslado-select">
+                                                <option value="PRIMARIO">Traslado Primario (Lugar del evento -&gt; Urgencia)</option>
+                                                <option value="SECUNDARIO">Traslado Secundario (Urgencia -&gt; Hospital Base/Red)</option>
+                                                <option value="OTROS">Otros Traslados (Rescates, Exámenes, Especialista)</option>
+                                                <option value="ALTA">Altas</option>
+                                                <option value="Administrativo" selected>Administrativo</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label class="small">Sentido</label>
+                                            <select name="pacientes-__prefix__-sentido" class="form-select sentido-select">
+                                                <option value="IDA" selected>Ida</option>
+                                                <option value="REGRESO">Regreso</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-md-4 container-origen-alta" style="display:none;">
+                                            <label class="small text-primary">Origen del alta</label>
+                                            <select name="pacientes-__prefix__-detalle_origen_alta" class="form-select detalle-origen-alta-select">
+                                                <option value="">---------</option>
+                                                <option value="URGENCIA">Desde Servicio de Urgencia</option>
+                                                <option value="HOSPITALIZADO">Desde Hospitalizado</option>
+                                                <option value="HBO">Desde Hospital Base Osorno</option>
+                                            </select>
+                                        </div>
+                                    </div>
                                     <button type="button" class="btn btn-sm btn-outline-danger mt-2 remove-paciente">Quitar</button>
                                 </div>
                             </div>
@@ -256,7 +289,11 @@
                 <ul class="list-group list-group-flush">
                     {% for v in ultimos_viajes %}
                     <li class="list-group-item">
-                        <strong>{{ v.hora_salida }}</strong> - {{ v.get_categoria_traslado_display }}<br>
+                        <strong>{{ v.hora_salida }}</strong>
+                        {% with p=v.pacientes.first %}
+                            {% if p %} — {{ p.get_categoria_traslado_display }}{% endif %}
+                        {% endwith %}
+                        <br>
                         <small>{{ v.get_pacientes_str }}</small>
                     </li>
                     {% endfor %}
@@ -296,27 +333,8 @@
 <script src="{% static 'js/formateador_rut.js' %}"></script>
 <script src="{% static 'js/registrar_viaje.js' %}"></script>
 <script>
-    // Lógica específica para vehículos tipo Camioneta (ocultar campos no aplicables)
     (function() {
-        const esCamioneta = (window.tipoVehiculo === 'Camioneta');
-        if (!esCamioneta) return;
-
-        // 1. Fijar categoría de traslado a 'Administrativo' y deshabilitar
-        const catSelect = document.getElementById('id_categoria_traslado');
-        if (catSelect) {
-            catSelect.value = 'Administrativo';
-            catSelect.disabled = true;
-        }
-
-        // 2. Ocultar bloque de Origen del Alta
-        const altaContainer = document.getElementById('container-origen-alta');
-        if (altaContainer) {
-            altaContainer.style.display = 'none';
-            const altaSelect = document.getElementById('id_detalle_origen_alta');
-            if (altaSelect) altaSelect.removeAttribute('required');
-        }
-
-        // 3. Ocultar bloque de Horas HBO y quitar required
+        if (window.tipoVehiculo !== 'Camioneta') return;
         const hboContainer = document.getElementById('hbo-horas-container');
         if (hboContainer) {
             hboContainer.style.display = 'none';
@@ -325,8 +343,6 @@
             if (horaSalida) horaSalida.removeAttribute('required');
             if (horaLlegada) horaLlegada.removeAttribute('required');
         }
-
-        // 4. Deshabilitar la opción 'HBO' en todos los selects de destino
         const deshabilitarHBO = function() {
             const suffix = ' (no disponible)';
             document.querySelectorAll('.destino-selector').forEach(select => {
@@ -334,16 +350,17 @@
                     if (option.value === 'HBO' && !option.hasAttribute('data-disabled')) {
                         option.disabled = true;
                         option.setAttribute('data-disabled', 'true');
-                        // Solo añade el sufijo la primera vez
                         option.textContent += suffix;
                     }
                 });
             });
         };
         deshabilitarHBO();
-        // También cuando se agregue un nuevo paciente (mediante MutationObserver)
-        const observer = new MutationObserver(deshabilitarHBO);
-        observer.observe(document.getElementById('pacientes-container'), { childList: true, subtree: true });
+        const pacDiv = document.getElementById('pacientes-container');
+        if (pacDiv) {
+            const observer = new MutationObserver(deshabilitarHBO);
+            observer.observe(pacDiv, { childList: true, subtree: true });
+        }
     })();
 </script>
 {% endblock %}

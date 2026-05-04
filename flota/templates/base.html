@@ -69,7 +69,7 @@
                         <li><a href="{% url 'listar_ordenes_compra' %}"><i class="bi bi-cart-check"></i> Órdenes de Compra</a></li>
                         <li><a href="{% url 'listar_ordenes_trabajo' %}"><i class="bi bi-wrench"></i> Órdenes de Trabajo</a></li>
                         <li><a href="{% url 'alertas' %}"><i class="bi bi-bell"></i> Alertas {% if user.is_authenticated %}<span id="alertas-badge" class="badge bg-danger" style="display: none;"></span>{% endif %}</a></li>
-                        <li><a href="{% url 'reporte_costos' %}"><i class="bi bi-graph-up"></i> Reportes</a></li>
+                        <li><a href="{% url 'reportes' %}"><i class="bi bi-graph-up"></i> Reportes</a></li>
                     
                         {% endif %}
                         <hr>

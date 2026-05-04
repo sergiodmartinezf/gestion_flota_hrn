@@ -100,6 +100,7 @@
                                 <th>Destino(s)</th>
                                 <th>Paciente(s)</th>
                                 <th>Tipo servicio</th>
+                                <th>Categoría / Sentido</th>
                                 <th>KM Salida</th>
                                 <th>KM Llegada</th>
                                 <th>KM Recorridos</th>
@@ -133,6 +134,13 @@
                                             -
                                         {% endfor %}
                                     </td>
+                                    <td>
+                                        {% for p in viaje.pacientes.all %}
+                                            <span class="d-block small">{{ p.get_categoria_traslado_display }} · {{ p.get_sentido_display }}</span>
+                                        {% empty %}
+                                            -
+                                        {% endfor %}
+                                    </td>
                                     <td>{{ viaje.km_salida|km }} km</td>
                                     <td>{{ viaje.km_llegada|km|default:"-" }} km</td>
                                     <td><strong class="text-success">{{ viaje.km_recorridos_calculados|km }} km</strong></td>
@@ -141,7 +149,7 @@
                         </tbody>
                         <tfoot>
                             <tr class="table-active">
-                                <td colspan="7" class="text-end"><strong>Total KM Recorridos:</strong></td>
+                                <td colspan="8" class="text-end"><strong>Total KM Recorridos:</strong></td>
                                 <td><strong class="text-success">{{ total_km_viajes|km }} km</strong></td>
                             </tr>
                         </tfoot>

@@ -62,7 +62,7 @@ urlpatterns = [
     path('presupuestos/deshabilitar/<int:id>/', views.deshabilitar_presupuesto, name='deshabilitar_presupuesto'),
     
     # Reportes (RF_24-25, 28) y Panel de control
-    path('reportes/costos/', views.reporte_costos, name='reporte_costos'),
+    path('reportes/', views.reportes, name='reportes'),
     path('reportes/disponibilidad/', views.reporte_disponibilidad, name='reporte_disponibilidad'),
     path('reportes/historial/<str:patente>/', views.reporte_historial_unidad, name='reporte_historial_unidad'),
     
