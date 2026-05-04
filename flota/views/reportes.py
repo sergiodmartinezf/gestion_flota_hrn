@@ -17,6 +17,24 @@ from ..indicadores import (
     rango_fechas_reporte,
 )
 
+from ..constants import MANTENIMIENTO_CUENTAS_MAP
+
+
+def obtener_cuentas_por_tipo_mantencion(tipo_mantencion):
+    """
+    Retorna lista de IDs de CuentaPresupuestaria que corresponden al tipo de mantenimiento.
+    Si tipo_mantencion es None o vacío, retorna todos los IDs (1,2,3,4).
+    """
+    if not tipo_mantencion:
+        # Todos los IDs posibles (según tu mapeo)
+        return [1, 2, 3, 4]
+    
+    cuentas_ids = set()
+    for (tipo, _), ids in MANTENIMIENTO_CUENTAS_MAP.items():
+        if tipo == tipo_mantencion:
+            cuentas_ids.update(ids)
+    return list(cuentas_ids)
+
 
 class ReporteCalculos:
     """Clase para cálculos reutilizables"""
@@ -59,18 +77,25 @@ class ReporteCalculos:
         """
         Calcula la variación presupuestaria para un año dado.
         tipo_mantencion puede ser 'Preventivo', 'Correctivo' o None (ambos).
+        Ahora filtra los presupuestos según el tipo, mostrando solo las cuentas correspondientes.
         """
-        presupuestos = Presupuesto.objects.filter(anio=anio, activo=True).select_related('cuenta')
+        # 1. Obtener IDs de cuentas según el tipo de mantenimiento
+        cuentas_ids = obtener_cuentas_por_tipo_mantencion(tipo_mantencion)
+        
+        # 2. Filtrar presupuestos por año y por las cuentas permitidas
+        presupuestos = Presupuesto.objects.filter(anio=anio, cuenta_id__in=cuentas_ids).select_related('cuenta')
+        
         reporte = []
         alertas = []
 
         for presupuesto in presupuestos:
-            # Construir filtro base
+            # Construir filtro base para mantenimientos
             filtros = {
                 'cuenta_presupuestaria': presupuesto.cuenta,
                 'fecha_ingreso__year': anio,
+                'estado': 'Finalizado'
             }
-            if tipo_mantencion:  # 'Preventivo' o 'Correctivo'
+            if tipo_mantencion:
                 filtros['tipo_mantencion'] = tipo_mantencion
 
             monto_ejecutado = Mantenimiento.objects.filter(**filtros).aggregate(
@@ -92,6 +117,7 @@ class ReporteCalculos:
                 'porcentaje_variacion': porcentaje_variacion,
                 'porcentaje_ejecutado': (monto_ejecutado / presupuesto.monto_asignado * 100) if presupuesto.monto_asignado > 0 else 0,
                 'tiene_alerta': tiene_alerta,
+                'activo': presupuesto.activo,
             }
             reporte.append(item)
             if tiene_alerta:
@@ -99,6 +125,7 @@ class ReporteCalculos:
 
         return reporte, alertas
 
+    
     @staticmethod
     def obtener_datos_graficos_costos():
         vehiculos = Vehiculo.objects.all()
@@ -149,6 +176,20 @@ class TabManager:
             else:
                 query_dict[key] = value
         return f"?{query_dict.urlencode()}"
+
+
+def obtener_anios_disponibles_disponibilidad():
+    """
+    Retorna lista de años únicos ordenados descendente que tengan
+    al menos un mantenimiento o falla reportada.
+    """
+    years_mant = Mantenimiento.objects.dates('fecha_ingreso', 'year').values_list('fecha_ingreso__year', flat=True).distinct()
+    years_falla = FallaReportada.objects.dates('fecha_reporte', 'year').values_list('fecha_reporte__year', flat=True).distinct()
+    anios = sorted(set(list(years_mant) + list(years_falla)), reverse=True)
+    # Si no hay ningún dato, al menos mostrar el año actual para permitir búsqueda
+    if not anios:
+        anios = [datetime.now().year]
+    return anios
 
 
 def exportar_costos_excel(request):
@@ -231,6 +272,66 @@ def exportar_variacion_excel(anio, tipo_mantencion=None):
     )
 
 
+def exportar_disponibilidad_excel(request, anio_disp, mes_disp):
+    """Exporta el reporte de disponibilidad a Excel."""
+    from calendar import monthrange
+    if mes_disp:
+        dias_periodo = monthrange(anio_disp, mes_disp)[1]
+    else:
+        dias_periodo = 366 if (anio_disp % 4 == 0 and (anio_disp % 100 != 0 or anio_disp % 400 == 0)) else 365
+
+    fecha_desde, fecha_hasta = rango_fechas_reporte(anio_disp, mes_disp)
+    vehiculos = Vehiculo.objects.all().order_by('patente')
+    v_ids = [v.id for v in vehiculos]
+    frecuencia_map = frecuencia_fallas_por_vehiculo(v_ids, fecha_desde, fecha_hasta)
+    indisp_prom_map = promedio_dias_indisponibilidad_por_vehiculo(v_ids, fecha_desde, fecha_hasta)
+
+    datos = []
+    for vehiculo in vehiculos:
+        mantenimientos = Mantenimiento.objects.filter(vehiculo=vehiculo)
+        if mes_disp:
+            mantenimientos = mantenimientos.filter(fecha_ingreso__year=anio_disp, fecha_ingreso__month=mes_disp)
+        else:
+            mantenimientos = mantenimientos.filter(fecha_ingreso__year=anio_disp)
+
+        total_dias_fuera = 0
+        for mant in mantenimientos:
+            if mant.fecha_salida:
+                dias = (mant.fecha_salida - mant.fecha_ingreso).days
+                total_dias_fuera += max(0, dias)
+
+        incidentes = FallaReportada.objects.filter(vehiculo=vehiculo).count()
+        dias_disponibles = max(0, dias_periodo - total_dias_fuera)
+
+        datos.append({
+            'patente': vehiculo.patente,
+            'marca_modelo': f"{vehiculo.marca} {vehiculo.modelo}",
+            'dias_fuera_servicio': total_dias_fuera,
+            'dias_disponibles': dias_disponibles,
+            'incidentes': incidentes,
+            'frecuencia_fallas': frecuencia_map.get(vehiculo.id, 'N/A'),
+            'promedio_indisponibilidad': indisp_prom_map.get(vehiculo.id, 'N/A'),
+            'estado': vehiculo.get_estado_display(),
+        })
+
+    columnas = [
+        ('Vehículo', 'patente', 'texto'),
+        ('Marca/Modelo', 'marca_modelo', 'texto'),
+        ('Días Fuera de Servicio', 'dias_fuera_servicio', 'entero'),
+        ('Días Disponibles', 'dias_disponibles', 'entero'),
+        ('Número de Incidentes', 'incidentes', 'entero'),
+        ('Frec. fallas /10.000 km', 'frecuencia_fallas', 'texto'),
+        ('Prom. días indisponibilidad', 'promedio_indisponibilidad', 'texto'),
+        ('Estado Actual', 'estado', 'texto'),
+    ]
+    return exportar_reporte_excel(
+        f'Reporte de Disponibilidad {anio_disp}{f" - Mes {mes_disp}" if mes_disp else ""}',
+        datos,
+        columnas,
+        f'reporte_disponibilidad_{anio_disp}_{datetime.now().strftime("%Y%m%d")}.xlsx'
+    )
+
+
 @login_required
 def reportes(request):  # antes se llamaba reporte_costos
     """Vista principal unificada - incluye costos, variación, dashboard y disponibilidad"""
@@ -267,10 +368,19 @@ def reportes(request):  # antes se llamaba reporte_costos
     tab_manager = TabManager(request)
 
     # ========== Pestaña COSTOS ==========
+    # Validar que anio_costos esté en anios_disponibles
+    anios_disponibles = sorted(Presupuesto.objects.values_list('anio', flat=True).distinct(), reverse=True)
+    if not anios_disponibles:
+        anios_disponibles = [datetime.now().year]  # fallback
+
     try:
-        anio_costos = int(request.GET.get('anio', datetime.now().year))
+        anio_costos = int(request.GET.get('anio', anios_disponibles[0]))
     except (TypeError, ValueError):
-        anio_costos = datetime.now().year
+        anio_costos = anios_disponibles[0]
+
+    if anio_costos not in anios_disponibles:
+        anio_costos = anios_disponibles[0]
+
     fecha_desde_c, fecha_hasta_c = rango_fechas_reporte(anio_costos, None)
 
     vehiculos = Vehiculo.objects.all().order_by('patente')
@@ -292,11 +402,15 @@ def reportes(request):  # antes se llamaba reporte_costos
         })
 
     # ========== Pestaña VARIACIÓN PRESUPUESTARIA ==========
-    anio = request.GET.get('anio', datetime.now().year)
+    anio = request.GET.get('anio')
     try:
-        anio = int(anio)
+        anio = int(anio) if anio else anios_disponibles[0]
     except ValueError:
-        anio = datetime.now().year
+        anio = anios_disponibles[0]
+
+    if anio not in anios_disponibles:
+        anio = anios_disponibles[0]
+
     tipo_mant = request.GET.get('tipo_mantencion', '')
     vehiculo_filter = request.GET.get('vehiculo', '')
     
@@ -305,23 +419,24 @@ def reportes(request):  # antes se llamaba reporte_costos
     # Años disponibles
     anio_actual = datetime.now().year
     anios_con_presupuestos = list(Presupuesto.objects.values_list('anio', flat=True).distinct())
-    anios_disponibles = sorted(set([anio_actual] + anios_con_presupuestos), reverse=True)
+    anios_disponibles = sorted(Presupuesto.objects.values_list('anio', flat=True).distinct(), reverse=True)
 
     # ========== Datos para gráficos (dashboard) ==========
     datos_graficos = ReporteCalculos.obtener_datos_graficos_costos()
     graficos_json = json.dumps(datos_graficos)
 
     # ========== Pestaña DISPONIBILIDAD ==========
-    anio_disp = request.GET.get('anio_disp', str(datetime.now().year))
-    mes_disp = request.GET.get('mes_disp')
+    anios_disponibles_disp = obtener_anios_disponibles_disponibilidad()
+    anio_disp = request.GET.get('anio_disp')
     try:
-        anio_disp = int(anio_disp)
-    except ValueError:
-        anio_disp = datetime.now().year
-    if mes_disp and str(mes_disp).isdigit():
-        mes_disp = int(mes_disp)
-    else:
-        mes_disp = None
+        anio_disp = int(anio_disp) if anio_disp else anios_disponibles_disp[0]
+    except (TypeError, ValueError):
+        anio_disp = anios_disponibles_disp[0]
+
+    if anio_disp not in anios_disponibles_disp:
+        anio_disp = anios_disponibles_disp[0]
+
+    mes_disp = request.GET.get('mes_disp')
 
     # Días del período
     if mes_disp:
@@ -380,6 +495,7 @@ def reportes(request):  # antes se llamaba reporte_costos
         'vehiculo_filter': vehiculo_filter,
         # Datos de disponibilidad
         'reporte_disponibilidad': reporte_disponibilidad,
+        'anios_disponibles_disp': anios_disponibles_disp,
         'anio_disp': anio_disp,
         'mes_disp': mes_disp,
         'dias_periodo_disp': dias_periodo,

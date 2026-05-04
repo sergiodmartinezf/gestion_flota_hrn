@@ -256,9 +256,14 @@
          role="tabpanel">
         <form method="get" class="row g-3 mb-4">
             <input type="hidden" name="tab" value="disponibilidad">
+            <!-- Dentro de la pestaña disponibilidad, reemplaza el div del año -->
             <div class="col-md-2">
                 <label for="anio_disp" class="form-label">Año</label>
-                <input type="number" name="anio_disp" id="anio_disp" class="form-control" value="{{ anio_disp|unlocalize }}" min="2020" max="2099">
+                <select name="anio_disp" id="anio_disp" class="form-select">
+                    {% for year in anios_disponibles_disp %}
+                        <option value="{{ year|unlocalize }}" {% if year == anio_disp %}selected{% endif %}>{{ year|unlocalize }}</option>
+                    {% endfor %}
+                </select>
             </div>
             <div class="col-md-2">
                 <label for="mes_disp" class="form-label">Mes</label>
