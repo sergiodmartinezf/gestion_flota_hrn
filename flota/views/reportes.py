@@ -437,6 +437,13 @@ def reportes(request):  # antes se llamaba reporte_costos
         anio_disp = anios_disponibles_disp[0]
 
     mes_disp = request.GET.get('mes_disp')
+    # Convertir mes a entero si es válido
+    if mes_disp and mes_disp.isdigit():
+        mes_disp = int(mes_disp)
+        if not (1 <= mes_disp <= 12):
+            mes_disp = None
+    else:
+        mes_disp = None
 
     # Días del período
     if mes_disp:

@@ -111,7 +111,7 @@ python manage.py migrate
 
 8. Crear datos iniciales (opcional):
 ```bash
-python manage.py crear_datos_iniciales
+python manage.py datos_base
 ```
 
 9. Crear superusuario administrador:
