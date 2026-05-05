@@ -9,12 +9,13 @@ import json
 
 from django.utils import timezone as tz
 from ..models import Vehiculo, Mantenimiento, CargaCombustible, Arriendo, Presupuesto, FallaReportada, HojaRuta, Alerta, PacienteTraslado
-from ..utils import exportar_reporte_excel
+from ..utils import exportar_reporte_excel, MESES
 from ..indicadores import (
     frecuencia_fallas_por_vehiculo,
     indicadores_costos_combustible,
     promedio_dias_indisponibilidad_por_vehiculo,
     rango_fechas_reporte,
+    km_totales_por_vehiculo,
 )
 
 from ..constants import MANTENIMIENTO_CUENTAS_MAP
@@ -40,26 +41,45 @@ class ReporteCalculos:
     """Clase para cálculos reutilizables"""
     
     @staticmethod
-    def calcular_costos_vehiculo(vehiculo):
-        mantenimientos = Mantenimiento.objects.filter(vehiculo=vehiculo)
-        costo_mantenimientos = mantenimientos.aggregate(
+    def calcular_costos_vehiculo(vehiculo, fecha_desde=None, fecha_hasta=None):
+        """
+        Calcula costos de mantenimiento, combustible y arriendos.
+        Si se proporcionan fechas, filtra por ese período.
+        """
+        # Mantenimientos
+        mantenimientos_qs = Mantenimiento.objects.filter(vehiculo=vehiculo)
+        if fecha_desde:
+            mantenimientos_qs = mantenimientos_qs.filter(fecha_ingreso__gte=fecha_desde)
+        if fecha_hasta:
+            mantenimientos_qs = mantenimientos_qs.filter(fecha_ingreso__lte=fecha_hasta)
+        
+        costo_mantenimientos = mantenimientos_qs.aggregate(
             total=Sum('costo_total_real')
         )['total'] or Decimal('0')
-        costo_preventivo = mantenimientos.filter(tipo_mantencion='Preventivo').aggregate(
+        costo_preventivo = mantenimientos_qs.filter(tipo_mantencion='Preventivo').aggregate(
             total=Sum('costo_total_real')
         )['total'] or Decimal('0')
-        costo_correctivo = mantenimientos.filter(tipo_mantencion='Correctivo').aggregate(
+        costo_correctivo = mantenimientos_qs.filter(tipo_mantencion='Correctivo').aggregate(
             total=Sum('costo_total_real')
         )['total'] or Decimal('0')
         
-        cargas = CargaCombustible.objects.filter(patente_vehiculo=vehiculo)
-        costo_combustible = cargas.aggregate(total=Sum('costo_total'))['total'] or Decimal('0')
+        # Combustible
+        cargas_qs = CargaCombustible.objects.filter(patente_vehiculo=vehiculo)
+        if fecha_desde:
+            cargas_qs = cargas_qs.filter(fecha__gte=fecha_desde)
+        if fecha_hasta:
+            cargas_qs = cargas_qs.filter(fecha__lte=fecha_hasta)
+        costo_combustible = cargas_qs.aggregate(total=Sum('costo_total'))['total'] or Decimal('0')
         
-        arriendos = Arriendo.objects.filter(vehiculo_reemplazado=vehiculo)
-        costo_arriendos = arriendos.aggregate(total=Sum('costo_total'))['total'] or Decimal('0')
+        # Arriendos (vehículo reemplazado)
+        arriendos_qs = Arriendo.objects.filter(vehiculo_reemplazado=vehiculo)
+        if fecha_desde:
+            arriendos_qs = arriendos_qs.filter(fecha_inicio__gte=fecha_desde)
+        if fecha_hasta:
+            arriendos_qs = arriendos_qs.filter(fecha_inicio__lte=fecha_hasta)
+        costo_arriendos = arriendos_qs.aggregate(total=Sum('costo_total'))['total'] or Decimal('0')
         
         costo_total = costo_mantenimientos + costo_combustible + costo_arriendos
-        costo_por_km = costo_total / vehiculo.kilometraje_actual if vehiculo.kilometraje_actual > 0 else Decimal('0')
         
         return {
             'vehiculo': vehiculo,
@@ -69,9 +89,9 @@ class ReporteCalculos:
             'costo_combustible': costo_combustible,
             'costo_arriendos': costo_arriendos,
             'costo_total': costo_total,
-            'costo_por_km': costo_por_km,
         }
-    
+
+
     @staticmethod
     def calcular_variacion_anio(anio, tipo_mantencion=None):
         """
@@ -193,7 +213,6 @@ def obtener_anios_disponibles_disponibilidad():
 
 
 def exportar_costos_excel(request):
-    """Exporta reporte de costos a Excel (incluye indicadores de combustible del año indicado)."""
     anio_str = request.GET.get('anio', str(datetime.now().year))
     try:
         anio_excel = int(anio_str)
@@ -204,11 +223,16 @@ def exportar_costos_excel(request):
     vehiculos = Vehiculo.objects.all().order_by('patente')
     v_ids = [v.id for v in vehiculos]
     ind_map = indicadores_costos_combustible(v_ids, fecha_desde, fecha_hasta)
+    km_periodo_map = km_totales_por_vehiculo(v_ids, fecha_desde, fecha_hasta)
+    
     datos = []
-
     for vehiculo in vehiculos:
-        calculos = ReporteCalculos.calcular_costos_vehiculo(vehiculo)
+        calculos = ReporteCalculos.calcular_costos_vehiculo(vehiculo, fecha_desde, fecha_hasta)
         ind = ind_map.get(vehiculo.id, {})
+        km_periodo = km_periodo_map.get(vehiculo.id, 0)
+        costo_periodo_total = calculos['costo_total']
+        costo_por_km_periodo = (costo_periodo_total / Decimal(km_periodo)) if km_periodo > 0 else Decimal('0')
+        
         datos.append({
             'patente': vehiculo.patente,
             'costo_mantenimientos': calculos['costo_mantenimientos'],
@@ -216,14 +240,12 @@ def exportar_costos_excel(request):
             'costo_correctivo': calculos['costo_correctivo'],
             'costo_combustible': calculos['costo_combustible'],
             'costo_arriendos': calculos['costo_arriendos'],
-            'costo_total': calculos['costo_total'],
-            'costo_por_km': calculos['costo_por_km'],
+            'costo_total': costo_periodo_total,
+            'costo_por_km': costo_por_km_periodo,
             'rendimiento_km_l': ind.get('rendimiento', 'N/A'),
             'costo_combustible_km': ind.get('costo_combustible_km', 'N/A'),
             'indice_eficiencia': ind.get('indice_eficiencia', 'N/A'),
-            'presupuesto': Presupuesto.objects.filter(
-                activo=True
-            ).aggregate(total=Sum('monto_asignado'))['total'] or Decimal('0'),
+            'presupuesto': Presupuesto.objects.filter(activo=True).aggregate(total=Sum('monto_asignado'))['total'] or Decimal('0'),
         })
 
     columnas = [
@@ -233,8 +255,8 @@ def exportar_costos_excel(request):
         ('Costo Correctivo', 'costo_correctivo', 'moneda'),
         ('Costo Combustible', 'costo_combustible', 'moneda'),
         ('Costo Arriendos', 'costo_arriendos', 'moneda'),
-        ('Costo Total', 'costo_total', 'moneda'),
-        ('Costo por Km', 'costo_por_km', 'decimal'),
+        ('Costo Total (período)', 'costo_total', 'moneda'),
+        ('Costo por Km (período)', 'costo_por_km', 'decimal'),
         ('Rendimiento km/l (período)', 'rendimiento_km_l', 'texto'),
         ('Costo combustible $/km (período)', 'costo_combustible_km', 'texto'),
         ('Índice eficiencia $/L efectivo (período)', 'indice_eficiencia', 'texto'),
@@ -242,10 +264,10 @@ def exportar_costos_excel(request):
     ]
     
     return exportar_reporte_excel(
-        'Reporte de Costos por Vehículo',
+        f'Reporte de Costos por Vehículo - {anio_excel}',
         datos,
         columnas,
-        f'reporte_costos_{datetime.now().strftime("%Y%m%d")}.xlsx'
+        f'reporte_costos_{anio_excel}_{datetime.now().strftime("%Y%m%d")}.xlsx'
     )
 
 
@@ -254,7 +276,6 @@ def exportar_variacion_excel(anio, tipo_mantencion=None):
     
     columnas = [
         ('Vehículo', 'vehiculo', 'texto'),
-        ('Marca/Modelo', 'marca_modelo', 'texto'),
         ('Cuenta SIGFE', 'cuenta_sigfe', 'texto'),
         ('Monto Asignado', 'monto_asignado', 'moneda'),
         ('Monto Ejecutado', 'monto_ejecutado', 'moneda'),
@@ -273,12 +294,14 @@ def exportar_variacion_excel(anio, tipo_mantencion=None):
 
 
 def exportar_disponibilidad_excel(request, anio_disp, mes_disp):
-    """Exporta el reporte de disponibilidad a Excel."""
+    """Exporta el reporte de disponibilidad a Excel con período en título y nombre."""
     from calendar import monthrange
     if mes_disp:
         dias_periodo = monthrange(anio_disp, mes_disp)[1]
+        nombre_mes = f" - {MESES[mes_disp-1]}" if 'MESES' in globals() else f" - Mes {mes_disp}"
     else:
         dias_periodo = 366 if (anio_disp % 4 == 0 and (anio_disp % 100 != 0 or anio_disp % 400 == 0)) else 365
+        nombre_mes = " (Año completo)"
 
     fecha_desde, fecha_hasta = rango_fechas_reporte(anio_disp, mes_disp)
     vehiculos = Vehiculo.objects.all().order_by('patente')
@@ -324,12 +347,14 @@ def exportar_disponibilidad_excel(request, anio_disp, mes_disp):
         ('Prom. días indisponibilidad', 'promedio_indisponibilidad', 'texto'),
         ('Estado Actual', 'estado', 'texto'),
     ]
-    return exportar_reporte_excel(
-        f'Reporte de Disponibilidad {anio_disp}{f" - Mes {mes_disp}" if mes_disp else ""}',
-        datos,
-        columnas,
-        f'reporte_disponibilidad_{anio_disp}_{datetime.now().strftime("%Y%m%d")}.xlsx'
-    )
+    
+    titulo = f'Reporte de Disponibilidad {anio_disp}{f" - Mes {mes_disp}" if mes_disp else ""}'
+    nombre_archivo = f'reporte_disponibilidad_{anio_disp}'
+    if mes_disp:
+        nombre_archivo += f'_mes_{mes_disp}'
+    nombre_archivo += f'_{datetime.now().strftime("%Y%m%d")}.xlsx'
+    
+    return exportar_reporte_excel(titulo, datos, columnas, nombre_archivo)
 
 
 @login_required
@@ -368,16 +393,14 @@ def reportes(request):  # antes se llamaba reporte_costos
     tab_manager = TabManager(request)
 
     # ========== Pestaña COSTOS ==========
-    # Validar que anio_costos esté en anios_disponibles
     anios_disponibles = sorted(Presupuesto.objects.values_list('anio', flat=True).distinct(), reverse=True)
     if not anios_disponibles:
-        anios_disponibles = [datetime.now().year]  # fallback
+        anios_disponibles = [datetime.now().year]
 
     try:
         anio_costos = int(request.GET.get('anio', anios_disponibles[0]))
     except (TypeError, ValueError):
         anio_costos = anios_disponibles[0]
-
     if anio_costos not in anios_disponibles:
         anio_costos = anios_disponibles[0]
 
@@ -386,20 +409,31 @@ def reportes(request):  # antes se llamaba reporte_costos
     vehiculos = Vehiculo.objects.all().order_by('patente')
     v_ids = [v.id for v in vehiculos]
     ind_costos_map = indicadores_costos_combustible(v_ids, fecha_desde_c, fecha_hasta_c)
+    km_periodo_map = km_totales_por_vehiculo(v_ids, fecha_desde_c, fecha_hasta_c)
+    
     reporte_costos_data = []
-
     for vehiculo in vehiculos:
-        calculos = ReporteCalculos.calcular_costos_vehiculo(vehiculo)
+        calculos = ReporteCalculos.calcular_costos_vehiculo(vehiculo, fecha_desde_c, fecha_hasta_c)
         ind_c = ind_costos_map.get(vehiculo.id, {})
+        km_periodo = km_periodo_map.get(vehiculo.id, 0)
+        costo_periodo_total = calculos['costo_total']
+        costo_por_km_periodo = (costo_periodo_total / Decimal(km_periodo)) if km_periodo > 0 else Decimal('0')
+        
         reporte_costos_data.append({
-            **calculos,
-            'patente': vehiculo.patente,
-            'marca_modelo': f"{vehiculo.marca} {vehiculo.modelo}",
-            'presupuesto': Presupuesto.objects.filter(activo=True).aggregate(total=Sum('monto_asignado'))['total'] or Decimal('0'),
+            'vehiculo': vehiculo,
+            'costo_mantenimientos': calculos['costo_mantenimientos'],
+            'costo_preventivo': calculos['costo_preventivo'],
+            'costo_correctivo': calculos['costo_correctivo'],
+            'costo_combustible': calculos['costo_combustible'],
+            'costo_arriendos': calculos['costo_arriendos'],
+            'costo_total': costo_periodo_total,
+            'costo_por_km': costo_por_km_periodo,
             'rendimiento_km_l': ind_c.get('rendimiento', '—'),
             'costo_combustible_km': ind_c.get('costo_combustible_km', 'N/A'),
             'indice_eficiencia': ind_c.get('indice_eficiencia', '—'),
+            'presupuesto': Presupuesto.objects.filter(activo=True).aggregate(total=Sum('monto_asignado'))['total'] or Decimal('0'),
         })
+
 
     # ========== Pestaña VARIACIÓN PRESUPUESTARIA ==========
     anio = request.GET.get('anio')
