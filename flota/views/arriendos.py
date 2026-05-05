@@ -19,8 +19,8 @@ def listar_arriendos(request):
     # El resto de los filtros (estado, proveedor, fechas) se aplican después
     estado_filter = request.GET.get('estado')
     proveedor_filter = request.GET.get('proveedor')
-    desde_filter = request.GET.get('desde')
-    hasta_filter = request.GET.get('hasta')
+    desde_filter = request.GET.get('desde', '')
+    hasta_filter = request.GET.get('hasta', '')
     
     if estado_filter:
         arriendos = arriendos.filter(estado=estado_filter)

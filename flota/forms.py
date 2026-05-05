@@ -555,8 +555,8 @@ class MantenimientoForm(forms.ModelForm):
         widgets = {
             'vehiculo': forms.Select(attrs={'class': 'form-control'}),
             'tipo_mantencion': forms.Select(attrs={'class': 'form-control'}),
-            'fecha_ingreso': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
-            'fecha_salida': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
+            'fecha_ingreso': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}, format='%Y-%m-%d'),
+            'fecha_salida': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}, format='%Y-%m-%d'),
             'km_al_ingreso': forms.NumberInput(attrs={'class': 'form-control'}),
             'descripcion_trabajo': forms.Textarea(attrs={'class': 'form-control', 'rows': 4}),
             'estado': forms.Select(attrs={'class': 'form-control'}),
@@ -995,17 +995,17 @@ class OrdenCompraForm(forms.ModelForm):
         ]
         widgets = {
             'nro_oc': forms.TextInput(attrs={'class': 'form-control'}),
-            'descripcion': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),  # Nuevo
-            'fecha_emision': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
+            'descripcion': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
+            'fecha_emision': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}, format='%Y-%m-%d'),
             'proveedor': forms.Select(attrs={'class': 'form-control'}),
             'monto_neto': forms.NumberInput(attrs={'class': 'form-control', 'step': '1', 'min': '0'}),
             'impuesto': forms.NumberInput(attrs={'class': 'form-control', 'step': '1', 'min': '0'}),
             'monto_total': forms.NumberInput(attrs={'class': 'form-control', 'step': '1', 'min': '0'}),
             'id_licitacion': forms.TextInput(attrs={'class': 'form-control'}),
             'folio_sigfe': forms.TextInput(attrs={'class': 'form-control'}),
-            'estado': forms.TextInput(attrs={'class': 'form-control'}),  # Ahora sí en widgets
+            'estado': forms.TextInput(attrs={'class': 'form-control'}),
             'archivo_adjunto': forms.FileInput(attrs={'class': 'form-control'}),
-            'tipo_adquisicion': forms.Select(attrs={'class': 'form-control'}),  # Nuevo
+            'tipo_adquisicion': forms.Select(attrs={'class': 'form-control'}),
             'cuenta_presupuestaria': forms.Select(attrs={'class': 'form-control'}),
             'orden_trabajo': forms.Select(attrs={'class': 'form-control'}),
             'vehiculo': forms.Select(attrs={'class': 'form-control'}),

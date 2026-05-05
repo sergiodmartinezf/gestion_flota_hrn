@@ -249,8 +249,8 @@ def listar_bitacoras(request):
         bitacoras = HojaRuta.objects.all()
 
     # Filtros
-    desde_filtro = request.GET.get('desde')
-    hasta_filtro = request.GET.get('hasta')
+    desde_filtro = request.GET.get('desde', '')
+    hasta_filtro = request.GET.get('hasta', '')
     conductor_filtro = request.GET.get('conductor')
     estado_filtro = request.GET.get('estado')
     vehiculo_filtro = request.GET.get('vehiculo')
@@ -377,8 +377,8 @@ def listar_cargas_combustible(request):
         cargas = CargaCombustible.objects.all()
 
     # Filtros
-    desde_filtro = request.GET.get('desde')
-    hasta_filtro = request.GET.get('hasta')
+    desde_filtro = request.GET.get('desde', '')
+    hasta_filtro = request.GET.get('hasta', '')
     conductor_filtro = request.GET.get('conductor')
     vehiculo_filtro = request.GET.get('vehiculo')
 
@@ -458,8 +458,8 @@ def listar_incidentes(request):
         incidentes = FallaReportada.objects.all()
 
     # Filtros
-    desde_filtro = request.GET.get('desde')
-    hasta_filtro = request.GET.get('hasta')
+    desde_filtro = request.GET.get('desde', '')
+    hasta_filtro = request.GET.get('hasta', '')
     conductor_filtro = request.GET.get('conductor')
     vehiculo_filtro = request.GET.get('vehiculo')
 
@@ -506,8 +506,8 @@ def exportar_traslados_form(request):
 # --- EXPORTAR VIAJES CONSOLIDADO (openpyxl, una fila por paciente) ---
 @login_required
 def exportar_consolidado_viajes(request):
-    desde = request.GET.get('desde')
-    hasta = request.GET.get('hasta')
+    desde = request.GET.get('desde', '')
+    hasta = request.GET.get('hasta', '')
     vehiculo_filtro = request.GET.get('vehiculo')
     conductor_filtro = request.GET.get('conductor')
 

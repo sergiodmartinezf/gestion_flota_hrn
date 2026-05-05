@@ -215,8 +215,8 @@ def listar_ordenes_compra(request):
     ordenes = OrdenCompra.objects.all().order_by('-fecha_emision', 'nro_oc')
     
     # Filtros
-    desde_filtro = request.GET.get('desde')
-    hasta_filtro = request.GET.get('hasta')
+    desde_filtro = request.GET.get('desde', '')
+    hasta_filtro = request.GET.get('hasta', '')
     vehiculo_filtro = request.GET.get('vehiculo')
     cuenta_filtro = request.GET.get('cuenta')
     estado_filter = request.GET.get('estado')
@@ -330,8 +330,8 @@ def listar_ordenes_trabajo(request):
     ordenes = OrdenTrabajo.objects.all().order_by('-fecha_solicitud', 'nro_ot')
     
     # Filtros
-    desde_filtro = request.GET.get('desde')
-    hasta_filtro = request.GET.get('hasta')
+    desde_filtro = request.GET.get('desde', '')
+    hasta_filtro = request.GET.get('hasta', '')
     estado_mantenimiento = request.GET.get('estado_mantenimiento')
     vehiculo_filter = request.GET.get('vehiculo')
     proveedor_filter = request.GET.get('proveedor')

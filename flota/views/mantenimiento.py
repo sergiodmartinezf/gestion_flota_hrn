@@ -95,8 +95,8 @@ def listar_mantenimientos(request):
     anio_filter = request.GET.get('anio')
     tipo_filter = request.GET.get('tipo')
     estado_filter = request.GET.get('estado')
-    desde_filter = request.GET.get('desde')
-    hasta_filter = request.GET.get('hasta')
+    desde_filter = request.GET.get('desde', '')
+    hasta_filter = request.GET.get('hasta', '')
     proveedor_filter = request.GET.get('proveedor')
     
     if patente_filter:
