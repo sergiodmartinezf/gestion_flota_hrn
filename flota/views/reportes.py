@@ -4,7 +4,7 @@ from django.http import HttpResponse
 from django.db.models import Sum, Count
 from decimal import Decimal
 from calendar import monthrange
-from datetime import datetime
+from datetime import datetime, timedelta
 import json
 
 from django.utils import timezone as tz
@@ -89,6 +89,53 @@ class ReporteCalculos:
             'costo_combustible': costo_combustible,
             'costo_arriendos': costo_arriendos,
             'costo_total': costo_total,
+        }
+
+
+    @staticmethod
+    def calcular_costos_combustible_avanzado(vehiculo, fecha_desde, fecha_hasta):
+        """
+        Retorna total litros y costo por litro para un vehículo en el período.
+        """
+        from decimal import Decimal
+        cargas = CargaCombustible.objects.filter(
+            patente_vehiculo=vehiculo,
+            fecha__gte=fecha_desde,
+            fecha__lte=fecha_hasta
+        )
+        total_litros = cargas.aggregate(total=Sum('litros'))['total'] or Decimal('0')
+        total_costo = cargas.aggregate(total=Sum('costo_total'))['total'] or Decimal('0')
+        costo_por_litro = (total_costo / total_litros) if total_litros > 0 else None
+        return {
+            'total_litros': float(total_litros),
+            'costo_por_litro': float(costo_por_litro) if costo_por_litro is not None else None,
+        }
+
+    @staticmethod
+    def calcular_tiempo_mantenimiento(vehiculo, fecha_desde, fecha_hasta):
+        """
+        Calcula horas totales en mantenimiento y costo por hora detenida.
+        Solo considera mantenimientos finalizados con fecha_salida.
+        """
+        from decimal import Decimal
+        mants = Mantenimiento.objects.filter(
+            vehiculo=vehiculo,
+            fecha_ingreso__gte=fecha_desde,
+            fecha_ingreso__lte=fecha_hasta,
+            estado='Finalizado',
+            fecha_salida__isnull=False
+        )
+        horas_totales = 0
+        costo_total = Decimal('0')
+        for mant in mants:
+            delta = mant.fecha_salida - mant.fecha_ingreso
+            horas_totales += delta.days * 24 + (delta.seconds // 3600)
+            costo_total += mant.costo_total_real or Decimal('0')
+        costo_por_hora = (costo_total / horas_totales) if horas_totales > 0 else None
+        return {
+            'horas_mantenimiento': horas_totales,
+            'costo_mantenimiento_total': float(costo_total),
+            'costo_por_hora_mantenimiento': float(costo_por_hora) if costo_por_hora is not None else None,
         }
 
 
@@ -416,24 +463,59 @@ def reportes(request):  # antes se llamaba reporte_costos
         calculos = ReporteCalculos.calcular_costos_vehiculo(vehiculo, fecha_desde_c, fecha_hasta_c)
         ind_c = ind_costos_map.get(vehiculo.id, {})
         km_periodo = km_periodo_map.get(vehiculo.id, 0)
-        costo_periodo_total = calculos['costo_total']
-        costo_por_km_periodo = (costo_periodo_total / Decimal(km_periodo)) if km_periodo > 0 else Decimal('0')
+        
+        # Nuevos cálculos
+        comb_avanzado = ReporteCalculos.calcular_costos_combustible_avanzado(vehiculo, fecha_desde_c, fecha_hasta_c)
+        tiempos_mant = ReporteCalculos.calcular_tiempo_mantenimiento(vehiculo, fecha_desde_c, fecha_hasta_c)
+        
+        costo_total_sin_arriendo = calculos['costo_mantenimientos'] + calculos['costo_combustible']
+
+        if km_periodo > 0:
+            km = Decimal(km_periodo)
+            costo_mant_por_km = calculos['costo_mantenimientos'] / km
+            costo_preventivo_km = calculos['costo_preventivo'] / km
+            costo_correctivo_km = calculos['costo_correctivo'] / km
+            costo_total_km_sin_arriendo = costo_total_sin_arriendo / km
+        else:
+            costo_mant_por_km = None
+            costo_preventivo_km = None
+            costo_correctivo_km = None
+            costo_total_km_sin_arriendo = None
         
         reporte_costos_data.append({
             'vehiculo': vehiculo,
-            'costo_mantenimientos': calculos['costo_mantenimientos'],
-            'costo_preventivo': calculos['costo_preventivo'],
-            'costo_correctivo': calculos['costo_correctivo'],
+            'patente': vehiculo.patente,
+            'km_periodo': km_periodo,
+            # Combustible
             'costo_combustible': calculos['costo_combustible'],
-            'costo_arriendos': calculos['costo_arriendos'],
-            'costo_total': costo_periodo_total,
-            'costo_por_km': costo_por_km_periodo,
             'rendimiento_km_l': ind_c.get('rendimiento', '—'),
             'costo_combustible_km': ind_c.get('costo_combustible_km', 'N/A'),
-            'indice_eficiencia': ind_c.get('indice_eficiencia', '—'),
-            'presupuesto': Presupuesto.objects.filter(activo=True).aggregate(total=Sum('monto_asignado'))['total'] or Decimal('0'),
+            'costo_por_litro': comb_avanzado['costo_por_litro'],
+            'total_litros': comb_avanzado['total_litros'],
+            # Mantenimiento
+            'costo_preventivo': calculos['costo_preventivo'],
+            'costo_correctivo': calculos['costo_correctivo'],
+            'costo_mantenimiento_total': calculos['costo_mantenimientos'],
+            'costo_mant_por_km': float(costo_mant_por_km),
+            'costo_preventivo_km': float(costo_preventivo_km),
+            'costo_correctivo_km': float(costo_correctivo_km),
+            # Arriendos
+            'costo_arriendos': calculos['costo_arriendos'],
+            # Indicador 7: costo total bencina+mantenciones
+            'costo_total_combustible_mantenciones': float(costo_total_sin_arriendo),
+            'costo_total_combustible_mantenciones_km': float(costo_total_km_sin_arriendo),
+            # Indicador 4: costo por hora detenida
+            'horas_mantenimiento': tiempos_mant['horas_mantenimiento'],
+            'costo_por_hora_mantenimiento': tiempos_mant['costo_por_hora_mantenimiento'],
+            # Totales con arriendos
+            'costo_total_con_arriendos': calculos['costo_total'],
         })
 
+    patentes_list = [item['patente'] for item in reporte_costos_data]
+    rendimientos_list = [float(item['rendimiento_km_l']) if item['rendimiento_km_l'] not in ('—','N/A','Sin datos') else 0 for item in reporte_costos_data]
+    costo_por_litro_list = [item['costo_por_litro'] if item['costo_por_litro'] is not None else 0 for item in reporte_costos_data]
+    costo_preventivo_km_list = [item['costo_preventivo_km'] for item in reporte_costos_data]
+    costo_correctivo_km_list = [item['costo_correctivo_km'] for item in reporte_costos_data]
 
     # ========== Pestaña VARIACIÓN PRESUPUESTARIA ==========
     anio = request.GET.get('anio')
@@ -490,6 +572,8 @@ def reportes(request):  # antes se llamaba reporte_costos
     v_ids_disp = [v.id for v in vehiculos_disp]
     frecuencia_map = frecuencia_fallas_por_vehiculo(v_ids_disp, fecha_desde_disp, fecha_hasta_disp)
     indisp_prom_map = promedio_dias_indisponibilidad_por_vehiculo(v_ids_disp, fecha_desde_disp, fecha_hasta_disp)
+    # Calcular tiempos promedio en HBO para cada vehículo
+    tiempos_hbo = calcular_tiempos_retencion_hbo(v_ids_disp, fecha_desde_disp, fecha_hasta_disp)
 
     reporte_disponibilidad = []
     for vehiculo in vehiculos_disp:
@@ -508,6 +592,9 @@ def reportes(request):  # antes se llamaba reporte_costos
         incidentes = FallaReportada.objects.filter(vehiculo=vehiculo).count()
         dias_disponibles = max(0, dias_periodo - total_dias_fuera)
 
+        tiempo_hbo = tiempos_hbo.get(vehiculo.id)
+        tiempo_hbo_formateado = f"{tiempo_hbo:.0f} min" if tiempo_hbo is not None else "N/D"
+
         reporte_disponibilidad.append({
             'vehiculo': vehiculo,
             'patente': vehiculo.patente,
@@ -519,6 +606,7 @@ def reportes(request):  # antes se llamaba reporte_costos
             'estado': vehiculo.get_estado_display(),
             'frecuencia_fallas': frecuencia_map.get(vehiculo.id, 'N/A'),
             'promedio_indisponibilidad': indisp_prom_map.get(vehiculo.id, 'N/A'),
+            'tiempo_hbo': tiempo_hbo_formateado,
         })
 
     return render(request, 'flota/reportes.html', {
@@ -540,6 +628,11 @@ def reportes(request):  # antes se llamaba reporte_costos
         'anio_disp': anio_disp,
         'mes_disp': mes_disp,
         'dias_periodo_disp': dias_periodo,
+        'patentes_list': patentes_list,
+        'rendimientos_list': rendimientos_list,
+        'costo_por_litro_list': costo_por_litro_list,
+        'costo_preventivo_km_list': costo_preventivo_km_list,
+        'costo_correctivo_km_list': costo_correctivo_km_list,
     })
     
 
@@ -664,6 +757,38 @@ def reporte_historial_unidad(request, patente):
         'fecha_inicio': fecha_inicio,
         'fecha_fin': fecha_fin,
     })
+
+
+def calcular_tiempos_retencion_hbo(vehiculo_ids, fecha_desde, fecha_hasta):
+    """
+    Retorna un diccionario {vehiculo_id: minutos_promedio_en_HBO}
+    para cada vehículo en el período.
+    """
+    from ..models import Viaje
+    resultados = {}
+    for vid in vehiculo_ids:
+        viajes = Viaje.objects.filter(
+            hoja_ruta__vehiculo_id=vid,
+            hora_salida_hbo__isnull=False,
+            hora_llegada_hbo__isnull=False,
+            hoja_ruta__fecha__gte=fecha_desde,
+            hoja_ruta__fecha__lte=fecha_hasta
+        )
+        total_minutos = 0
+        count = 0
+        for viaje in viajes:
+            # Combinar fecha de la hoja de ruta con la hora del viaje
+            fecha = viaje.hoja_ruta.fecha
+            salida = datetime.combine(fecha, viaje.hora_salida_hbo)
+            llegada = datetime.combine(fecha, viaje.hora_llegada_hbo)
+            if llegada < salida:
+                llegada += timedelta(days=1)
+            minutos = (llegada - salida).total_seconds() / 60
+            total_minutos += minutos
+            count += 1
+        promedio = (total_minutos / count) if count > 0 else None
+        resultados[vid] = promedio
+    return resultados
 
 
 @login_required

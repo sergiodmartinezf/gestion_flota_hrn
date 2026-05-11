@@ -7,7 +7,8 @@ from django.utils import timezone
 from django.utils.dateparse import parse_date
 from flota.models import (
     Usuario, CuentaPresupuestaria, Proveedor, Vehiculo,
-    Presupuesto, OrdenCompra, Mantenimiento, normalizar_estado_oc
+    Presupuesto, OrdenCompra, Mantenimiento, normalizar_estado_oc,
+    CargaCombustible, HojaRuta, Viaje, PacienteTraslado, PacienteViaje
 )
 from django.db.models.signals import pre_save, post_save, post_delete
 from flota.signals import (
@@ -32,6 +33,7 @@ class Command(BaseCommand):
         csv_dir = options['csv_dir']
         self.stdout.write(f'📂 Buscando CSVs en: {csv_dir}')
 
+        # Diccionario con todos los archivos CSV (los nuevos son opcionales)
         csv_files = {
             Usuario: 'usuario.csv',
             CuentaPresupuestaria: 'cuenta_presupuestaria.csv',
@@ -40,20 +42,27 @@ class Command(BaseCommand):
             Presupuesto: 'presupuesto.csv',
             OrdenCompra: 'orden_compra.csv',
             Mantenimiento: 'mantenimiento.csv',
+            # Nuevos modelos (opcionales)
+            CargaCombustible: 'carga_combustible.csv',
+            HojaRuta: 'hoja_ruta.csv',
+            Viaje: 'viaje.csv',
+            PacienteTraslado: 'paciente_traslado.csv',
         }
 
-        # Verificar existencia de archivos
-        for model, filename in csv_files.items():
+        # Verificar existencia de archivos obligatorios
+        modelos_obligatorios = [Usuario, CuentaPresupuestaria, Proveedor, Vehiculo, Presupuesto, OrdenCompra, Mantenimiento]
+        for model in modelos_obligatorios:
+            filename = csv_files[model]
             path = os.path.join(csv_dir, filename)
             if not os.path.exists(path):
                 self.stdout.write(self.style.ERROR(f'❌ No se encuentra: {path}'))
                 self.stdout.write(self.style.WARNING(
-                    '   Asegúrate de que los archivos CSV estén en la carpeta: ' + csv_dir
+                    '   Asegúrate de que los archivos CSV obligatorios estén en la carpeta: ' + csv_dir
                 ))
                 return
 
         # -----------------------------------------------------------------
-        # Desconectar todas las señales que modifican datos
+        # Desconectar señales
         # -----------------------------------------------------------------
         self.stdout.write(self.style.WARNING('🔌 Desconectando señales...'))
         pre_save.disconnect(validar_cierre_administrativo_mantenimiento, sender=Mantenimiento)
@@ -64,9 +73,16 @@ class Command(BaseCommand):
         # Desactivar auto_now_add en campos que lo tengan
         self._patch_auto_now_add(Usuario, 'creado_en')
         self._patch_auto_now_add(Vehiculo, 'creado_en')
+        self._patch_auto_now_add(HojaRuta, 'creado_en')
+        self._patch_auto_now_add(Viaje, 'creado_en')
+        self._patch_auto_now_add(Viaje, 'actualizado_en')
 
-        # Limpieza completa
+        # Limpieza completa (orden respetando FK)
         self.stdout.write(self.style.WARNING('🧹 Limpiando tablas existentes...'))
+        PacienteTraslado.objects.all().delete()
+        Viaje.objects.all().delete()
+        HojaRuta.objects.all().delete()
+        CargaCombustible.objects.all().delete()
         Mantenimiento.objects.all().delete()
         OrdenCompra.objects.all().delete()
         Presupuesto.objects.all().delete()
@@ -77,6 +93,7 @@ class Command(BaseCommand):
         self.stdout.write(self.style.SUCCESS('✅ Tablas limpiadas.'))
 
         with transaction.atomic():
+            # ==================== CARGAS OBLIGATORIAS ====================
             self.cargar_usuarios(os.path.join(csv_dir, csv_files[Usuario]))
             self.cargar_cuentas(os.path.join(csv_dir, csv_files[CuentaPresupuestaria]))
             self.cargar_proveedores(os.path.join(csv_dir, csv_files[Proveedor]))
@@ -84,6 +101,35 @@ class Command(BaseCommand):
             self.cargar_presupuestos(os.path.join(csv_dir, csv_files[Presupuesto]))
             self.cargar_ordenes_compra(os.path.join(csv_dir, csv_files[OrdenCompra]))
             self.cargar_mantenimientos(os.path.join(csv_dir, csv_files[Mantenimiento]))
+
+            # ==================== NUEVOS CSV (OPCIONALES) ====================
+            # ---------- 1. Carga de Combustible ----------
+            carga_path = os.path.join(csv_dir, csv_files[CargaCombustible])
+            if os.path.exists(carga_path):
+                self.cargar_combustible(carga_path)
+            else:
+                self.stdout.write(self.style.WARNING(f'⚠️ No se encuentra {carga_path}. Se omite carga de combustible.'))
+
+            # ---------- 2. Hojas de Ruta ----------
+            hoja_path = os.path.join(csv_dir, csv_files[HojaRuta])
+            if os.path.exists(hoja_path):
+                self.cargar_hojas_ruta(hoja_path)
+            else:
+                self.stdout.write(self.style.WARNING(f'⚠️ No se encuentra {hoja_path}. Se omite carga de hojas de ruta.'))
+
+            # ---------- 3. Viajes ----------
+            viaje_path = os.path.join(csv_dir, csv_files[Viaje])
+            if os.path.exists(viaje_path):
+                self.cargar_viajes(viaje_path)
+            else:
+                self.stdout.write(self.style.WARNING(f'⚠️ No se encuentra {viaje_path}. Se omite carga de viajes.'))
+
+            # ---------- 4. Pacientes Traslado ----------
+            paciente_path = os.path.join(csv_dir, csv_files[PacienteTraslado])
+            if os.path.exists(paciente_path):
+                self.cargar_pacientes_traslado(paciente_path)
+            else:
+                self.stdout.write(self.style.WARNING(f'⚠️ No se encuentra {paciente_path}. Se omite carga de pacientes traslado.'))
 
         # -----------------------------------------------------------------
         # Reconectar señales y restaurar auto_now_add
@@ -96,33 +142,35 @@ class Command(BaseCommand):
 
         self._restore_auto_now_add(Usuario, 'creado_en')
         self._restore_auto_now_add(Vehiculo, 'creado_en')
+        self._restore_auto_now_add(HojaRuta, 'creado_en')
+        self._restore_auto_now_add(Viaje, 'creado_en')
+        self._restore_auto_now_add(Viaje, 'actualizado_en')
 
         self.stdout.write(self.style.SUCCESS('🎉 Carga CSV completada.'))
         self.reset_sequences()
         self.stdout.write(self.style.SUCCESS('🎯 Proceso finalizado exitosamente.'))
 
     # -----------------------------------------------------------------
-    # Métodos auxiliares para parchear auto_now_add
+    # Métodos auxiliares (parseo, parches)
     # -----------------------------------------------------------------
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._saved_auto_now_add = {}
 
     def _patch_auto_now_add(self, model, field_name):
-        """Desactiva temporalmente auto_now_add de un campo y guarda el valor original."""
+        if field_name is None:
+            return
         field = model._meta.get_field(field_name)
         self._saved_auto_now_add[(model, field_name)] = field.auto_now_add
         field.auto_now_add = False
 
     def _restore_auto_now_add(self, model, field_name):
-        """Restaura auto_now_add al valor original."""
+        if field_name is None:
+            return
         field = model._meta.get_field(field_name)
         original = self._saved_auto_now_add.get((model, field_name), False)
         field.auto_now_add = original
 
-    # -----------------------------------------------------------------
-    # Métodos de parseo robustos
-    # -----------------------------------------------------------------
     def _es_nulo(self, valor):
         if valor is None:
             return True
@@ -143,6 +191,14 @@ class Command(BaseCommand):
         except ValueError:
             return 0
 
+    def _parse_float(self, value):
+        if self._es_nulo(value):
+            return 0.0
+        try:
+            return float(value.replace(',', '.'))
+        except ValueError:
+            return 0.0
+
     def _parse_date(self, value):
         if self._es_nulo(value):
             return None
@@ -158,8 +214,19 @@ class Command(BaseCommand):
             dt = datetime.combine(self._parse_date(value), time.min)
         return timezone.make_aware(dt) if timezone.is_naive(dt) else dt
 
+    def _parse_time(self, value):
+        if self._es_nulo(value):
+            return None
+        try:
+            return datetime.strptime(value.strip(), '%H:%M:%S').time()
+        except ValueError:
+            try:
+                return datetime.strptime(value.strip(), '%H:%M').time()
+            except ValueError:
+                return None
+
     # -----------------------------------------------------------------
-    # Métodos de carga (sin cambios respecto al original)
+    # Métodos de carga originales (sin cambios)
     # -----------------------------------------------------------------
     def cargar_usuarios(self, filepath):
         self.stdout.write('📁 Cargando Usuarios...')
@@ -309,7 +376,6 @@ class Command(BaseCommand):
 
     def cargar_mantenimientos(self, filepath):
         self.stdout.write('📁 Cargando Mantenimientos...')
-        # Nota: las señales ya están desconectadas globalmente, no necesitamos desconectar aquí
         with open(filepath, 'r', encoding='utf-8') as f:
             reader = csv.DictReader(f)
             for row in reader:
@@ -347,8 +413,102 @@ class Command(BaseCommand):
                 )
         self.stdout.write(self.style.SUCCESS(f'   ✅ {Mantenimiento.objects.count()} mantenimientos.'))
 
+    # ==================== NUEVOS MÉTODOS DE CARGA ====================
+    def cargar_combustible(self, filepath):
+        self.stdout.write('📁 Cargando Cargas de Combustible...')
+        with open(filepath, 'r', encoding='utf-8') as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                CargaCombustible.objects.create(
+                    id=self._parse_int(row['id']),
+                    fecha=self._parse_date(row['fecha']),
+                    litros=self._parse_float(row['litros']),
+                    costo_total=self._parse_int(row['costo_total']),
+                    kilometraje_al_cargar=self._parse_int(row['kilometraje_al_cargar']),
+                    nro_boleta=row.get('nro_boleta', ''),
+                    patente_vehiculo=Vehiculo.objects.get(id=self._parse_int(row['patente_vehiculo_id'])),
+                    conductor_id=self._parse_int(row['conductor_id']) if row.get('conductor_id') else None,
+                    cuenta_presupuestaria_id=self._parse_int(row['cuenta_presupuestaria_id']) if row.get('cuenta_presupuestaria_id') else None,
+                )
+        self.stdout.write(self.style.SUCCESS(f'   ✅ {CargaCombustible.objects.count()} cargas de combustible.'))
+
+    def cargar_hojas_ruta(self, filepath):
+        self.stdout.write('📁 Cargando Hojas de Ruta...')
+        with open(filepath, 'r', encoding='utf-8') as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                HojaRuta.objects.create(
+                    id=self._parse_int(row['id']),
+                    vehiculo=Vehiculo.objects.get(id=self._parse_int(row['vehiculo_id'])),
+                    conductor=Usuario.objects.get(id=self._parse_int(row['conductor_id'])),
+                    fecha=self._parse_date(row['fecha']),
+                    turno=row['turno'],
+                    km_inicio=self._parse_int(row['km_inicio']),
+                    km_fin=self._parse_int(row['km_fin']) if row.get('km_fin') else None,
+                    medico_derivador=row.get('medico_derivador', ''),
+                    tens=row.get('tens', ''),
+                    enfermero=row.get('enfermero', '') or None,
+                    no_aplica_enfermero=self._parse_bool(row.get('no_aplica_enfermero', 'False')),
+                    camillero=row.get('camillero', '') or None,
+                    no_aplica_camillero=self._parse_bool(row.get('no_aplica_camillero', 'False')),
+                    abierta=self._parse_bool(row.get('abierta', 'True')),
+                    creado_en=self._parse_datetime(row.get('creado_en', datetime.now().isoformat())),
+                )
+        self.stdout.write(self.style.SUCCESS(f'   ✅ {HojaRuta.objects.count()} hojas de ruta.'))
+
+    def cargar_viajes(self, filepath):
+        self.stdout.write('📁 Cargando Viajes...')
+        with open(filepath, 'r', encoding='utf-8') as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                Viaje.objects.create(
+                    id=self._parse_int(row['id']),
+                    hoja_ruta=HojaRuta.objects.get(id=self._parse_int(row['hoja_ruta_id'])),
+                    hora_salida=self._parse_time(row['hora_salida']),
+                    hora_llegada=self._parse_time(row['hora_llegada']) if row.get('hora_llegada') else None,
+                    km_salida=self._parse_int(row['km_salida']),
+                    km_llegada=self._parse_int(row['km_llegada']) if row.get('km_llegada') else None,
+                    hora_salida_hbo=self._parse_time(row['hora_salida_hbo']) if row.get('hora_salida_hbo') else None,
+                    hora_llegada_hbo=self._parse_time(row['hora_llegada_hbo']) if row.get('hora_llegada_hbo') else None,
+                    observaciones=row.get('observaciones', ''),
+                    creado_en=self._parse_datetime(row.get('creado_en', datetime.now().isoformat())),
+                    actualizado_en=self._parse_datetime(row.get('actualizado_en', datetime.now().isoformat())),
+                )
+        self.stdout.write(self.style.SUCCESS(f'   ✅ {Viaje.objects.count()} viajes.'))
+
+    def cargar_pacientes_traslado(self, filepath):
+        self.stdout.write('📁 Cargando Pacientes Traslado...')
+        with open(filepath, 'r', encoding='utf-8') as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                # Buscar o crear paciente_viaje (maestro)
+                paciente_viaje = None
+                if row.get('rut') and row.get('nombre'):
+                    pv, _ = PacienteViaje.objects.get_or_create(
+                        rut=row['rut'].strip(),
+                        defaults={'nombre': row['nombre'], 'prevision': row.get('prevision', '')}
+                    )
+                    paciente_viaje = pv
+
+                PacienteTraslado.objects.create(
+                    id=self._parse_int(row['id']),
+                    viaje_id=self._parse_int(row['viaje_id']),
+                    paciente_viaje=paciente_viaje,
+                    nombre=row['nombre'],
+                    rut=row.get('rut', ''),
+                    categoria_traslado=row.get('categoria_traslado', 'Administrativo'),
+                    detalle_origen_alta=row.get('detalle_origen_alta') or None,
+                    sentido=row.get('sentido', 'IDA'),
+                    destino_tipo=row.get('destino_tipo', 'HBO'),
+                    direccion_especifica=row.get('direccion_especifica', ''),
+                    prevision=row.get('prevision', ''),
+                )
+        self.stdout.write(self.style.SUCCESS(f'   ✅ {PacienteTraslado.objects.count()} pacientes traslado.'))
+
+    # -----------------------------------------------------------------
+    # Reseteo de secuencias (PostgreSQL)
+    # -----------------------------------------------------------------
     def reset_sequences(self):
-        """Resetea las secuencias de todas las tablas con AutoField (PostgreSQL)."""
         self.stdout.write(self.style.WARNING('\n🔄 Reseteando secuencias...'))
         with connection.cursor() as cursor:
             tablas = [
@@ -359,6 +519,10 @@ class Command(BaseCommand):
                 'presupuesto',
                 'orden_compra',
                 'mantenimiento',
+                'carga_combustible',
+                'hoja_ruta',
+                'viaje',
+                'paciente_traslado',
             ]
             for tabla in tablas:
                 cursor.execute(

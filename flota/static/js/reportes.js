@@ -264,4 +264,139 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     console.log('Inicializando desglose con índice:', indiceInicial);
     actualizarDesgloseCostos(indiceInicial);
+    const patentes = window.patentesList || [];
+    const rendimientos = window.rendimientosList || [];
+    const costoPorLitro = window.costoPorLitroList || [];
+    const costoPreventivoKm = window.costoPreventivoKmList || [];
+    const costoCorrectivoKm = window.costoCorrectivoKmList || [];
+
+    // Gráfico 1: Barras de rendimiento (km/l)
+    const chartRendimientoCanvas = document.getElementById('chartRendimiento');
+    if (chartRendimientoCanvas && patentes.length) {
+        new Chart(chartRendimientoCanvas, {
+            type: 'bar',
+            data: {
+                labels: patentes,
+                datasets: [{
+                    label: 'km/l',
+                    data: rendimientos,
+                    backgroundColor: 'rgba(75, 192, 192, 0.7)',
+                    borderColor: 'rgba(75, 192, 192, 1)',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return `${context.dataset.label}: ${context.raw.toFixed(2)} km/l`;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        title: { display: true, text: 'km/litro' }
+                    }
+                }
+            }
+        });
+    }
+
+    // Gráfico 2: Barras de costo por litro
+    const chartCostoLitroCanvas = document.getElementById('chartCostoPorLitro');
+    if (chartCostoLitroCanvas && patentes.length) {
+        new Chart(chartCostoLitroCanvas, {
+            type: 'bar',
+            data: {
+                labels: patentes,
+                datasets: [{
+                    label: '$ / litro',
+                    data: costoPorLitro,
+                    backgroundColor: 'rgba(255, 159, 64, 0.7)',
+                    borderColor: 'rgba(255, 159, 64, 1)',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return `$${context.raw.toLocaleString('es-CL')} / litro`;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        title: { display: true, text: 'Precio por litro ($)' },
+                        ticks: {
+                            callback: function(value) {
+                                return '$' + value.toLocaleString('es-CL');
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    // Gráfico 3: Barras agrupadas de costo por km (preventivo vs correctivo)
+    const chartCostoKmCanvas = document.getElementById('chartCostoKmDesagregado');
+    if (chartCostoKmCanvas && patentes.length) {
+        new Chart(chartCostoKmCanvas, {
+            type: 'bar',
+            data: {
+                labels: patentes,
+                datasets: [
+                    {
+                        label: 'Preventivo $/km',
+                        data: costoPreventivoKm,
+                        backgroundColor: 'rgba(54, 162, 235, 0.7)',
+                        borderColor: 'rgba(54, 162, 235, 1)',
+                        borderWidth: 1
+                    },
+                    {
+                        label: 'Correctivo $/km',
+                        data: costoCorrectivoKm,
+                        backgroundColor: 'rgba(255, 99, 132, 0.7)',
+                        borderColor: 'rgba(255, 99, 132, 1)',
+                        borderWidth: 1
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                let label = context.dataset.label || '';
+                                let value = context.raw;
+                                return `${label}: $${value.toLocaleString('es-CL')} / km`;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        title: { display: true, text: '$ / km' },
+                        ticks: {
+                            callback: function(value) {
+                                return '$' + value.toLocaleString('es-CL');
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+
 });

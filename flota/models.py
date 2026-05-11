@@ -1037,6 +1037,9 @@ class PacienteTraslado(models.Model):
     direccion_especifica = models.CharField(max_length=200, blank=True, help_text="Dirección si es domicilio u otro")
     prevision = models.CharField(max_length=50, blank=True, verbose_name="Previsión/Tipo Servicio")
 
+    class Meta:
+        db_table = 'paciente_traslado'
+
     def __str__(self):
         return self.nombre
 
