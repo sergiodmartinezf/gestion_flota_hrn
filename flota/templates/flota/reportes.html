@@ -122,7 +122,7 @@
                             {% else %}—{% endif %}
                         </td>
                         <td>{{ item.total_litros|floatformat:0 }}</td>
-                        <td>${{ item.costo_combustible|clp }}</td>
+                        <td><strong>${{ item.costo_combustible|clp }}</strong></td>
                     </tr>
                     {% empty %}
                     <tr><td colspan="6" class="text-center">No hay datos disponibles</td></tr>
@@ -179,7 +179,9 @@
                 <thead class="table-dark">
                     <tr>
                         <th>Vehículo</th>
-                        <th>Costo bencina+mantenciones</th>
+                        <th>Costo total combustible</th>
+                        <th>Costo total mantenimiento</th>
+                        <th>Costo total</th>
                         <th>Costo total $/km</th>
                         <th>Costo por hora detenida</th>
                         <th>Costo total (con arriendos)</th>
@@ -189,7 +191,9 @@
                     {% for item in reporte %}
                     <tr>
                         <td><strong>{{ item.vehiculo.patente }}</strong></td>
-                        <td>${{ item.costo_total_combustible_mantenciones|clp }}</td>
+                        <td>${{ item.costo_combustible|clp }}</td>
+                        <td>${{ item.costo_mantenimiento_total|clp }}</td>
+                        <td><strong>${{ item.costo_total_combustible_mantenciones|clp }}</strong></td>
                         <td>
                             {% if item.costo_total_combustible_mantenciones_km %}
                                 ${{ item.costo_total_combustible_mantenciones_km|clp }}
