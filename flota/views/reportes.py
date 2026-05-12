@@ -191,10 +191,9 @@ class ReporteCalculos:
                 alertas.append(item)
 
         return reporte, alertas
-
     
     @staticmethod
-    def obtener_datos_graficos_costos():
+    def obtener_datos_graficos_costos(fecha_desde=None, fecha_hasta=None):
         vehiculos = Vehiculo.objects.all()
         datos = {
             'patentes': [],
@@ -204,21 +203,25 @@ class ReporteCalculos:
             'costos_totales': [],
             'dias_fuera_servicio': []
         }
-        
         for vehiculo in vehiculos:
-            calculos = ReporteCalculos.calcular_costos_vehiculo(vehiculo)
+            calculos = ReporteCalculos.calcular_costos_vehiculo(vehiculo, fecha_desde, fecha_hasta)
             datos['patentes'].append(vehiculo.patente)
             datos['costos_mantenimiento'].append(float(calculos['costo_mantenimientos']))
             datos['costos_combustible'].append(float(calculos['costo_combustible']))
             datos['costos_arriendo'].append(float(calculos['costo_arriendos']))
             datos['costos_totales'].append(float(calculos['costo_total']))
-            # Calcular días fuera de servicio
+            
+            # Días fuera de servicio en el período filtrado
             total_dias = 0
-            for mant in vehiculo.mantenimientos.all():
+            mantenimientos = vehiculo.mantenimientos.all()
+            if fecha_desde:
+                mantenimientos = mantenimientos.filter(fecha_ingreso__gte=fecha_desde)
+            if fecha_hasta:
+                mantenimientos = mantenimientos.filter(fecha_ingreso__lte=fecha_hasta)
+            for mant in mantenimientos:
                 if mant.fecha_salida:
                     total_dias += (mant.fecha_salida - mant.fecha_ingreso).days
             datos['dias_fuera_servicio'].append(total_dias)
-        
         return datos
 
 
@@ -538,7 +541,7 @@ def reportes(request):  # antes se llamaba reporte_costos
     anios_disponibles = sorted(Presupuesto.objects.values_list('anio', flat=True).distinct(), reverse=True)
 
     # ========== Datos para gráficos (dashboard) ==========
-    datos_graficos = ReporteCalculos.obtener_datos_graficos_costos()
+    datos_graficos = ReporteCalculos.obtener_datos_graficos_costos(fecha_desde_c, fecha_hasta_c)
     graficos_json = json.dumps(datos_graficos)
 
     # ========== Pestaña DISPONIBILIDAD ==========
@@ -609,6 +612,18 @@ def reportes(request):  # antes se llamaba reporte_costos
             'tiempo_hbo': tiempo_hbo_formateado,
         })
 
+    patentes_disp = [item['patente'] for item in reporte_disponibilidad]
+    dias_fuera_disp = [item['dias_fuera_servicio'] for item in reporte_disponibilidad]
+    pares = sorted(zip(patentes_disp, dias_fuera_disp), key=lambda x: x[1], reverse=True)
+    patentes_disp_ordenadas, dias_fuera_disp_ordenadas = zip(*pares) if pares else ([], [])
+    
+    # ========== GRÁFICOS ADICIONALES PARA DISPONIBILIDAD ==========
+    disponibilidad_global = calcular_disponibilidad_global(vehiculos_disp, fecha_desde_disp, fecha_hasta_disp, dias_periodo)
+    dias_fuera_mensual = calcular_dias_fuera_por_mes(vehiculos_disp, anio_disp)
+
+    disponibilidad_global_json = json.dumps(disponibilidad_global)
+    dias_fuera_mensual_json = json.dumps(dias_fuera_mensual)
+
     return render(request, 'flota/reportes.html', {
         'reporte': reporte_costos_data,
         'reporte_variacion': reporte_variacion,
@@ -633,6 +648,10 @@ def reportes(request):  # antes se llamaba reporte_costos
         'costo_por_litro_list': costo_por_litro_list,
         'costo_preventivo_km_list': costo_preventivo_km_list,
         'costo_correctivo_km_list': costo_correctivo_km_list,
+        'disponibilidad_global_json': disponibilidad_global_json,
+        'dias_fuera_mensual_json': dias_fuera_mensual_json,
+        'patentes_disp': list(patentes_disp_ordenadas),
+        'dias_fuera_disp': list(dias_fuera_disp_ordenadas),
     })
     
 
@@ -812,3 +831,47 @@ def reporte_servicios(request):
         'chart_data': data
     })
     
+
+# ========== FUNCIONES AUXILIARES PARA GRÁFICOS DE DISPONIBILIDAD ==========
+
+def calcular_disponibilidad_global(vehiculos, fecha_desde, fecha_hasta, dias_periodo):
+    total_dias_posibles = dias_periodo * vehiculos.count()
+    total_dias_fuera = 0
+    for v in vehiculos:
+        mants = Mantenimiento.objects.filter(
+            vehiculo=v,
+            fecha_ingreso__gte=fecha_desde,
+            fecha_ingreso__lte=fecha_hasta,
+            estado='Finalizado',
+            fecha_salida__isnull=False
+        )
+        for m in mants:
+            total_dias_fuera += max(0, (m.fecha_salida - m.fecha_ingreso).days)
+    disponibilidad = max(0, total_dias_posibles - total_dias_fuera)
+    porcentaje = (disponibilidad / total_dias_posibles * 100) if total_dias_posibles > 0 else 0
+    return {
+        'total_dias_posibles': total_dias_posibles,
+        'total_dias_fuera': total_dias_fuera,
+        'dias_disponibles': disponibilidad,
+        'porcentaje_disponibilidad': round(porcentaje, 2),
+    }
+
+
+def calcular_dias_fuera_por_mes(vehiculos, anio):
+    """
+    Retorna una lista de 12 elementos con la suma de días fuera de servicio
+    cuyos mantenimientos comenzaron en cada mes del año.
+    """
+    meses_dias = [0] * 12
+    for v in vehiculos:
+        mants = Mantenimiento.objects.filter(
+            vehiculo=v,
+            fecha_ingreso__year=anio,
+            estado='Finalizado',
+            fecha_salida__isnull=False
+        )
+        for m in mants:
+            duracion = max(0, (m.fecha_salida - m.fecha_ingreso).days)
+            mes_idx = m.fecha_ingreso.month - 1
+            meses_dias[mes_idx] += duracion
+    return meses_dias

@@ -3,12 +3,17 @@
 {% load static %}
 {% load moneda_clp %}
 {% load l10n %}
+{% load km_miles %}
 
 {% block title %}Reportes - Gestión de Flota{% endblock %}
 
 {% block extra_js %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
+    window.patentesDisp = {{ patentes_disp|safe }};
+    window.diasFueraDisp = {{ dias_fuera_disp|safe }};
+    window.diasPeriodoDisp = {{ dias_periodo_disp }};
+    // Gráficos Costos
     window.datosGraficos = {{ graficos_json|safe }};
     console.log('window.datosGraficos asignado', window.datosGraficos);
     window.patentesList = {{ patentes_list|safe }};
@@ -21,6 +26,9 @@
     console.log('window.costoPreventivoKmList asignado', window.costoPreventivoKmList);
     window.costoCorrectivoKmList = {{ costo_correctivo_km_list|safe }};
     console.log('window.costoCorrectivoKmList asignado', window.costoCorrectivoKmList);
+    // Gráficos Disponibilidad
+    window.diasFueraMensual = {{ dias_fuera_mensual_json|safe }};
+    window.disponibilidadGlobal = {{ disponibilidad_global_json|safe }};
 </script>
 <script src="{% static 'js/reportes.js' %}"></script>
 {% endblock %}
@@ -482,13 +490,35 @@
         </div>
 
         <!-- GRÁFICO EXCLUSIVO DE DISPONIBILIDAD -->
+        <div class="row mt-4">
+            <div class="col-md-4">
+                <div class="card h-100">
+                    <div class="card-header">Disponibilidad Global del Período</div>
+                    <div class="card-body text-center">
+                        <canvas id="chartDisponibilidadGlobal" width="300" height="300" style="max-width: 250px; margin: 0 auto;"></canvas>
+                        <p class="mt-3">
+                            <strong>Días disponibles:</strong> {{ disponibilidad_global.dias_disponibles|floatformat:0 }} / {{ disponibilidad_global.total_dias_posibles|floatformat:0 }}<br>
+                            <strong>Porcentaje:</strong> {{ disponibilidad_global.porcentaje_disponibilidad }}%
+                        </p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-8">
+                <div class="card">
+                    <div class="card-header">Días Fuera de Servicio por Vehículo</div>
+                    <div class="card-body">
+                        <canvas id="chartDiasFueraServicio"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
         <div class="mt-5">
             <div class="row mt-4">
                 <div class="col-md-12">
                     <div class="card">
-                        <div class="card-header">Días Fuera de Servicio por Vehículo</div>
+                        <div class="card-header">Evolución mensual de días fuera de servicio ({{ anio_disp|km }})</div>
                         <div class="card-body">
-                            <canvas id="chartDiasFueraServicio"></canvas>
+                            <canvas id="chartDiasFueraMensual"></canvas>
                         </div>
                     </div>
                 </div>

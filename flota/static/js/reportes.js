@@ -143,15 +143,14 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Gráfico de Días Fuera de Servicio
     const ctxDias = document.getElementById('chartDiasFueraServicio');
-    if (ctxDias) {
-        console.log('Creando gráfico de días fuera de servicio...');
+    if (ctxDias && window.patentesDisp && window.patentesDisp.length) {
         new Chart(ctxDias, {
             type: 'bar',
             data: {
-                labels: datosGraficos.patentes,
+                labels: window.patentesDisp,
                 datasets: [{
                     label: 'Días fuera de servicio',
-                    data: datosGraficos.dias_fuera_servicio,
+                    data: window.diasFueraDisp,
                     backgroundColor: 'rgba(153, 102, 255, 0.8)',
                     borderColor: 'rgba(153, 102, 255, 1)',
                     borderWidth: 1
@@ -161,10 +160,15 @@ document.addEventListener('DOMContentLoaded', function() {
                 indexAxis: 'y',
                 responsive: true,
                 plugins: {
-                    title: { 
-                        display: true, 
-                        text: 'Días Fuera de Servicio por Vehículo',
-                        font: { size: 16 }
+                    title: {
+                        display: true,
+                        text: 'Días Fuera de Servicio por Vehículo (período seleccionado)',
+                        font: { size: 14 }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: (ctx) => `${ctx.raw} días (${((ctx.raw / window.diasPeriodoDisp) * 100).toFixed(1)}% del período)`
+                        }
                     }
                 },
                 scales: {
@@ -398,5 +402,38 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     }
+    // Gráfico de disponibilidad global (torta)
+    const ctxGlobal = document.getElementById('chartDisponibilidadGlobal');
+    if (ctxGlobal && window.disponibilidadGlobal) {
+        new Chart(ctxGlobal, {
+            type: 'doughnut',
+            data: {
+                labels: ['Días disponibles', 'Días fuera de servicio'],
+                datasets: [{
+                    data: [window.disponibilidadGlobal.dias_disponibles, window.disponibilidadGlobal.total_dias_fuera],
+                    backgroundColor: ['#28a745', '#dc3545'],
+                    borderWidth: 0
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: {
+                    legend: { position: 'bottom' },
+                    tooltip: { callbacks: { label: (ctx) => `${ctx.label}: ${ctx.raw} días (${((ctx.raw / window.disponibilidadGlobal.total_dias_posibles) * 100).toFixed(1)}%)` } }
+                }
+            }
+        });
+    }
 
+    // Gráfico evolución mensual (línea)
+    const ctxMensual = document.getElementById('chartDiasFueraMensual');
+    if (ctxMensual && window.diasFueraMensual) {
+        const meses = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+        new Chart(ctxMensual, {
+            type: 'line',
+            data: { labels: meses, datasets: [{ label: 'Días fuera de servicio', data: window.diasFueraMensual, borderColor: '#17a2b8', backgroundColor: 'rgba(23,162,184,0.1)', fill: true, tension: 0.3 }] },
+            options: { responsive: true, scales: { y: { beginAtZero: true, title: { display: true, text: 'Días' } } } }
+        });
+    }
 });
