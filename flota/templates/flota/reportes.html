@@ -23,9 +23,14 @@
     window.costoPorLitroList = {{ costo_por_litro_list|safe }};
     console.log('window.costoPorLitroList asignado', window.costoPorLitroList);
     window.costoPreventivoKmList = {{ costo_preventivo_km_list|safe }};
-    console.log('window.costoPreventivoKmList asignado', window.costoPreventivoKmList);
     window.costoCorrectivoKmList = {{ costo_correctivo_km_list|safe }};
-    console.log('window.costoCorrectivoKmList asignado', window.costoCorrectivoKmList);
+    window.costoMantenimientoTotalKmList = [
+        {% for item in reporte %}
+            {% if item.costo_mant_por_km %}
+                {{ item.costo_mant_por_km|stringformat:"f" }}
+            {% else %}null{% endif %}{% if not forloop.last %},{% endif %}
+        {% endfor %}
+    ];
     window.costoCombustibleKmList = [
         {% for item in reporte %}
             {% if item.costo_combustible_km and item.costo_combustible_km != 'N/A' %}
@@ -45,14 +50,18 @@
     // Si el costo con arriendo es el mismo campo, usa el mismo array o uno específico
     window.costoTotalConArriendoKmList = [
         {% for item in reporte %}
-            {% if item.costo_total_combustible_mantenciones_km %}
-                {{ item.costo_total_combustible_mantenciones_km|stringformat:"f" }}
+            {% if item.costo_total_con_arriendos_km %}
+                {{ item.costo_total_con_arriendos_km|stringformat:"f" }}
             {% else %}null{% endif %}{% if not forloop.last %},{% endif %}
         {% endfor %}
     ];
     // Gráficos Disponibilidad
     window.diasFueraMensual = {{ dias_fuera_mensual_json|safe }};
     window.disponibilidadGlobal = {{ disponibilidad_global_json|safe }};
+    window.patentesDispList = {{ patentes_disp_list_json|safe }};
+    window.frecuenciasList = {{ frecuencias_list_json|safe }};
+    window.promediosList = {{ promedios_list_json|safe }};
+    window.tiemposHBOList = {{ tiempos_hbo_list_json|safe }};
 </script>
 <script src="{% static 'js/reportes.js' %}"></script>
 {% endblock %}
@@ -222,13 +231,15 @@
                             {% else %}—{% endif %}
                         </strong></td>
                         <td>${{ item.costo_total_con_arriendos|clp }}</td>
-                        <td><strong>
-                            {% if item.costo_total_combustible_mantenciones_km %}
-                                ${{ item.costo_total_combustible_mantenciones_km|clp }}
-                            {% else %}
-                                <span class="text-muted">—</span>
-                            {% endif %}
-                        </strong></td>
+                        <td>
+                            <strong>
+                                {% if item.costo_total_con_arriendos_km %}
+                                    ${{ item.costo_total_con_arriendos_km|clp }}
+                                {% else %}
+                                    <span class="text-muted">—</span>
+                                {% endif %}
+                            </strong>
+                        </td>
                     </tr>
                     {% empty %}
                     <tr><td colspan="5" class="text-center">No hay datos disponibles</td></tr>
@@ -368,9 +379,10 @@
                         <th>Días Fuera de Servicio</th>
                         <th>Días Disponibles (disponibilidad efectiva)</th>
                         <th>Incidentes</th>
-                        <th>Frec. fallas (/10.000 km)</th>
-                        <th>Prom. días indisp. (mant.)</th>
-                        <th>Tiempo retención HBO (min)</th>
+                        <th>Km período</th>
+                        <th>Frec. correctivos cada 10.000 km</th>
+                        <th>Prom. días indisponible</th>
+                        <th>Tiempo retención HBO</th>
                         <th>Estado Actual</th>
                     </tr>
                 </thead>
@@ -381,6 +393,7 @@
                         <td>{{ item.dias_fuera_servicio|floatformat:0 }}</td>
                         <td>{{ item.dias_disponibles|floatformat:0 }}</td>
                         <td>{{ item.incidentes|floatformat:0 }}</td>
+                        <td>{{ item.km_periodo|km }} km</td>
                         <td>{% if item.frecuencia_fallas == 'N/A' %}{{ item.frecuencia_fallas }}{% else %}{{ item.frecuencia_fallas|floatformat:2 }}{% endif %}</td>
                         <td>{% if item.promedio_indisponibilidad == 'N/A' %}{{ item.promedio_indisponibilidad }}{% else %}{{ item.promedio_indisponibilidad|floatformat:1 }}{% endif %}</td>
                         <td>{{ item.tiempo_hbo|default:"N/D" }}</td>
@@ -402,36 +415,30 @@
         </div>
 
         <!-- GRÁFICO EXCLUSIVO DE DISPONIBILIDAD -->
-        <div class="row mt-4">
-            <div class="col-md-4">
-                <div class="card h-100">
-                    <div class="card-header">Disponibilidad Global del Período</div>
-                    <div class="card-body text-center">
-                        <canvas id="chartDisponibilidadGlobal" width="300" height="300" style="max-width: 250px; margin: 0 auto;"></canvas>
-                        <p class="mt-3">
-                            Días disponibles: {{ disponibilidad_global.dias_disponibles|floatformat:0 }} / {{ disponibilidad_global.total_dias_posibles|floatformat:0 }}<br>
-                            Porcentaje: {{ disponibilidad_global.porcentaje_disponibilidad }}%
-                        </p>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-8">
+        <div class="row mt-5">
+            <div class="col-md-12">
                 <div class="card">
-                    <div class="card-header">Días Fuera de Servicio por Vehículo</div>
+                    <div class="card-header">Frecuencia de fallas (mant. correctivos) cada 10.000 km</div>
                     <div class="card-body">
-                        <canvas id="chartDiasFueraServicio"></canvas>
+                        <canvas id="chartFrecuenciaFallas"></canvas>
                     </div>
                 </div>
             </div>
         </div>
-        <div class="mt-5">
-            <div class="row mt-4">
-                <div class="col-md-12">
-                    <div class="card">
-                        <div class="card-header">Evolución mensual de días fuera de servicio ({{ anio_disp|unlocalize }})</div>
-                        <div class="card-body">
-                            <canvas id="chartDiasFueraMensual"></canvas>
-                        </div>
+        <div class="row mt-5">
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">Promedio de días de indisponibilidad</div>
+                    <div class="card-body">
+                        <canvas id="chartPromedioIndisponibilidad"></canvas>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">Tiempo retención HBO (minutos)</div>
+                    <div class="card-body">
+                        <canvas id="chartTiempoHBO"></canvas>
                     </div>
                 </div>
             </div>

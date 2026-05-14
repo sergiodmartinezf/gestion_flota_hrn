@@ -89,8 +89,8 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }
 
-        // 4. Gráfico de Costo por km (Preventivo vs Correctivo)
-        if (patentesList.length && costoPreventivoKmList.length && costoCorrectivoKmList.length) {
+        // 4. Gráfico de Costo por km (Preventivo vs Correctivo vs Total mantenimiento)
+        if (patentesList.length && costoPreventivoKmList.length && costoCorrectivoKmList.length && window.costoMantenimientoTotalKmList) {
             const canvasKm = document.getElementById('chartCostoKmDesagregado');
             if (canvasKm) {
                 new Chart(canvasKm, {
@@ -99,12 +99,19 @@ document.addEventListener('DOMContentLoaded', function() {
                         labels: patentesList,
                         datasets: [
                             { label: 'Preventivo $/km', data: costoPreventivoKmList, backgroundColor: 'rgba(54,162,235,0.7)', borderColor: 'rgba(54,162,235,1)', borderWidth: 1 },
-                            { label: 'Correctivo $/km', data: costoCorrectivoKmList, backgroundColor: 'rgba(255,99,132,0.7)', borderColor: 'rgba(255,99,132,1)', borderWidth: 1 }
+                            { label: 'Correctivo $/km', data: costoCorrectivoKmList, backgroundColor: 'rgba(255,99,132,0.7)', borderColor: 'rgba(255,99,132,1)', borderWidth: 1 },
+                            { label: 'Total mantenimiento $/km', data: window.costoMantenimientoTotalKmList, backgroundColor: 'rgba(255,159,64,0.7)', borderColor: 'rgba(255,159,64,1)', borderWidth: 1 }
                         ]
                     },
                     options: {
                         responsive: true,
-                        scales: { y: { beginAtZero: true, title: { display: true, text: '$ / km' }, ticks: { callback: (v) => '$' + v.toLocaleString('es-CL') } } }
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                title: { display: true, text: '$ / km' },
+                                ticks: { callback: (v) => '$' + v.toLocaleString('es-CL') }
+                            }
+                        }
                     }
                 });
             }
@@ -259,6 +266,86 @@ document.addEventListener('DOMContentLoaded', function() {
                 },
                 plugins: {
                     tooltip: { callbacks: { label: (ctx) => `${ctx.dataset.label}: $${ctx.raw.toLocaleString('es-CL')}` } }
+                }
+            }
+        });
+    }
+    // Gráfico Frecuencia de fallas
+    const ctxFrec = document.getElementById('chartFrecuenciaFallas');
+    if (ctxFrec && window.patentesDispList && window.frecuenciasList) {
+        new Chart(ctxFrec, {
+            type: 'bar',
+            data: {
+                labels: window.patentesDispList,
+                datasets: [{
+                    label: 'Mant. correctivos cada 10.000 km',
+                    data: window.frecuenciasList.map(v => v !== null ? v : 0),
+                    backgroundColor: 'rgba(255, 99, 132, 0.7)',
+                    borderColor: 'rgba(255, 99, 132, 1)',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        title: { display: true, text: 'Frecuencia' }
+                    }
+                }
+            }
+        });
+    }
+
+    // Gráfico Promedio de días de indisponibilidad
+    const ctxProm = document.getElementById('chartPromedioIndisponibilidad');
+    if (ctxProm && window.patentesDispList && window.promediosList) {
+        new Chart(ctxProm, {
+            type: 'bar',
+            data: {
+                labels: window.patentesDispList,
+                datasets: [{
+                    label: 'Días promedio fuera de servicio',
+                    data: window.promediosList.map(v => v !== null ? v : 0),
+                    backgroundColor: 'rgba(54, 162, 235, 0.7)',
+                    borderColor: 'rgba(54, 162, 235, 1)',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        title: { display: true, text: 'Días' }
+                    }
+                }
+            }
+        });
+    }
+
+    // Gráfico Tiempo retención HBO
+    const ctxHBO = document.getElementById('chartTiempoHBO');
+    if (ctxHBO && window.patentesDispList && window.tiemposHBOList) {
+        new Chart(ctxHBO, {
+            type: 'bar',
+            data: {
+                labels: window.patentesDispList,
+                datasets: [{
+                    label: 'Minutos en HBO',
+                    data: window.tiemposHBOList.map(v => v !== null ? v : 0),
+                    backgroundColor: 'rgba(75, 192, 192, 0.7)',
+                    borderColor: 'rgba(75, 192, 192, 1)',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        title: { display: true, text: 'Minutos' }
+                    }
                 }
             }
         });

@@ -71,13 +71,26 @@ class ReporteCalculos:
             cargas_qs = cargas_qs.filter(fecha__lte=fecha_hasta)
         costo_combustible = cargas_qs.aggregate(total=Sum('costo_total'))['total'] or Decimal('0')
         
-        # Arriendos (vehículo reemplazado)
+        # Arriendos (vehículo reemplazado) - prorrateo por días en el período
         arriendos_qs = Arriendo.objects.filter(vehiculo_reemplazado=vehiculo)
-        if fecha_desde:
-            arriendos_qs = arriendos_qs.filter(fecha_inicio__gte=fecha_desde)
-        if fecha_hasta:
-            arriendos_qs = arriendos_qs.filter(fecha_inicio__lte=fecha_hasta)
-        costo_arriendos = arriendos_qs.aggregate(total=Sum('costo_total'))['total'] or Decimal('0')
+        costo_arriendos = Decimal('0')
+        if fecha_desde and fecha_hasta:
+            for arriendo in arriendos_qs:
+                inicio = arriendo.fecha_inicio
+                fin = arriendo.fecha_fin if arriendo.fecha_fin else fecha_hasta
+                # Intersección con el período del reporte
+                inter_inicio = max(inicio, fecha_desde)
+                inter_fin = min(fin, fecha_hasta)
+                if inter_fin >= inter_inicio:
+                    dias_intersec = (inter_fin - inter_inicio).days + 1
+                    # Costo diario puede estar en costo_diario o calcularse desde costo_total/días_arriendo
+                    if arriendo.costo_diario:
+                        costo_arriendos += arriendo.costo_diario * dias_intersec
+                    elif arriendo.dias_arriendo > 0:
+                        costo_arriendos += (arriendo.costo_total / arriendo.dias_arriendo) * dias_intersec
+        else:
+            # Si no hay fechas, se toma el costo total del arriendo (comportamiento anterior)
+            costo_arriendos = arriendos_qs.aggregate(total=Sum('costo_total'))['total'] or Decimal('0')
         
         costo_total = costo_mantenimientos + costo_combustible + costo_arriendos
         
@@ -479,11 +492,13 @@ def reportes(request):  # antes se llamaba reporte_costos
             costo_preventivo_km = calculos['costo_preventivo'] / km
             costo_correctivo_km = calculos['costo_correctivo'] / km
             costo_total_km_sin_arriendo = costo_total_sin_arriendo / km
+            costo_total_con_arriendos_km = calculos['costo_total'] / km
         else:
             costo_mant_por_km = None
             costo_preventivo_km = None
             costo_correctivo_km = None
             costo_total_km_sin_arriendo = None
+            costo_total_con_arriendos_km = None
         
         reporte_costos_data.append({
             'vehiculo': vehiculo,
@@ -499,19 +514,21 @@ def reportes(request):  # antes se llamaba reporte_costos
             'costo_preventivo': calculos['costo_preventivo'],
             'costo_correctivo': calculos['costo_correctivo'],
             'costo_mantenimiento_total': calculos['costo_mantenimientos'],
-            'costo_mant_por_km': float(costo_mant_por_km),
-            'costo_preventivo_km': float(costo_preventivo_km),
-            'costo_correctivo_km': float(costo_correctivo_km),
+            # 👇 Cambios aquí: convertir solo si no es None
+            'costo_mant_por_km': float(costo_mant_por_km) if costo_mant_por_km is not None else None,
+            'costo_preventivo_km': float(costo_preventivo_km) if costo_preventivo_km is not None else None,
+            'costo_correctivo_km': float(costo_correctivo_km) if costo_correctivo_km is not None else None,
             # Arriendos
             'costo_arriendos': calculos['costo_arriendos'],
             # Indicador 7: costo total bencina+mantenciones
             'costo_total_combustible_mantenciones': float(costo_total_sin_arriendo),
-            'costo_total_combustible_mantenciones_km': float(costo_total_km_sin_arriendo),
+            'costo_total_combustible_mantenciones_km': float(costo_total_km_sin_arriendo) if costo_total_km_sin_arriendo is not None else None,
             # Indicador 4: costo por hora detenida
             'horas_mantenimiento': tiempos_mant['horas_mantenimiento'],
             'costo_por_hora_mantenimiento': tiempos_mant['costo_por_hora_mantenimiento'],
             # Totales con arriendos
             'costo_total_con_arriendos': calculos['costo_total'],
+            'costo_total_con_arriendos_km': float(costo_total_con_arriendos_km) if costo_total_con_arriendos_km is not None else None,
         })
 
     patentes_list = [item['patente'] for item in reporte_costos_data]
@@ -587,6 +604,16 @@ def reportes(request):  # antes se llamaba reporte_costos
             mantenimientos = mantenimientos.filter(fecha_ingreso__year=anio_disp)
 
         total_dias_fuera = 0
+        correctivos = Mantenimiento.objects.filter(
+            vehiculo=vehiculo,
+            tipo_mantencion='Correctivo',
+            estado='Finalizado',
+            fecha_ingreso__gte=fecha_desde_disp,
+            fecha_ingreso__lte=fecha_hasta_disp
+        ).count()
+
+        km_periodo_vehiculo = km_totales_por_vehiculo([vehiculo.id], fecha_desde_disp, fecha_hasta_disp).get(vehiculo.id, 0)
+
         for mant in mantenimientos:
             if mant.fecha_salida:
                 dias = (mant.fecha_salida - mant.fecha_ingreso).days
@@ -610,14 +637,54 @@ def reportes(request):  # antes se llamaba reporte_costos
             'frecuencia_fallas': frecuencia_map.get(vehiculo.id, 'N/A'),
             'promedio_indisponibilidad': indisp_prom_map.get(vehiculo.id, 'N/A'),
             'tiempo_hbo': tiempo_hbo_formateado,
+            'correctivos': correctivos,
+            'km_periodo': km_periodo_vehiculo,
         })
+
+    patentes_disp_list = []
+    frecuencias_list = []
+    promedios_list = []
+    tiempos_hbo_list = []
+
+    for item in reporte_disponibilidad:
+        patentes_disp_list.append(item['patente'])
+        
+        # Frecuencia fallas: convertir a float si es numérico, sino None
+        freq = item['frecuencia_fallas']
+        if freq != 'N/A' and freq is not None:
+            try:
+                frecuencias_list.append(float(freq))
+            except (ValueError, TypeError):
+                frecuencias_list.append(None)
+        else:
+            frecuencias_list.append(None)
+        
+        # Promedio días indisponibilidad: similar
+        prom = item['promedio_indisponibilidad']
+        if prom != 'N/A' and prom is not None:
+            try:
+                promedios_list.append(float(prom))
+            except (ValueError, TypeError):
+                promedios_list.append(None)
+        else:
+            promedios_list.append(None)
+        
+        # Tiempo HBO: extraer el número de "X min"
+        tiempo_str = item['tiempo_hbo']
+        if tiempo_str and tiempo_str != 'N/D' and 'min' in tiempo_str:
+            try:
+                minutos = int(tiempo_str.split()[0])
+                tiempos_hbo_list.append(minutos)
+            except (ValueError, IndexError):
+                tiempos_hbo_list.append(None)
+        else:
+            tiempos_hbo_list.append(None)
 
     patentes_disp = [item['patente'] for item in reporte_disponibilidad]
     dias_fuera_disp = [item['dias_fuera_servicio'] for item in reporte_disponibilidad]
     pares = sorted(zip(patentes_disp, dias_fuera_disp), key=lambda x: x[1], reverse=True)
     patentes_disp_ordenadas, dias_fuera_disp_ordenadas = zip(*pares) if pares else ([], [])
     
-    # ========== GRÁFICOS ADICIONALES PARA DISPONIBILIDAD ==========
     disponibilidad_global = calcular_disponibilidad_global(vehiculos_disp, fecha_desde_disp, fecha_hasta_disp, dias_periodo)
     dias_fuera_mensual = calcular_dias_fuera_por_mes(vehiculos_disp, anio_disp)
 
@@ -652,6 +719,11 @@ def reportes(request):  # antes se llamaba reporte_costos
         'dias_fuera_mensual_json': dias_fuera_mensual_json,
         'patentes_disp': list(patentes_disp_ordenadas),
         'dias_fuera_disp': list(dias_fuera_disp_ordenadas),
+        # NUEVAS VARIABLES PARA LOS GRÁFICOS DE FRECUENCIA, PROMEDIO Y HBO
+        'patentes_disp_list_json': json.dumps(patentes_disp_list),
+        'frecuencias_list_json': json.dumps(frecuencias_list),
+        'promedios_list_json': json.dumps(promedios_list),
+        'tiempos_hbo_list_json': json.dumps(tiempos_hbo_list),
     })
     
 

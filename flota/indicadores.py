@@ -182,8 +182,8 @@ def frecuencia_fallas_por_vehiculo(vehiculo_ids, fecha_desde, fecha_hasta):
         if km < 1:
             out[vid] = 'N/A'
         else:
-            val = n / (km / 10000.0)
-            out[vid] = round(val, 2)
+            val = (n / km) * 10000.0
+            out[vid] = round(val, 6)
     return out
 
 
