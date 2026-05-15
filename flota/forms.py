@@ -294,7 +294,6 @@ class HojaRutaForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        # --- Fecha por defecto (SIEMPRE) ---
         if not self.data and not self.instance.pk:
             self.fields['fecha'].initial = datetime.now().date()
             self.fields['fecha'].widget.attrs['value'] = datetime.now().date().strftime('%Y-%m-%d')
@@ -498,7 +497,6 @@ class PacienteTrasladoForm(forms.ModelForm):
             self.add_error('destino_tipo', 'Debe seleccionar un destino.')
         return cleaned_data
 
-# Factory para gestionar multiples pacientes dentro del mismo formulario de Viaje
 PacienteFormSet = inlineformset_factory(
     Viaje, 
     PacienteTraslado, 
@@ -535,7 +533,6 @@ class CargaCombustibleForm(forms.ModelForm):
         if self.instance.pk and self.instance.fecha:
             self.fields['fecha'].widget.attrs['value'] = self.instance.fecha.strftime('%Y-%m-%d')
 
-        # REQ: Filtrar vehículos que no esten en mantenimiento ni de baja
         self.fields['patente_vehiculo'].queryset = Vehiculo.objetos_operativos().order_by('patente')
 
         # Auto-seleccionar conductor actual
@@ -821,7 +818,6 @@ class FallaReportadaForm(forms.ModelForm):
         if self.instance.pk and self.instance.fecha_reporte:
             self.fields['fecha_reporte'].widget.attrs['value'] = self.instance.fecha_reporte.strftime('%Y-%m-%d')
 
-        # REQ: Filtrar vehículos activos para reportar fallas nuevas
         if not self.instance.pk:
             self.fields['vehiculo'].queryset = Vehiculo.objetos_operativos().order_by('patente')
 
@@ -894,7 +890,6 @@ class PresupuestoForm(forms.ModelForm):
 
 
 class ArriendoForm(forms.ModelForm):
-    # Definir explícitamente vehiculo_reemplazado como ModelChoiceField
     vehiculo_reemplazado = forms.ModelChoiceField(
         queryset=Vehiculo.objects.filter(
             tipo_propiedad='Propio', 
@@ -935,7 +930,6 @@ class ArriendoForm(forms.ModelForm):
         self.fields['proveedor'].queryset = Proveedor.objects.filter(
             es_arrendador=True, activo=True
         ).order_by('nombre_fantasia')
-        # Nota: vehiculo_reemplazado ya tiene queryset fijo, no se modifica aquí
 
         # Formatear fechas si es edición
         if self.instance.pk:

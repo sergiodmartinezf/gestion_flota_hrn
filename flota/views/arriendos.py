@@ -15,8 +15,7 @@ def listar_arriendos(request):
         arriendos = Arriendo.objects.all().order_by('-fecha_inicio')
     else:
         arriendos = Arriendo.objects.filter(activo=True).order_by('-fecha_inicio')
-    
-    # El resto de los filtros (estado, proveedor, fechas) se aplican después
+
     estado_filter = request.GET.get('estado')
     proveedor_filter = request.GET.get('proveedor')
     desde_filter = request.GET.get('desde', '')
@@ -45,7 +44,7 @@ def listar_arriendos(request):
         'proveedor_filter': proveedor_filter,
         'desde_filter': desde_filter,
         'hasta_filter': hasta_filter,
-        'mostrar_deshabilitados': mostrar_deshabilitados,  # Nuevo
+        'mostrar_deshabilitados': mostrar_deshabilitados,
     })
 
 
@@ -109,21 +108,17 @@ def finalizar_arriendo(request, id):
     arriendo = get_object_or_404(Arriendo, id=id)
     
     if request.method == 'POST':
-        # Actualizar arriendo
         arriendo.estado = 'Finalizado'
         arriendo.fecha_fin = timezone.now().date()
         arriendo.save()
-        
-        # ACTUALIZAR ESTADO DEL VEHÍCULO ARRENDADO (CORRECCIÓN)
+
         vehiculo_arrendado = arriendo.vehiculo_arrendado
         vehiculo_arrendado.estado = 'Fuera de servicio'
         vehiculo_arrendado.save()
         messages.info(request, f'Vehículo arrendado {vehiculo_arrendado.patente} marcado como Fuera de servicio.')
-        
-        # Reactivar el vehículo propio si ya está disponible
+
         if arriendo.vehiculo_reemplazado:
             vehiculo = arriendo.vehiculo_reemplazado
-            # Verificar si el vehículo sigue en taller o ya está listo
             mantenimientos_activos = Mantenimiento.objects.filter(
                 vehiculo=vehiculo,
                 estado__in=['En taller', 'Esperando repuestos']
@@ -137,8 +132,7 @@ def finalizar_arriendo(request, id):
                 messages.success(request, f'Vehículo {vehiculo.patente} reactivado y disponible.')
             
             vehiculo.save()
-        
-        # CORRECCIÓN: Usar vehiculo_arrendado.patente
+
         messages.success(request, f'Arriendo {arriendo.vehiculo_arrendado.patente} finalizado.')
         return redirect('listar_arriendos')
     

@@ -33,12 +33,9 @@ def panel_control(request):
     fin_calculo = fin_anio
     dias_del_periodo = (fin_calculo - inicio_anio).days + 1
 
-    # --- PRESUPUESTOS: AHORA TOMAMOS TODOS (activos e inactivos) para cálculos programados ---
     presupuestos_todos = Presupuesto.objects.filter(anio=anio_seleccionado)
-    # Monto total programado original (incluye correctivos ya agotados)
     total_asignado = presupuestos_todos.aggregate(Sum('monto_asignado'))['monto_asignado__sum'] or 0
 
-    # --- Ejecución real: suma de costos de mantenimientos finalizados en el año ---
     mantenimientos_anio = Mantenimiento.objects.filter(
         fecha_salida__year=anio_seleccionado,
         estado='Finalizado',
@@ -306,7 +303,7 @@ def panel_control(request):
         'anio_filter': anio_filter,
         'presupuesto_total': total_asignado,
         'presupuesto_ejecutado': total_ejecutado_real,
-        'presupuesto_pct': porcentaje_gasto,  # ¡Corregido!
+        'presupuesto_pct': porcentaje_gasto,
         'json_monthly_split': json.dumps({
             'labels': meses_labels,
             'preventivo': monthly_prev,
@@ -339,8 +336,8 @@ def panel_control(request):
             'programado': [int(prog_prev), int(prog_corr)],
             'ejecutado': [int(ejec_prev), int(ejec_corr)]
         }),
-        'total_prog': prog_prev + prog_corr,   # Programado total real (preventivo+correctivo)
-        'total_ejec': ejec_prev + ejec_corr,   # Ejecutado total real
+        'total_prog': prog_prev + prog_corr,
+        'total_ejec': ejec_prev + ejec_corr,
         'vehiculos': vehiculos,
         'json_finance': json.dumps(finance_data),
         'dias_por_vehiculo_json': json.dumps(dias_por_vehiculo_ambulancias),

@@ -1,22 +1,13 @@
-"""
-Módulo principal de vistas
-"""
+"""Reexportación de vistas para `gestion_flota.urls`."""
 
-# Importar utilidades primero
 from .utilidades import es_administrador, es_conductor_o_admin, verificar_presupuesto_cuenta
-
-# Importar vistas de autenticación
 from .autenticacion import login_view, logout_view
-
-# Importar vistas de usuarios
 from .usuarios import (
     registrar_usuario,
     listar_usuarios,
     modificar_usuario,
-    deshabilitar_usuario
+    deshabilitar_usuario,
 )
-
-# Importar vistas de vehículos
 from .vehiculos import (
     registrar_vehiculo,
     listar_flota,
@@ -26,10 +17,8 @@ from .vehiculos import (
     disponibilidad_flota,
     costo_por_kilometro,
     gastos_mantenimientos,
-    alertas
+    alertas,
 )
-
-# Importar vistas de bitácoras y viajes
 from .viajes import (
     registrar_bitacora,
     listar_bitacoras,
@@ -43,10 +32,8 @@ from .viajes import (
     exportar_traslados_form,
     agregar_viaje,
     acceso_bitacora,
-    cerrar_hoja_ruta
+    cerrar_hoja_ruta,
 )
-
-# Importar vistas de mantenimiento
 from .mantenimiento import (
     programar_mantenimiento,
     listar_mantenimientos,
@@ -55,29 +42,21 @@ from .mantenimiento import (
     finalizar_mantenimiento,
     eliminar_mantenimiento,
     calendario_mantenciones,
-    api_mantenimientos
+    api_mantenimientos,
 )
-
-# Importar vistas de panel de control
 from .panel_control import panel_control
-
-# Importar vistas de presupuesto
 from .presupuesto import (
     registrar_presupuesto,
     modificar_presupuesto,
     deshabilitar_presupuesto,
     listar_presupuestos,
-    reporte_variacion_presupuestaria
+    reporte_variacion_presupuestaria,
 )
-
-# Importar vistas de reportes
 from .reportes import (
     reportes,
     reporte_disponibilidad,
-    reporte_historial_unidad
+    reporte_historial_unidad,
 )
-
-# Importar vistas de arriendo
 from .arriendos import (
     listar_arriendos,
     registrar_arriendo,
@@ -85,20 +64,14 @@ from .arriendos import (
     deshabilitar_arriendo,
     habilitar_arriendo,
 )
-
-# Importar vistas de dashboard
 from .dashboard import dashboard
-
-# Importar vistas de proveedores
 from .proveedores import (
     listar_proveedores,
     registrar_proveedor,
     modificar_proveedor,
     habilitar_proveedor,
-    deshabilitar_proveedor
+    deshabilitar_proveedor,
 )
-
-# Importar vistas de órdenes
 from .ordenes import (
     importar_orden_compra,
     registrar_orden_compra,
@@ -111,34 +84,24 @@ from .ordenes import (
     detalle_orden_trabajo,
     modificar_orden_trabajo,
     eliminar_orden_trabajo,
-    api_orden_trabajo
+    api_orden_trabajo,
 )
-
-# Importar APIs
 from .api import (
     api_vehiculos_kilometraje,
     api_alertas_count,
-    api_verificar_presupuesto
+    api_verificar_presupuesto,
 )
 
-# Exportación de vistas
 __all__ = [
-    # Utilidades
     'es_administrador',
     'es_conductor_o_admin',
     'verificar_presupuesto_cuenta',
-    
-    # Autenticación
     'login_view',
     'logout_view',
-    
-    # Usuarios
     'registrar_usuario',
     'listar_usuarios',
     'modificar_usuario',
     'deshabilitar_usuario',
-    
-    # Vehículos
     'registrar_vehiculo',
     'listar_flota',
     'ficha_vehiculo',
@@ -148,8 +111,6 @@ __all__ = [
     'costo_por_kilometro',
     'gastos_mantenimientos',
     'alertas',
-    
-    # Bitácoras y viajes
     'registrar_bitacora',
     'listar_bitacoras',
     'modificar_bitacora',
@@ -160,8 +121,9 @@ __all__ = [
     'listar_incidentes',
     'exportar_consolidado_viajes',
     'exportar_traslados_form',
-    
-    # Mantenimiento
+    'agregar_viaje',
+    'acceso_bitacora',
+    'cerrar_hoja_ruta',
     'programar_mantenimiento',
     'listar_mantenimientos',
     'cambiar_estado_mantenimiento',
@@ -170,38 +132,26 @@ __all__ = [
     'eliminar_mantenimiento',
     'calendario_mantenciones',
     'api_mantenimientos',
-
-    # Panel de control
     'panel_control',
-    
-    # Presupuesto
     'registrar_presupuesto',
     'modificar_presupuesto',
     'deshabilitar_presupuesto',
     'listar_presupuestos',
     'reporte_variacion_presupuestaria',
-    
-    # Reportes
     'reportes',
     'reporte_disponibilidad',
     'reporte_historial_unidad',
-    
-    # Arriendo
     'registrar_arriendo',
     'listar_arriendos',
     'finalizar_arriendo',
-    
-    # Dashboard
+    'deshabilitar_arriendo',
+    'habilitar_arriendo',
     'dashboard',
-    
-    # Proveedores
     'listar_proveedores',
     'registrar_proveedor',
     'modificar_proveedor',
     'habilitar_proveedor',
     'deshabilitar_proveedor',
-    
-    # Órdenes
     'importar_orden_compra',
     'registrar_orden_compra',
     'listar_ordenes_compra',
@@ -213,8 +163,7 @@ __all__ = [
     'detalle_orden_trabajo',
     'modificar_orden_trabajo',
     'eliminar_orden_trabajo',
-    
-    # APIs
+    'api_orden_trabajo',
     'api_vehiculos_kilometraje',
     'api_alertas_count',
     'api_verificar_presupuesto',

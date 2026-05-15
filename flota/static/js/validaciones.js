@@ -1,11 +1,8 @@
-// Validaciones básicas para formularios del sistema de gestión de flota
-
-// Función para mostrar errores de validación
 function mostrarErroresValidacion(errores, titulo = 'Errores de Validación') {
     if (errores.length === 0) return false;
-    
+
     const listaErrores = errores.map(error => `• ${error}`).join('\n');
-    
+
     if (typeof Swal !== 'undefined' && Swal.fire) {
         Swal.fire({
             title: titulo,
@@ -36,11 +33,10 @@ function mostrarErroresValidacion(errores, titulo = 'Errores de Validación') {
             console.error(`${titulo}: ${errores.join(' | ')}`);
         }
     }
-    
+
     return true;
 }
 
-// Validar campo obligatorio
 function validarCampoObligatorio(valor, campo = 'campo', mostrarAlerta = false) {
     const errores = [];
     if (!valor || valor.toString().trim() === '') {
@@ -52,7 +48,6 @@ function validarCampoObligatorio(valor, campo = 'campo', mostrarAlerta = false) 
     return errores;
 }
 
-// Validar número entero positivo
 function validarEnteroPositivo(valor, campo = 'valor', min = 0, max = 999999999, obligatorio = true, mostrarAlerta = false) {
     const errores = [];
     if (!valor && obligatorio) {
@@ -72,7 +67,6 @@ function validarEnteroPositivo(valor, campo = 'valor', min = 0, max = 999999999,
     return errores;
 }
 
-// Validar número decimal
 function validarNumeroDecimal(valor, campo = 'valor', min = 0, max = 999999.99, obligatorio = true, mostrarAlerta = false) {
     const errores = [];
     if (!valor && obligatorio) {
@@ -92,7 +86,6 @@ function validarNumeroDecimal(valor, campo = 'valor', min = 0, max = 999999.99, 
     return errores;
 }
 
-// Validar fecha
 function validarFecha(fecha, campo = 'fecha', obligatorio = true, mostrarAlerta = false) {
     const errores = [];
     if (!fecha && obligatorio) {
@@ -111,7 +104,6 @@ function validarFecha(fecha, campo = 'fecha', obligatorio = true, mostrarAlerta 
     return errores;
 }
 
-// Validar selección
 function validarSeleccion(valor, campo = 'campo', obligatorio = true, mostrarAlerta = false) {
     const errores = [];
     if (obligatorio && (!valor || valor === "" || valor === "0")) {
@@ -123,12 +115,9 @@ function validarSeleccion(valor, campo = 'campo', obligatorio = true, mostrarAle
     return errores;
 }
 
-// VALIDACIONES DE CONTRASEÑA NUEVAS
-
-// Validar fortaleza de contraseña
 function validarFortalezaPassword(password, campo = 'contraseña', mostrarAlerta = false) {
     const errores = [];
-    
+
     if (!password) {
         errores.push(`La ${campo} es obligatoria`);
     } else if (password.trim() === '') {
@@ -141,41 +130,38 @@ function validarFortalezaPassword(password, campo = 'contraseña', mostrarAlerta
             errores.push(`La ${campo} debe contener al menos un número (0-9)`);
         }
     }
-    
+
     if (mostrarAlerta && errores.length > 0) {
         mostrarErroresValidacion(errores, `Error en ${campo}`);
     }
     return errores;
 }
 
-// Validar coincidencia de contraseñas
 function validarCoincidenciaPassword(password, confirmacion, campo1 = 'contraseña', campo2 = 'confirmación de contraseña', mostrarAlerta = false) {
     const errores = [];
-    
+
     if (password !== confirmacion) {
         errores.push(`La ${campo1} y la ${campo2} no coinciden`);
     }
-    
+
     if (mostrarAlerta && errores.length > 0) {
         mostrarErroresValidacion(errores, `Error en ${campo1} y ${campo2}`);
     }
     return errores;
 }
 
-// Validación completa de contraseña (fortaleza + coincidencia)
 function validarPasswordCompleto(password, confirmacion, campo = 'contraseña', mostrarAlerta = false) {
     const erroresFortaleza = validarFortalezaPassword(password, campo, false);
     const erroresCoincidencia = validarCoincidenciaPassword(password, confirmacion, campo, 'confirmación de contraseña', false);
     const todosErrores = [...erroresFortaleza, ...erroresCoincidencia];
-    
+
     if (mostrarAlerta && todosErrores.length > 0) {
         mostrarErroresValidacion(todosErrores, `Error en ${campo}`);
     }
-    
+
     return todosErrores;
 }
 
-// Validar formulario completo
 function validarFormulario(validaciones, titulo = 'Errores en el Formulario') {
     const todosLosErrores = [];
     validaciones.forEach(validacion => {

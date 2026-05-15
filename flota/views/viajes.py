@@ -29,18 +29,11 @@ TIPOS_SERVICIO = [
 
 @login_required
 def acceso_bitacora(request):
-    """
-    Despachador inteligente:
-    - Si es Admin/Visualizador -> Lista de bitácoras.
-    - Si es Conductor -> Busca hoja abierta HOY.
-      - Si tiene hoja abierta -> Pantalla agregar viaje.
-      - Si NO tiene hoja abierta -> Pantalla crear nueva hoja.
-    """
+    """Redirige según rol: admin/listado o conductor/hoja del día."""
     if request.user.rol in ['Administrador', 'Visualizador']:
         return redirect('listar_bitacoras')
 
     if request.user.rol == 'Conductor':
-        # Retomar solo hojas explícitamente abiertas del día actual.
         hoja_activa = HojaRuta.objects.filter(
             conductor=request.user, 
             fecha=timezone.now().date(),
@@ -48,20 +41,16 @@ def acceso_bitacora(request):
         ).order_by('-creado_en').first()
 
         if hoja_activa:
-            # Mensaje opcional de bienvenida
-            # messages.info(request, f'Retomando turno activo en móvil {hoja_activa.vehiculo.patente}')
             return redirect('agregar_viaje', id=hoja_activa.id)
         else:
             return redirect('registrar_bitacora')
-    
-    # Fallback por defecto
+
     return redirect('listar_bitacoras')
 
 @login_required
 def cerrar_hoja_ruta(request, id):
     hoja = get_object_or_404(HojaRuta, id=id)
-    
-    # Seguridad: solo el conductor dueño o un admin pueden cerrar
+
     if request.user != hoja.conductor and request.user.rol != 'Administrador':
         messages.error(request, "No tienes permiso para cerrar esta hoja de ruta.")
         return redirect('agregar_viaje', id=hoja.id)
@@ -75,23 +64,19 @@ def cerrar_hoja_ruta(request, id):
                 return redirect('agregar_viaje', id=hoja.id)
                 
             km_final = int(km_final_input)
-            
-            # Validación lógica básica
+
             if km_final < hoja.km_inicio:
                 messages.error(request, f"El KM final ({km_final}) no puede ser menor al inicial ({hoja.km_inicio}).")
                 return redirect('agregar_viaje', id=hoja.id)
 
-            # Validar contra el último viaje si existe (Viaje usa km_llegada, no km_fin_viaje)
             ultimo_viaje = hoja.viajes.order_by('-km_llegada').first()
             if ultimo_viaje and ultimo_viaje.km_llegada and km_final < ultimo_viaje.km_llegada:
                 messages.warning(request, f"Atención: El KM de cierre es menor al del último viaje registrado ({ultimo_viaje.km_llegada}).")
-            
-            # Guardar cierre y marcar hoja como cerrada
+
             hoja.km_fin = km_final
             hoja.abierta = False
             hoja.save(update_fields=['km_fin', 'abierta'])
-            
-            # Actualizar KM del vehículo también para asegurar sincronía
+
             vehiculo = hoja.vehiculo
             if km_final > vehiculo.kilometraje_actual:
                 vehiculo.kilometraje_actual = km_final
@@ -290,7 +275,6 @@ def listar_bitacoras(request):
         'estado_filtro': estado_filtro,
     })
 
-# --- NUEVA VISTA MODIFICAR BITÁCORA (REQ: Admin edita info de conductor) ---
 @login_required
 @user_passes_test(es_administrador)
 def modificar_bitacora(request, id):
@@ -311,16 +295,13 @@ def modificar_bitacora(request, id):
     })
 
 
-# --- NUEVA VISTA DETALLE BITÁCORA ---
 @login_required
 def detalle_bitacora(request, id):
     hoja = get_object_or_404(HojaRuta, id=id)
     viajes = hoja.viajes.prefetch_related('pacientes').all()
-    
-    # Calcular totales con atributos reales del modelo (km_salida, km_llegada)
+
     total_km_viajes = sum(v.km_recorridos_calculados for v in viajes)
-    
-    # KM final de la hoja: el mayor km_llegada de los viajes o el ya guardado en la hoja
+
     if viajes.exists():
         km_llegadas = [v.km_llegada for v in viajes if v.km_llegada is not None]
         km_fin_hoja = max(km_llegadas) if km_llegadas else hoja.km_fin or hoja.km_inicio
@@ -491,7 +472,6 @@ def listar_incidentes(request):
         'conductor_filtro': conductor_filtro,
     })
 
-# --- Formulario para exportar traslados con filtros ---
 @login_required
 def exportar_traslados_form(request):
     """Muestra formulario con filtros (desde, hasta, vehículo, conductor) para exportar Excel."""
@@ -503,7 +483,6 @@ def exportar_traslados_form(request):
     })
 
 
-# --- EXPORTAR VIAJES CONSOLIDADO (openpyxl, una fila por paciente) ---
 @login_required
 def exportar_consolidado_viajes(request):
     desde = request.GET.get('desde', '')

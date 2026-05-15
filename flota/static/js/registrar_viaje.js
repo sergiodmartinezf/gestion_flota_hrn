@@ -62,7 +62,6 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         };
         cambiarPlaceholder();
-        // Usar MutationObserver para nuevos inputs
         const observerPlaceholder = new MutationObserver(cambiarPlaceholder);
         observerPlaceholder.observe(document.getElementById('pacientes-container'), { childList: true, subtree: true });
     }

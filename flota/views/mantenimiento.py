@@ -223,7 +223,6 @@ def finalizar_mantenimiento(request, id):
             mant.costo_total_real = (mant.costo_mano_obra or 0) + (mant.costo_repuestos or 0)
             mant.estado = 'Finalizado'
 
-            # --- ASIGNAR CUENTA PRESUPUESTARIA DESDE LA ORDEN DE COMPRA ---
             if not mant.cuenta_presupuestaria and mant.orden_compra:
                 mant.cuenta_presupuestaria = mant.orden_compra.cuenta_presupuestaria
                 if not mant.cuenta_presupuestaria:
@@ -256,7 +255,6 @@ def finalizar_mantenimiento(request, id):
 
     else:
         form = FinalizarMantenimientoForm(instance=mantenimiento, initial={'fecha_salida': timezone.now().date()})
-        # Filtrar órdenes de compra disponibles para este vehículo (activas y no anuladas)
         form.fields['orden_compra'].queryset = OrdenCompra.objects.filter(
             vehiculo=mantenimiento.vehiculo,
             estado__in=['EMITIDA', 'ACEPTADA']
@@ -276,8 +274,7 @@ def eliminar_mantenimiento(request, id):
         mantenimiento.delete()
         messages.success(request, 'Mantenimiento eliminado correctamente.')
         return redirect('calendario_mantenciones')
-    
-    # Renderizar una confirmación simple
+
     return render(request, 'flota/eliminar_mantenimiento.html', {'mantenimiento': mantenimiento})
 
 
@@ -290,22 +287,16 @@ def calendario_mantenciones(request):
     orden_trabajo_id = request.GET.get('orden_trabajo', '').strip()
     orden_trabajo = get_object_or_404(OrdenTrabajo, id=orden_trabajo_id) if orden_trabajo_id else None
     abrir_modal = request.GET.get('abrir_modal') == '1' or bool(orden_trabajo_id)
-    # Convertir cuentas a lista de diccionarios para JSON
     cuentas_list = [
         {'id': c.id, 'codigo': c.codigo, 'nombre': c.nombre}
         for c in cuentas
     ]
-    
-    # Convertir el mapa (claves tuple) a un diccionario con claves string
+
     mapa_json = {}
     for (tipo, criticidad), ids in MANTENIMIENTO_CUENTAS_MAP.items():
         clave = f"{tipo}_{criticidad}"
         mapa_json[clave] = ids
-    
-    orden_trabajo_id = request.GET.get('orden_trabajo', '').strip()
-    orden_trabajo = get_object_or_404(OrdenTrabajo, id=orden_trabajo_id) if orden_trabajo_id else None
-    abrir_modal = request.GET.get('abrir_modal') == '1' or bool(orden_trabajo_id)
-    
+
     return render(request, 'flota/calendario_mantenciones.html', {
         'vehiculos': vehiculos,
         'proveedores': proveedores,
@@ -323,14 +314,12 @@ def api_mantenimientos(request):
     eventos = []
     
     for m in mantenimientos:
-        # Definir colores según estado
-        color = '#3788d8' # Azul (Programado)
+        color = '#3788d8'
         if m.estado == 'En taller':
-            color = '#dc3545' # Rojo
+            color = '#dc3545'
         elif m.estado == 'Finalizado':
-            color = '#198754' # Verde
-            
-        # Asegurar que las fechas estén correctamente formateadas
+            color = '#198754'
+
         start_date = m.fecha_ingreso.isoformat() if m.fecha_ingreso else None
         end_date = m.fecha_salida.isoformat() if m.fecha_salida else None
         

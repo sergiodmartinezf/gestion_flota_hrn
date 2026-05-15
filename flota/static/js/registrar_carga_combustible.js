@@ -1,8 +1,3 @@
-/**
- * Validaciones para el formulario de registro de carga de combustible
- * CON FUNCIONALIDAD PASO A PASO
- */
-
 class FormularioCombustiblePasos {
     constructor() {
         this.pasoActual = 1;
@@ -17,8 +12,7 @@ class FormularioCombustiblePasos {
         this.configurarFechaActual();
         this.configurarVehiculoKM();
     }
-    
-    // Métodos auxiliares (validaciones)
+
     validarSeleccion(valor, nombreCampo, esRequerido) {
         if (esRequerido && (!valor || valor.trim() === '')) {
             return [`Debe seleccionar un ${nombreCampo}`];
@@ -74,8 +68,7 @@ class FormularioCombustiblePasos {
         }
         return errores;
     }
-    
-    // Obtener kilometraje actual del vehículo seleccionado
+
     obtenerKmActualVehiculo() {
         const select = document.getElementById('id_patente_vehiculo');
         if (select && select.selectedIndex >= 0) {
@@ -85,8 +78,7 @@ class FormularioCombustiblePasos {
         }
         return 0;
     }
-    
-    // Validación específica por paso (corregida)
+
     validarPasoActual() {
         const pasoElement = document.getElementById(`combustible-paso-${this.pasoActual}`);
         if (!pasoElement) return true;
@@ -361,7 +353,6 @@ class FormularioCombustiblePasos {
         }
     }
     
-    // **FUNCIÓN ORIGINAL PARA MOSTRAR ERRORES**
     mostrarErroresValidacion(errores, titulo) {
         let alertaGlobal = document.getElementById('alerta-global');
         if (!alertaGlobal) {
@@ -650,8 +641,6 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    // **MANTENER LA VALIDACIÓN ORIGINAL COMO RESPALDO**
-    // Si hay un formulario no-paso-a-paso (por compatibilidad)
     const formOriginal = document.querySelector('form:not(#form-combustible-pasos)');
     if (formOriginal) {
         formOriginal.addEventListener('submit', function(e) {

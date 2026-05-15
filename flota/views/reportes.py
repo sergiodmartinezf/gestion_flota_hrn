@@ -27,7 +27,6 @@ def obtener_cuentas_por_tipo_mantencion(tipo_mantencion):
     Si tipo_mantencion es None o vacío, retorna todos los IDs (1,2,3,4).
     """
     if not tipo_mantencion:
-        # Todos los IDs posibles (según tu mapeo)
         return [1, 2, 3, 4]
     
     cuentas_ids = set()
@@ -38,7 +37,7 @@ def obtener_cuentas_por_tipo_mantencion(tipo_mantencion):
 
 
 class ReporteCalculos:
-    """Clase para cálculos reutilizables"""
+    """Cálculos compartidos entre exportación y vista HTML de reportes."""
     
     @staticmethod
     def calcular_costos_vehiculo(vehiculo, fecha_desde=None, fecha_hasta=None):
@@ -46,7 +45,6 @@ class ReporteCalculos:
         Calcula costos de mantenimiento, combustible y arriendos.
         Si se proporcionan fechas, filtra por ese período.
         """
-        # Mantenimientos
         mantenimientos_qs = Mantenimiento.objects.filter(vehiculo=vehiculo)
         if fecha_desde:
             mantenimientos_qs = mantenimientos_qs.filter(fecha_ingreso__gte=fecha_desde)
@@ -63,7 +61,6 @@ class ReporteCalculos:
             total=Sum('costo_total_real')
         )['total'] or Decimal('0')
         
-        # Combustible
         cargas_qs = CargaCombustible.objects.filter(patente_vehiculo=vehiculo)
         if fecha_desde:
             cargas_qs = cargas_qs.filter(fecha__gte=fecha_desde)
@@ -71,25 +68,21 @@ class ReporteCalculos:
             cargas_qs = cargas_qs.filter(fecha__lte=fecha_hasta)
         costo_combustible = cargas_qs.aggregate(total=Sum('costo_total'))['total'] or Decimal('0')
         
-        # Arriendos (vehículo reemplazado) - prorrateo por días en el período
         arriendos_qs = Arriendo.objects.filter(vehiculo_reemplazado=vehiculo)
         costo_arriendos = Decimal('0')
         if fecha_desde and fecha_hasta:
             for arriendo in arriendos_qs:
                 inicio = arriendo.fecha_inicio
                 fin = arriendo.fecha_fin if arriendo.fecha_fin else fecha_hasta
-                # Intersección con el período del reporte
                 inter_inicio = max(inicio, fecha_desde)
                 inter_fin = min(fin, fecha_hasta)
                 if inter_fin >= inter_inicio:
                     dias_intersec = (inter_fin - inter_inicio).days + 1
-                    # Costo diario puede estar en costo_diario o calcularse desde costo_total/días_arriendo
                     if arriendo.costo_diario:
                         costo_arriendos += arriendo.costo_diario * dias_intersec
                     elif arriendo.dias_arriendo > 0:
                         costo_arriendos += (arriendo.costo_total / arriendo.dias_arriendo) * dias_intersec
         else:
-            # Si no hay fechas, se toma el costo total del arriendo (comportamiento anterior)
             costo_arriendos = arriendos_qs.aggregate(total=Sum('costo_total'))['total'] or Decimal('0')
         
         costo_total = costo_mantenimientos + costo_combustible + costo_arriendos
@@ -155,21 +148,16 @@ class ReporteCalculos:
     @staticmethod
     def calcular_variacion_anio(anio, tipo_mantencion=None):
         """
-        Calcula la variación presupuestaria para un año dado.
-        tipo_mantencion puede ser 'Preventivo', 'Correctivo' o None (ambos).
-        Ahora filtra los presupuestos según el tipo, mostrando solo las cuentas correspondientes.
+        Variación presupuestaria por año.
+        tipo_mantencion: 'Preventivo', 'Correctivo' o None (filtra cuentas y mantenimientos).
         """
-        # 1. Obtener IDs de cuentas según el tipo de mantenimiento
         cuentas_ids = obtener_cuentas_por_tipo_mantencion(tipo_mantencion)
-        
-        # 2. Filtrar presupuestos por año y por las cuentas permitidas
         presupuestos = Presupuesto.objects.filter(anio=anio, cuenta_id__in=cuentas_ids).select_related('cuenta')
         
         reporte = []
         alertas = []
 
         for presupuesto in presupuestos:
-            # Construir filtro base para mantenimientos
             filtros = {
                 'cuenta_presupuestaria': presupuesto.cuenta,
                 'fecha_ingreso__year': anio,
@@ -224,7 +212,6 @@ class ReporteCalculos:
             datos['costos_arriendo'].append(float(calculos['costo_arriendos']))
             datos['costos_totales'].append(float(calculos['costo_total']))
             
-            # Días fuera de servicio en el período filtrado
             total_dias = 0
             mantenimientos = vehiculo.mantenimientos.all()
             if fecha_desde:
@@ -239,7 +226,7 @@ class ReporteCalculos:
 
 
 class TabManager:
-    """Maneja el estado de pestañas sin JavaScript complejo"""
+    """Estado de pestañas vía query string."""
     
     def __init__(self, request):
         self.active = request.GET.get('tab', 'costos')
@@ -269,9 +256,8 @@ def obtener_anios_disponibles_disponibilidad():
     years_mant = Mantenimiento.objects.dates('fecha_ingreso', 'year').values_list('fecha_ingreso__year', flat=True).distinct()
     years_falla = FallaReportada.objects.dates('fecha_reporte', 'year').values_list('fecha_reporte__year', flat=True).distinct()
     anios = sorted(set(list(years_mant) + list(years_falla)), reverse=True)
-    # Si no hay ningún dato, al menos mostrar el año actual para permitir búsqueda
     if not anios:
-        anios = [datetime.now().year]
+        anios = [datetime.now().year]  # sin registros: permite filtrar por año corriente
     return anios
 
 
@@ -421,9 +407,8 @@ def exportar_disponibilidad_excel(request, anio_disp, mes_disp):
 
 
 @login_required
-def reportes(request):  # antes se llamaba reporte_costos
-    """Vista principal unificada - incluye costos, variación, dashboard y disponibilidad"""
-    # Detectar si es exportación
+def reportes(request):
+    """Reportes: costos, variación presupuestaria y disponibilidad (HTML o Excel)."""
     if request.GET.get('exportar') == 'excel':
         tab = request.GET.get('tab', 'costos')
         if tab == 'variacion':
@@ -436,7 +421,6 @@ def reportes(request):  # antes se llamaba reporte_costos
             tipo_mant = request.GET.get('tipo_mantencion', '')
             return exportar_variacion_excel(anio, tipo_mant if tipo_mant else None)
         elif tab == 'disponibilidad':
-            # Exportar disponibilidad a Excel
             anio_disp = request.GET.get('anio_disp', str(datetime.now().year))
             mes_disp = request.GET.get('mes_disp')
             try:
@@ -451,11 +435,9 @@ def reportes(request):  # antes se llamaba reporte_costos
         else:
             return exportar_costos_excel(request)
 
-    # Procesamiento normal para HTML
     active_tab = request.GET.get('tab', 'costos')
     tab_manager = TabManager(request)
 
-    # ========== Pestaña COSTOS ==========
     anios_disponibles = sorted(Presupuesto.objects.values_list('anio', flat=True).distinct(), reverse=True)
     if not anios_disponibles:
         anios_disponibles = [datetime.now().year]
@@ -480,7 +462,6 @@ def reportes(request):  # antes se llamaba reporte_costos
         ind_c = ind_costos_map.get(vehiculo.id, {})
         km_periodo = km_periodo_map.get(vehiculo.id, 0)
         
-        # Nuevos cálculos
         comb_avanzado = ReporteCalculos.calcular_costos_combustible_avanzado(vehiculo, fecha_desde_c, fecha_hasta_c)
         tiempos_mant = ReporteCalculos.calcular_tiempo_mantenimiento(vehiculo, fecha_desde_c, fecha_hasta_c)
         
@@ -504,29 +485,22 @@ def reportes(request):  # antes se llamaba reporte_costos
             'vehiculo': vehiculo,
             'patente': vehiculo.patente,
             'km_periodo': km_periodo,
-            # Combustible
             'costo_combustible': calculos['costo_combustible'],
             'rendimiento_km_l': ind_c.get('rendimiento', '—'),
             'costo_combustible_km': ind_c.get('costo_combustible_km', 'N/A'),
             'costo_por_litro': comb_avanzado['costo_por_litro'],
             'total_litros': comb_avanzado['total_litros'],
-            # Mantenimiento
             'costo_preventivo': calculos['costo_preventivo'],
             'costo_correctivo': calculos['costo_correctivo'],
             'costo_mantenimiento_total': calculos['costo_mantenimientos'],
-            # 👇 Cambios aquí: convertir solo si no es None
             'costo_mant_por_km': float(costo_mant_por_km) if costo_mant_por_km is not None else None,
             'costo_preventivo_km': float(costo_preventivo_km) if costo_preventivo_km is not None else None,
             'costo_correctivo_km': float(costo_correctivo_km) if costo_correctivo_km is not None else None,
-            # Arriendos
             'costo_arriendos': calculos['costo_arriendos'],
-            # Indicador 7: costo total bencina+mantenciones
             'costo_total_combustible_mantenciones': float(costo_total_sin_arriendo),
             'costo_total_combustible_mantenciones_km': float(costo_total_km_sin_arriendo) if costo_total_km_sin_arriendo is not None else None,
-            # Indicador 4: costo por hora detenida
             'horas_mantenimiento': tiempos_mant['horas_mantenimiento'],
             'costo_por_hora_mantenimiento': tiempos_mant['costo_por_hora_mantenimiento'],
-            # Totales con arriendos
             'costo_total_con_arriendos': calculos['costo_total'],
             'costo_total_con_arriendos_km': float(costo_total_con_arriendos_km) if costo_total_con_arriendos_km is not None else None,
         })
@@ -537,7 +511,6 @@ def reportes(request):  # antes se llamaba reporte_costos
     costo_preventivo_km_list = [item['costo_preventivo_km'] for item in reporte_costos_data]
     costo_correctivo_km_list = [item['costo_correctivo_km'] for item in reporte_costos_data]
 
-    # ========== Pestaña VARIACIÓN PRESUPUESTARIA ==========
     anio = request.GET.get('anio')
     try:
         anio = int(anio) if anio else anios_disponibles[0]
@@ -551,17 +524,10 @@ def reportes(request):  # antes se llamaba reporte_costos
     vehiculo_filter = request.GET.get('vehiculo', '')
     
     reporte_variacion, alertas_variacion = ReporteCalculos.calcular_variacion_anio(anio, tipo_mantencion=tipo_mant if tipo_mant else None)
-    
-    # Años disponibles
-    anio_actual = datetime.now().year
-    anios_con_presupuestos = list(Presupuesto.objects.values_list('anio', flat=True).distinct())
-    anios_disponibles = sorted(Presupuesto.objects.values_list('anio', flat=True).distinct(), reverse=True)
 
-    # ========== Datos para gráficos (dashboard) ==========
     datos_graficos = ReporteCalculos.obtener_datos_graficos_costos(fecha_desde_c, fecha_hasta_c)
     graficos_json = json.dumps(datos_graficos)
 
-    # ========== Pestaña DISPONIBILIDAD ==========
     anios_disponibles_disp = obtener_anios_disponibles_disponibilidad()
     anio_disp = request.GET.get('anio_disp')
     try:
@@ -573,7 +539,6 @@ def reportes(request):  # antes se llamaba reporte_costos
         anio_disp = anios_disponibles_disp[0]
 
     mes_disp = request.GET.get('mes_disp')
-    # Convertir mes a entero si es válido
     if mes_disp and mes_disp.isdigit():
         mes_disp = int(mes_disp)
         if not (1 <= mes_disp <= 12):
@@ -581,7 +546,6 @@ def reportes(request):  # antes se llamaba reporte_costos
     else:
         mes_disp = None
 
-    # Días del período
     if mes_disp:
         dias_periodo = monthrange(anio_disp, mes_disp)[1]
     else:
@@ -592,7 +556,6 @@ def reportes(request):  # antes se llamaba reporte_costos
     v_ids_disp = [v.id for v in vehiculos_disp]
     frecuencia_map = frecuencia_fallas_por_vehiculo(v_ids_disp, fecha_desde_disp, fecha_hasta_disp)
     indisp_prom_map = promedio_dias_indisponibilidad_por_vehiculo(v_ids_disp, fecha_desde_disp, fecha_hasta_disp)
-    # Calcular tiempos promedio en HBO para cada vehículo
     tiempos_hbo = calcular_tiempos_retencion_hbo(v_ids_disp, fecha_desde_disp, fecha_hasta_disp)
 
     reporte_disponibilidad = []
@@ -648,8 +611,7 @@ def reportes(request):  # antes se llamaba reporte_costos
 
     for item in reporte_disponibilidad:
         patentes_disp_list.append(item['patente'])
-        
-        # Frecuencia fallas: convertir a float si es numérico, sino None
+
         freq = item['frecuencia_fallas']
         if freq != 'N/A' and freq is not None:
             try:
@@ -658,8 +620,7 @@ def reportes(request):  # antes se llamaba reporte_costos
                 frecuencias_list.append(None)
         else:
             frecuencias_list.append(None)
-        
-        # Promedio días indisponibilidad: similar
+
         prom = item['promedio_indisponibilidad']
         if prom != 'N/A' and prom is not None:
             try:
@@ -668,8 +629,7 @@ def reportes(request):  # antes se llamaba reporte_costos
                 promedios_list.append(None)
         else:
             promedios_list.append(None)
-        
-        # Tiempo HBO: extraer el número de "X min"
+
         tiempo_str = item['tiempo_hbo']
         if tiempo_str and tiempo_str != 'N/D' and 'min' in tiempo_str:
             try:
@@ -704,7 +664,6 @@ def reportes(request):  # antes se llamaba reporte_costos
         'tipo_mantencion': tipo_mant,
         'vehiculos': vehiculos,
         'vehiculo_filter': vehiculo_filter,
-        # Datos de disponibilidad
         'reporte_disponibilidad': reporte_disponibilidad,
         'anios_disponibles_disp': anios_disponibles_disp,
         'anio_disp': anio_disp,
@@ -719,7 +678,6 @@ def reportes(request):  # antes se llamaba reporte_costos
         'dias_fuera_mensual_json': dias_fuera_mensual_json,
         'patentes_disp': list(patentes_disp_ordenadas),
         'dias_fuera_disp': list(dias_fuera_disp_ordenadas),
-        # NUEVAS VARIABLES PARA LOS GRÁFICOS DE FRECUENCIA, PROMEDIO Y HBO
         'patentes_disp_list_json': json.dumps(patentes_disp_list),
         'frecuencias_list_json': json.dumps(frecuencias_list),
         'promedios_list_json': json.dumps(promedios_list),
@@ -818,8 +776,7 @@ def reporte_historial_unidad(request, patente):
     
     fecha_inicio = request.GET.get('fecha_inicio')
     fecha_fin = request.GET.get('fecha_fin')
-    
-    # Filtrar por fechas si se proporcionan
+
     filtros = {'vehiculo': vehiculo}
     filtros_combustible = {'patente_vehiculo': vehiculo}
     filtros_hoja = {'vehiculo': vehiculo}
@@ -868,7 +825,6 @@ def calcular_tiempos_retencion_hbo(vehiculo_ids, fecha_desde, fecha_hasta):
         total_minutos = 0
         count = 0
         for viaje in viajes:
-            # Combinar fecha de la hoja de ruta con la hora del viaje
             fecha = viaje.hoja_ruta.fecha
             salida = datetime.combine(fecha, viaje.hora_salida_hbo)
             llegada = datetime.combine(fecha, viaje.hora_llegada_hbo)
@@ -884,12 +840,10 @@ def calcular_tiempos_retencion_hbo(vehiculo_ids, fecha_desde, fecha_hasta):
 
 @login_required
 def reporte_servicios(request):
-    # Cuenta por tipo de servicio/previsión a nivel de paciente (PacienteTraslado)
     servicios = PacienteTraslado.objects.values('prevision').annotate(
         total=Count('id')
     ).order_by('-total')
-    
-    # Normalizar etiquetas: previsión vacía como "Sin especificar"
+
     labels = []
     data = []
     for s in servicios:
@@ -902,9 +856,7 @@ def reporte_servicios(request):
         'chart_labels': labels,
         'chart_data': data
     })
-    
 
-# ========== FUNCIONES AUXILIARES PARA GRÁFICOS DE DISPONIBILIDAD ==========
 
 def calcular_disponibilidad_global(vehiculos, fecha_desde, fecha_hasta, dias_periodo):
     total_dias_posibles = dias_periodo * vehiculos.count()

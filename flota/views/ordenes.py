@@ -20,14 +20,12 @@ def importar_orden_compra(request):
             messages.error(request, "Debe ingresar un código de Orden de Compra.")
             return redirect('importar_oc')
 
-        # 1. Consultar API
         datos = consultar_oc_mercado_publico(codigo_oc)
 
         if 'error' in datos:
             messages.error(request, datos['error'])
         else:
             try:
-                # 2. Gestionar Proveedor
                 proveedor, created_prov = Proveedor.objects.get_or_create(
                     rut_empresa=datos['proveedor_rut'],
                     defaults={
@@ -43,108 +41,77 @@ def importar_orden_compra(request):
                 if created_prov:
                     messages.info(request, f"Proveedor {proveedor.nombre_fantasia} creado.")
 
-                # ========== CONVERTIR FECHA DE STRING A DATE ==========
                 fecha_emision = None
                 if datos.get('fecha_emision'):
                     try:
                         fecha_emision = datetime.strptime(datos['fecha_emision'], '%Y-%m-%d').date()
                     except ValueError:
-                        # Si el formato no es válido, usar fecha actual
                         fecha_emision = timezone.now().date()
                 else:
                     fecha_emision = timezone.now().date()
 
-                # ========== BUSCAR VEHÍCULO EN BASE DE DATOS ==========
                 vehiculo_asociado = None
 
-                # Función para normalizar patente para búsqueda
                 def normalizar_patente_busqueda(patente):
-                    """Normaliza una patente para búsqueda (elimina todo excepto letras y números)"""
                     if not patente:
                         return ""
                     return re.sub(r'[^A-Z0-9]', '', patente.upper())
 
-                # Función para formatear patente como en la BD
                 def formatear_patente_como_bd(patente):
-                    """Intenta formatear una patente como en la base de datos"""
                     patente_limpia = normalizar_patente_busqueda(patente)
-                    
-                    # Si es formato de 6 caracteres (4 letras + 2 números)
                     if len(patente_limpia) == 6 and patente_limpia[:4].isalpha() and patente_limpia[4:].isdigit():
                         return f"{patente_limpia[:2]}.{patente_limpia[2:4]}-{patente_limpia[4:]}"
-                    # Si es formato de 7 caracteres (4 letras + 3 números)
                     elif len(patente_limpia) == 7 and patente_limpia[:4].isalpha() and patente_limpia[4:].isdigit():
                         return f"{patente_limpia[:2]}.{patente_limpia[2:4]}-{patente_limpia[4:]}"
                     return patente
 
-                # Usar patentes_posibles que vienen de utils.py
                 if datos.get('patentes_posibles'):
-                    print(f"Buscando vehículos para patentes: {datos['patentes_posibles']}")
-                    
-                    # Primero, intentar búsqueda exacta
                     for patente_buscada in datos['patentes_posibles']:
                         vehiculo = Vehiculo.objects.filter(patente__iexact=patente_buscada).first()
                         if vehiculo:
                             vehiculo_asociado = vehiculo
-                            print(f"Encontrado por búsqueda exacta: {vehiculo.patente}")
                             break
-                    
-                    # Si no se encontró, intentar con normalización
+
                     if not vehiculo_asociado:
                         for patente_buscada in datos['patentes_posibles']:
-                            # Normalizar la patente buscada
                             patente_buscada_norm = normalizar_patente_busqueda(patente_buscada)
-                            
-                            # Buscar en todos los vehículos comparando patentes normalizadas
                             for vehiculo in Vehiculo.objects.all():
                                 patente_vehiculo_norm = normalizar_patente_busqueda(vehiculo.patente)
                                 if patente_vehiculo_norm == patente_buscada_norm:
                                     vehiculo_asociado = vehiculo
-                                    print(f"Encontrado por normalización: {vehiculo.patente} (buscado: {patente_buscada})")
                                     break
-                            
                             if vehiculo_asociado:
                                 break
-                    
-                    # Si aún no se encontró, intentar formatear y buscar
+
                     if not vehiculo_asociado:
                         for patente_buscada in datos['patentes_posibles']:
                             patente_formateada = formatear_patente_como_bd(patente_buscada)
-                            if patente_formateada != patente_buscada:  # Solo si se pudo formatear
+                            if patente_formateada != patente_buscada:
                                 vehiculo = Vehiculo.objects.filter(patente__iexact=patente_formateada).first()
                                 if vehiculo:
                                     vehiculo_asociado = vehiculo
-                                    print(f"Encontrado después de formatear: {vehiculo.patente}")
                                     break
 
-                # Debug: mostrar qué patentes están en la BD
-                print("Patentes en base de datos:", list(Vehiculo.objects.values_list('patente', flat=True)))
-
-                # ========== BUSCAR CUENTA PRESUPUESTARIA EN BASE DE DATOS ==========
                 cuenta_presupuestaria = None
-                
-                # Usar codigo_presupuestario que viene de utils.py
                 if datos.get('codigo_presupuestario'):
                     try:
                         cuenta_presupuestaria = CuentaPresupuestaria.objects.get(
                             codigo=datos['codigo_presupuestario']
                         )
                     except CuentaPresupuestaria.DoesNotExist:
-                        # Si no existe, NO la creamos automáticamente
-                        pass  # Simplemente no asignamos cuenta
+                        pass
 
-                # ========== CREAR/ACTUALIZAR ORDEN DE COMPRA ==========
                 oc, created_oc = OrdenCompra.objects.update_or_create(
                     nro_oc=datos['codigo'],
                     defaults={
                         'descripcion': datos['descripcion'][:500],
-                        'vehiculo': vehiculo_asociado,  # Se asigna si se encontró
-                        'fecha_emision': fecha_emision,  # Usamos el objeto date convertido
+                        'vehiculo': vehiculo_asociado,
+                        'fecha_emision': fecha_emision,
                         'monto_neto': datos.get('monto_neto', 0),
                         'monto_total': datos.get('monto_total', 0),
                         'impuesto': datos.get('impuestos', 0),
                         'id_licitacion': datos.get('id_licitacion', ''),
-                        'folio_sigfe': '',  # Dejamos vacío o elimina el campo
+                        'folio_sigfe': '',
                         'estado': datos.get('estado', 'Emitida'),
                         'proveedor': proveedor,
                         'tipo_adquisicion': datos.get('tipo_adquisicion', 'Convenio Marco'),
@@ -154,7 +121,6 @@ def importar_orden_compra(request):
                     }
                 )
 
-                # ========== MENSAJES INFORMATIVOS CLAROS ==========
                 if created_oc:
                     messages.success(request, f"OC {oc.nro_oc} importada exitosamente.")
                 else:
@@ -193,7 +159,6 @@ def registrar_orden_compra(request):
                 for error in errors:
                     messages.error(request, f"{field}: {error}")
     else:
-        # Prellenar desde OT si se viene desde registrar_orden_trabajo
         ot_id = request.GET.get('ot')
         initial = {}
         if ot_id:
