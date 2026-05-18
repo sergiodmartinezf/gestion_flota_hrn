@@ -3,22 +3,18 @@ from django.contrib.auth.decorators import login_required
 from django.utils import timezone
 from django.db.models import Sum, F
 from decimal import Decimal
-from ..models import Vehiculo, Mantenimiento, CargaCombustible, AlertaMantencion, Presupuesto, Arriendo
+from ..models import Vehiculo, Mantenimiento, CargaCombustible, Alerta, Presupuesto, Arriendo
 
 # RF_27: Visualizar panel de indicadores (Dashboard)
 @login_required
 def dashboard(request):
-    # --- PROTECCIÓN: Si el usuario es Conductor, redirigir al registro de bitácora ---
     if request.user.rol == 'Conductor':
         return redirect('registrar_bitacora')
-    # ---------------------------------------------------------------------------------
 
-    # Estadísticas generales (Solo se ejecutan para Admin/Visualizador)
     total_vehiculos = Vehiculo.objects.count()
     vehiculos_disponibles = Vehiculo.objetos_operativos().filter(estado='Disponible').count()
     vehiculos_mantenimiento = Vehiculo.objects.filter(estado='En mantenimiento').count()
-    
-    # Costo mensual total
+
     mes_actual = timezone.now().month
     anio_actual = timezone.now().year
     
@@ -40,7 +36,6 @@ def dashboard(request):
     
     costo_mensual_total = costo_mantenimientos_mes + costo_combustible_mes
 
-    # Datos para gráficos de disponibilidad
     vehiculos = Vehiculo.objects.all()
     vehiculos_con_disponibilidad = []
     
@@ -61,31 +56,58 @@ def dashboard(request):
             'vehiculo': vehiculo,
             'dias_fuera': dias_fuera,
         })
-    
-    # Próximos mantenimientos
+
     proximos_mantenimientos = Mantenimiento.objects.filter(
         estado='Programado'
     ).order_by('fecha_ingreso')[:5]
-    
-    # Alertas activas (excluir pausadas: vehículo en taller con mantenimiento activo)
+
     ids_pausadas = set()
-    for a in AlertaMantencion.objects.filter(vigente=True).select_related('vehiculo')[:50]:
+    for a in Alerta.objects.filter(vigente=True).select_related('vehiculo')[:50]:
         if a.vehiculo.estado == 'En mantenimiento' and Mantenimiento.objects.filter(
             vehiculo=a.vehiculo, estado__in=['En taller', 'Esperando repuestos'], fecha_salida__isnull=True
         ).exists():
             ids_pausadas.add(a.id)
-    alertas_activas = AlertaMantencion.objects.filter(vigente=True).exclude(
+    alertas_operativas = Alerta.objects.filter(vigente=True).exclude(
         id__in=ids_pausadas
-    ).order_by('-generado_en')[:5]
-    
-    # Conteo alertas y presupuestos en riesgo
-    alertas_vigentes = AlertaMantencion.objects.filter(vigente=True).exclude(id__in=ids_pausadas).count()
-    presupuestos_alerta = sum(
-        1 for p in Presupuesto.objects.filter(activo=True).exclude(monto_asignado=0)
+    ).order_by('-generado_en')
+
+    presupuestos_en_riesgo = [
+        p for p in Presupuesto.objects.filter(activo=True).exclude(monto_asignado=0)
         if p.porcentaje_ejecutado >= 80
-    )
-    
-    # Vehículos arrendados (arriendos activos)
+    ]
+
+    alertas_activas = []
+    for alerta in alertas_operativas:
+        alertas_activas.append({
+            'tipo': 'Mantenimiento',
+            'fecha': alerta.generado_en,
+            'titulo': alerta.vehiculo.patente,
+            'descripcion': alerta.descripcion,
+            'detalle': f"Umbral: {alerta.valor_umbral} km",
+            'clase_item': 'list-group-item-warning',
+            'icono': 'bi-car-front',
+        })
+
+    ahora = timezone.now()
+    for presupuesto in presupuestos_en_riesgo:
+        alertas_activas.append({
+            'tipo': 'Presupuesto',
+            'fecha': ahora,
+            'titulo': f"{presupuesto.cuenta.codigo} ({presupuesto.anio})",
+            'descripcion': (
+                f"Ejecución en riesgo: {presupuesto.porcentaje_ejecutado:.1f}% del monto asignado."
+            ),
+            'detalle': f"Disponible: ${presupuesto.disponible:,.0f}",
+            'clase_item': 'list-group-item-danger',
+            'icono': 'bi-cash-stack',
+        })
+
+    alertas_activas = sorted(alertas_activas, key=lambda a: a['fecha'], reverse=True)[:5]
+
+    alertas_operativas_vigentes = alertas_operativas.count()
+    presupuestos_alerta = len(presupuestos_en_riesgo)
+    alertas_vigentes = alertas_operativas_vigentes + presupuestos_alerta
+
     arriendos_activos = Arriendo.objects.filter(estado='Activo').select_related(
         'vehiculo_arrendado', 'vehiculo_reemplazado', 'proveedor'
     ).order_by('-fecha_inicio')
@@ -99,6 +121,7 @@ def dashboard(request):
         'proximos_mantenimientos': proximos_mantenimientos,
         'alertas_activas': alertas_activas,
         'alertas_vigentes': alertas_vigentes,
+        'alertas_operativas_vigentes': alertas_operativas_vigentes,
         'presupuestos_alerta': presupuestos_alerta,
         'arriendos_activos': arriendos_activos,
     })

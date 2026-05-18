@@ -22,7 +22,7 @@ urlpatterns = [
     path('vehiculos/disponibilidad/', views.disponibilidad_flota, name='disponibilidad_flota'),
     path('vehiculos/costo-km/', views.costo_por_kilometro, name='costo_por_kilometro'),
     path('vehiculos/gastos-mantenimientos/', views.gastos_mantenimientos, name='gastos_mantenimientos'),
-    path('vehiculos/alertas-mantenimiento/', views.alertas_mantenimiento, name='alertas_mantenimiento'),
+    path('alertas/', views.alertas, name='alertas'),
     # Con parámetros
     path('vehiculos/<str:patente>/', views.ficha_vehiculo, name='ficha_vehiculo'),
     path('vehiculos/modificar/<str:patente>/', views.modificar_vehiculo, name='modificar_vehiculo'),
@@ -49,7 +49,7 @@ urlpatterns = [
     path('mantenimientos/editar/<int:id>/', views.editar_mantenimiento, name='editar_mantenimiento'),
     path('mantenimientos/finalizar/<int:id>/', views.finalizar_mantenimiento, name='finalizar_mantenimiento'),
     path('mantenimientos/eliminar/<int:id>/', views.eliminar_mantenimiento, name='eliminar_mantenimiento'),
-    path('mantenimientos/estado/<int:id>/', views.cambiar_estado_mantenimiento, name='cambiar_estado_mantenimiento'),
+    path('mantenimientos/cambiar-estado/<int:id>/', views.cambiar_estado_mantenimiento, name='cambiar_estado_mantenimiento'),
 
     # Panel de control
     path('panel-control/', views.panel_control, name='panel_control'),
@@ -57,13 +57,12 @@ urlpatterns = [
     # Presupuesto (RF_21-22)
     path('presupuestos/registrar/', views.registrar_presupuesto, name='registrar_presupuesto'),
     path('presupuestos/listar/', views.listar_presupuestos, name='listar_presupuestos'),
-    path('presupuestos/alertas/', views.alertas_presupuesto, name='alertas_presupuesto'),
     # Con parámetro
     path('presupuestos/modificar/<int:id>/', views.modificar_presupuesto, name='modificar_presupuesto'),
     path('presupuestos/deshabilitar/<int:id>/', views.deshabilitar_presupuesto, name='deshabilitar_presupuesto'),
     
     # Reportes (RF_24-25, 28) y Panel de control
-    path('reportes/costos/', views.reporte_costos, name='reporte_costos'),
+    path('reportes/', views.reportes, name='reportes'),
     path('reportes/disponibilidad/', views.reporte_disponibilidad, name='reporte_disponibilidad'),
     path('reportes/historial/<str:patente>/', views.reporte_historial_unidad, name='reporte_historial_unidad'),
     

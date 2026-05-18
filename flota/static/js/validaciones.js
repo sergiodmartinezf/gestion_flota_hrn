@@ -1,11 +1,67 @@
-// Validaciones básicas para formularios del sistema de gestión de flota
+/**
+ * Calcula el dígito verificador de un RUT chileno (solo cuerpo numérico).
+ */
+function calcularDvRut(cuerpo) {
+    const secuencia = [2, 3, 4, 5, 6, 7];
+    let suma = 0;
+    const digitos = cuerpo.split('').reverse();
+    for (let i = 0; i < digitos.length; i++) {
+        suma += parseInt(digitos[i], 10) * secuencia[i % 6];
+    }
+    const resto = suma % 11;
+    const dv = 11 - resto;
+    if (dv === 11) return '0';
+    if (dv === 10) return 'K';
+    return String(dv);
+}
 
-// Función para mostrar errores de validación
+/**
+ * Valida RUT chileno completo (cuerpo + dígito verificador).
+ * @returns {string[]} lista de mensajes de error (vacía si es válido)
+ */
+function validarRutChileno(rut, campo = 'RUT') {
+    const errores = [];
+    if (!rut || rut.toString().trim() === '') {
+        errores.push(`El ${campo} es obligatorio`);
+        return errores;
+    }
+    let valor = rut.toString().trim().toUpperCase().replace(/\./g, '').replace(/\s/g, '');
+    let cuerpo, dv;
+    if (valor.includes('-')) {
+        const partes = valor.split('-');
+        if (partes.length !== 2) {
+            errores.push(`El ${campo} no tiene un formato válido`);
+            return errores;
+        }
+        cuerpo = partes[0];
+        dv = partes[1];
+    } else if (valor.length >= 2) {
+        cuerpo = valor.slice(0, -1);
+        dv = valor.slice(-1);
+    } else {
+        errores.push(`El ${campo} no tiene un formato válido`);
+        return errores;
+    }
+    if (!/^\d+$/.test(cuerpo)) {
+        errores.push(`El ${campo} debe contener solo números antes del guión`);
+        return errores;
+    }
+    if (cuerpo.length < 7) {
+        errores.push(`El ${campo} debe tener al menos 7 dígitos`);
+        return errores;
+    }
+    const dvCalculado = calcularDvRut(cuerpo);
+    if (dv.toUpperCase() !== dvCalculado) {
+        errores.push(`El dígito verificador del ${campo} no es correcto`);
+    }
+    return errores;
+}
+
 function mostrarErroresValidacion(errores, titulo = 'Errores de Validación') {
     if (errores.length === 0) return false;
-    
+
     const listaErrores = errores.map(error => `• ${error}`).join('\n');
-    
+
     if (typeof Swal !== 'undefined' && Swal.fire) {
         Swal.fire({
             title: titulo,
@@ -19,13 +75,27 @@ function mostrarErroresValidacion(errores, titulo = 'Errores de Validación') {
             width: '500px'
         });
     } else {
-        alert(`${titulo}\n\n${listaErrores}`);
+        const htmlErrores = errores.map(error => `<li>${error}</li>`).join('');
+        const contenedor = document.querySelector('main.col-md-10.main-content, .container.py-4, .container-fluid');
+        if (contenedor) {
+            const alertaAnterior = contenedor.querySelector('.alert-validaciones-global');
+            if (alertaAnterior) alertaAnterior.remove();
+            const alertDiv = document.createElement('div');
+            alertDiv.className = 'alert alert-danger alert-validaciones-global';
+            alertDiv.innerHTML = `
+                <strong>${titulo}</strong>
+                <ul class="mb-0 mt-2">${htmlErrores}</ul>
+            `;
+            contenedor.insertBefore(alertDiv, contenedor.firstChild);
+            alertDiv.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        } else {
+            console.error(`${titulo}: ${errores.join(' | ')}`);
+        }
     }
-    
+
     return true;
 }
 
-// Validar campo obligatorio
 function validarCampoObligatorio(valor, campo = 'campo', mostrarAlerta = false) {
     const errores = [];
     if (!valor || valor.toString().trim() === '') {
@@ -37,7 +107,6 @@ function validarCampoObligatorio(valor, campo = 'campo', mostrarAlerta = false) 
     return errores;
 }
 
-// Validar número entero positivo
 function validarEnteroPositivo(valor, campo = 'valor', min = 0, max = 999999999, obligatorio = true, mostrarAlerta = false) {
     const errores = [];
     if (!valor && obligatorio) {
@@ -57,7 +126,6 @@ function validarEnteroPositivo(valor, campo = 'valor', min = 0, max = 999999999,
     return errores;
 }
 
-// Validar número decimal
 function validarNumeroDecimal(valor, campo = 'valor', min = 0, max = 999999.99, obligatorio = true, mostrarAlerta = false) {
     const errores = [];
     if (!valor && obligatorio) {
@@ -77,7 +145,6 @@ function validarNumeroDecimal(valor, campo = 'valor', min = 0, max = 999999.99, 
     return errores;
 }
 
-// Validar fecha
 function validarFecha(fecha, campo = 'fecha', obligatorio = true, mostrarAlerta = false) {
     const errores = [];
     if (!fecha && obligatorio) {
@@ -96,7 +163,6 @@ function validarFecha(fecha, campo = 'fecha', obligatorio = true, mostrarAlerta 
     return errores;
 }
 
-// Validar selección
 function validarSeleccion(valor, campo = 'campo', obligatorio = true, mostrarAlerta = false) {
     const errores = [];
     if (obligatorio && (!valor || valor === "" || valor === "0")) {
@@ -108,80 +174,53 @@ function validarSeleccion(valor, campo = 'campo', obligatorio = true, mostrarAle
     return errores;
 }
 
-// VALIDACIONES DE CONTRASEÑA NUEVAS
-
-// Validar fortaleza de contraseña
 function validarFortalezaPassword(password, campo = 'contraseña', mostrarAlerta = false) {
     const errores = [];
-    
+
     if (!password) {
         errores.push(`La ${campo} es obligatoria`);
+    } else if (password.trim() === '') {
+        errores.push(`La ${campo} no puede estar compuesta solo por espacios`);
     } else {
-        // Mínimo 8 caracteres
-        if (password.length < 8) {
-            errores.push(`La ${campo} debe tener al menos 8 caracteres`);
+        if (password.length < 4) {
+            errores.push(`La ${campo} debe tener al menos 4 caracteres`);
         }
-        
-        // Al menos una mayúscula
-        if (!/[A-Z]/.test(password)) {
-            errores.push(`La ${campo} debe contener al menos una letra mayúscula (A-Z)`);
-        }
-        
-        // Al menos una minúscula
-        if (!/[a-z]/.test(password)) {
-            errores.push(`La ${campo} debe contener al menos una letra minúscula (a-z)`);
-        }
-        
-        // Al menos un número
         if (!/[0-9]/.test(password)) {
             errores.push(`La ${campo} debe contener al menos un número (0-9)`);
         }
-        
-        // Al menos un símbolo especial (lista más completa)
-        if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?~`]/.test(password)) {
-            errores.push(`La ${campo} debe contener al menos un símbolo especial (ej: !@#$%^&*)`);
-        }
-        
-        // Opcional: Validar caracteres no permitidos
-        if (/[áéíóúÁÉÍÓÚñÑ]/.test(password)) {
-            errores.push(`La ${campo} no debe contener caracteres acentuados ni la letra ñ`);
-        }
     }
-    
+
     if (mostrarAlerta && errores.length > 0) {
         mostrarErroresValidacion(errores, `Error en ${campo}`);
     }
     return errores;
 }
 
-// Validar coincidencia de contraseñas
 function validarCoincidenciaPassword(password, confirmacion, campo1 = 'contraseña', campo2 = 'confirmación de contraseña', mostrarAlerta = false) {
     const errores = [];
-    
+
     if (password !== confirmacion) {
         errores.push(`La ${campo1} y la ${campo2} no coinciden`);
     }
-    
+
     if (mostrarAlerta && errores.length > 0) {
         mostrarErroresValidacion(errores, `Error en ${campo1} y ${campo2}`);
     }
     return errores;
 }
 
-// Validación completa de contraseña (fortaleza + coincidencia)
 function validarPasswordCompleto(password, confirmacion, campo = 'contraseña', mostrarAlerta = false) {
     const erroresFortaleza = validarFortalezaPassword(password, campo, false);
     const erroresCoincidencia = validarCoincidenciaPassword(password, confirmacion, campo, 'confirmación de contraseña', false);
     const todosErrores = [...erroresFortaleza, ...erroresCoincidencia];
-    
+
     if (mostrarAlerta && todosErrores.length > 0) {
         mostrarErroresValidacion(todosErrores, `Error en ${campo}`);
     }
-    
+
     return todosErrores;
 }
 
-// Validar formulario completo
 function validarFormulario(validaciones, titulo = 'Errores en el Formulario') {
     const todosLosErrores = [];
     validaciones.forEach(validacion => {

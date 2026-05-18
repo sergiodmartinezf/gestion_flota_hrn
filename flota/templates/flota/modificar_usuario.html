@@ -10,38 +10,68 @@
     <div class="row">
         <div class="col-md-6">
             <div class="mb-3">
-                <label for="{{ form.rut.id_for_label }}" class="form-label">RUT</label>
-                {{ form.rut }}
+                <label class="form-label">RUT</label>
+                <!-- Mostrar el RUT como texto plano, no editable -->
+                <div class="form-control-plaintext bg-light p-2 rounded">
+                    <strong>{{ usuario.rut }}</strong>
+                </div>
+                <small class="text-muted">El RUT no se puede modificar.</small>
+                <!-- Campo oculto para enviar el RUT original al servidor -->
+                <input type="hidden" name="rut" value="{{ usuario.rut }}">
             </div>
             <div class="mb-3">
                 <label for="{{ form.nombre.id_for_label }}" class="form-label">Nombre</label>
                 {{ form.nombre }}
+                {% if form.nombre.errors %}
+                    <div class="text-danger">{{ form.nombre.errors }}</div>
+                {% endif %}
             </div>
             <div class="mb-3">
                 <label for="{{ form.apellido.id_for_label }}" class="form-label">Apellido</label>
                 {{ form.apellido }}
+                {% if form.apellido.errors %}
+                    <div class="text-danger">{{ form.apellido.errors }}</div>
+                {% endif %}
             </div>
         </div>
         <div class="col-md-6">
             <div class="mb-3">
                 <label for="{{ form.email.id_for_label }}" class="form-label">Email</label>
                 {{ form.email }}
+                {% if form.email.errors %}
+                    <div class="text-danger">{{ form.email.errors }}</div>
+                {% endif %}
             </div>
             <div class="mb-3">
                 <label for="{{ form.rol.id_for_label }}" class="form-label">Rol</label>
                 {{ form.rol }}
+                {% if form.rol.errors %}
+                    <div class="text-danger">{{ form.rol.errors }}</div>
+                {% endif %}
             </div>
             <div class="mb-3">
                 <label for="{{ form.password.id_for_label }}" class="form-label">Nueva Contraseña (dejar en blanco para no cambiar)</label>
                 {{ form.password }}
+                {% if form.password.help_text %}
+                    <small class="form-text text-muted">{{ form.password.help_text }}</small>
+                {% endif %}
+                {% if form.password.errors %}
+                    <div class="text-danger">{{ form.password.errors }}</div>
+                {% endif %}
             </div>
             <div class="mb-3">
                 <label for="{{ form.password_confirm.id_for_label }}" class="form-label">Confirmar Contraseña</label>
                 {{ form.password_confirm }}
+                {% if form.password_confirm.errors %}
+                    <div class="text-danger">{{ form.password_confirm.errors }}</div>
+                {% endif %}
             </div>
             <div class="mb-3 form-check">
                 {{ form.activo }}
                 <label class="form-check-label" for="{{ form.activo.id_for_label }}">Activo</label>
+                {% if form.activo.errors %}
+                    <div class="text-danger">{{ form.activo.errors }}</div>
+                {% endif %}
             </div>
         </div>
     </div>
@@ -49,4 +79,3 @@
     <a href="{% url 'listar_usuarios' %}" class="btn btn-secondary">Cancelar</a>
 </form>
 {% endblock %}
-

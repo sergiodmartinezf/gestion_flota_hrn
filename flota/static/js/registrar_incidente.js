@@ -11,7 +11,6 @@ class FormularioIncidentePasos {
         this.setupEventListeners();
         this.actualizarProgreso();
         this.configurarFechaActual();
-        this.configurarVehiculoInfo();
     }
     
     validarSeleccion(valor, nombreCampo, esRequerido) {
@@ -104,25 +103,6 @@ class FormularioIncidentePasos {
         if (fechaInput && !fechaInput.value) {
             const hoy = new Date().toISOString().split('T')[0];
             fechaInput.value = hoy;
-        }
-    }
-    
-    configurarVehiculoInfo() {
-        const vehiculoSelect = document.getElementById('id_vehiculo');
-        
-        if (vehiculoSelect) {
-            vehiculoSelect.addEventListener('change', function() {
-                const selectedOption = this.options[this.selectedIndex];
-                const marca = selectedOption.getAttribute('data-marca') || '';
-                const modelo = selectedOption.getAttribute('data-modelo') || '';
-                
-                // Aquí podrías mostrar información adicional si lo deseas
-            });
-            
-            if (vehiculoSelect.value) {
-                const event = new Event('change');
-                vehiculoSelect.dispatchEvent(event);
-            }
         }
     }
     

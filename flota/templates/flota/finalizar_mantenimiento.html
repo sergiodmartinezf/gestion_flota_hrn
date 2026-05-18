@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load moneda_clp %}
 
 {% block title %}Finalizar Mantenimiento{% endblock %}
 
@@ -26,29 +27,62 @@
                 <form method="post" enctype="multipart/form-data">
                     {% csrf_token %}
                     
+                    {# Mostrar errores generales del formulario #}
+                    {% if form.non_field_errors %}
+                        <div class="alert alert-danger">
+                            {{ form.non_field_errors }}
+                        </div>
+                    {% endif %}
+                
                     <div class="row mb-3">
                         <div class="col-md-6">
                             <label class="form-label">Fecha de Salida (Real)</label>
                             {{ form.fecha_salida }}
+                            {{ form.fecha_salida.errors }}
                         </div>
                     </div>
-
+                
                     <div class="row mb-3">
                         <div class="col-md-6">
                             <label class="form-label">Costo Mano de Obra ($)</label>
                             {{ form.costo_mano_obra }}
+                            {{ form.costo_mano_obra.errors }}
                         </div>
                         <div class="col-md-6">
                             <label class="form-label">Costo Repuestos ($)</label>
                             {{ form.costo_repuestos }}
+                            {{ form.costo_repuestos.errors }}
                         </div>
                     </div>
-
+                
+                    {# Campo obligatorio: Orden de Compra #}
+                    <div class="mb-3">
+                        <label class="form-label">Orden de Compra *</label>
+                        {{ form.orden_compra }}
+                        {{ form.orden_compra.errors }}
+                        <small class="text-muted">Seleccione la OC asociada a este mantenimiento.</small>
+                    </div>
+                
+                    {# Campo opcional: Número de Factura #}
+                    <div class="mb-3">
+                        <label class="form-label">Número de Factura</label>
+                        {{ form.nro_factura }}
+                        {{ form.nro_factura.errors }}
+                    </div>
+                
+                    {# Campo opcional: Archivo Adjunto #}
+                    <div class="mb-3">
+                        <label class="form-label">Documento Adjunto (PDF, imagen)</label>
+                        {{ form.archivo_adjunto }}
+                        {{ form.archivo_adjunto.errors }}
+                    </div>
+                
                     <div class="mb-3">
                         <label class="form-label">Observaciones / Trabajo Realizado</label>
                         {{ form.descripcion_trabajo }}
+                        {{ form.descripcion_trabajo.errors }}
                     </div>
-
+                
                     <button type="submit" class="btn btn-success">
                         <i class="bi bi-check-circle"></i> Confirmar y Cerrar Mantenimiento
                     </button>

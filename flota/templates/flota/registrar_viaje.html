@@ -2,7 +2,11 @@
 {% load static %}
 
 {% block content %}
-<!-- En la parte superior, donde se muestra la información de la hoja: -->
+<!-- Variable global para el tipo de vehículo -->
+<script>
+    window.tipoVehiculo = "{{ hoja.vehiculo.tipo_carroceria }}";
+</script>
+
 <div class="container py-4">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
@@ -13,7 +17,6 @@
 
             {% if hoja.vehiculo.tipo_carroceria != 'Camioneta' %}
             <div class="small text-muted mt-1">
-                <!-- Mostrar tripulación de la hoja de ruta -->
                 Tripulación: 
                 Dr. {{ hoja.medico_derivador }} | 
                 TENS {{ hoja.tens }} |
@@ -34,6 +37,26 @@
                 <div class="card-body">
                     <form method="post" id="form-viaje" novalidate>
                         {% csrf_token %}
+
+                        <!-- Mostrar errores de llenado de formulario -->
+                        {% if form.non_field_errors %}
+                        <div class="alert alert-danger">
+                            {% for error in form.non_field_errors %}
+                                {{ error }}
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                    
+                    {% for field in form %}
+                        {% if field.errors %}
+                            <div class="alert alert-danger">
+                                <strong>{{ field.label }}:</strong>
+                                {% for error in field.errors %}
+                                    {{ error }}
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    {% endfor %}
                         
                         <h5 class="border-bottom pb-2 mb-3">1. Datos Operativos</h5>
 
@@ -43,7 +66,7 @@
                                 {{ form.hora_salida }}
                             </div>
                             <div class="col-md-6">
-                                <label>Hora Llegada</label>
+                                <label>Hora Llegada *</label>
                                 {{ form.hora_llegada }}
                             </div>
                             
@@ -55,16 +78,6 @@
                             <div class="col-md-6">
                                 <label>KM Llegada</label>
                                 {{ form.km_llegada }}
-                            </div>
-                            
-                            <div class="col-md-6">
-                                <label>Categoría de Traslado</label>
-                                {{ form.categoria_traslado }}
-                            </div>
-                            
-                            <div class="col-md-6" id="container-origen-alta" style="display:none;">
-                                <label class="text-primary">Especifique Origen Alta</label>
-                                {{ form.detalle_origen_alta }}
                             </div>
 
                             <div class="col-12">
@@ -90,16 +103,29 @@
                             </div>
                         </div>
 
-                        <h5 class="border-bottom pb-2 mb-3 mt-4 d-flex justify-content-between">
-                            {% if hoja.vehiculo.tipo_carroceria == 'Camioneta' %}
-                                2. Pasajeros
-                            {% else %}
-                                2. Pacientes
-                            {% endif %}
-                            <button type="button" class="btn btn-sm btn-success" id="add-paciente">
+                        <h5 class="border-bottom pb-2 mb-3 mt-4">
+                            <span id="paciente-label">
+                                {% if hoja.vehiculo.tipo_carroceria == 'Camioneta' %}2. Pasajeros{% else %}2. Pacientes{% endif %}
+                            </span>
+                        </h5>
+
+                        <div class="form-check mb-3">
+                            <input class="form-check-input" type="checkbox" id="lleva-pacientes">
+                            <label class="form-check-label" for="lleva-pacientes" id="lleva-pacientes-label">
+                                {% if hoja.vehiculo.tipo_carroceria == 'Camioneta' %}
+                                    Este viaje incluye pasajeros
+                                {% else %}
+                                    Este viaje incluye traslado de pacientes
+                                {% endif %}
+                            </label>
+                        </div>
+
+                        <div id="seccion-pacientes" style="display: none;">
+                        <div class="d-flex justify-content-end mb-2">
+                            <button type="button" class="btn btn-sm btn-success" id="add-paciente" disabled>
                                 <i class="bi bi-person-plus"></i> Agregar
                             </button>
-                        </h5>
+                        </div>
                         
                         {{ paciente_formset.management_form }}
                         
@@ -120,24 +146,14 @@
                                             <select class="form-select paciente-anterior-select" data-row="paciente-row">
                                                 <option value="">-- Ingresar nuevo o seleccionar --</option>
                                                 {% for p in pacientes_anteriores %}
-                                                <option value="{{ p.id }}" data-nombre="{{ p.nombre|escapejs }}" data-rut="{{ p.rut|escapejs }}" data-prevision="{{ p.prevision|default:''|escapejs }}">{{ p.nombre }} ({{ p.rut }})</option>
+                                                <option value="{{ p.id }}" data-rut="{{ p.rut|escapejs }}">{{ p.rut }}</option>
                                                 {% endfor %}
                                             </select>
                                         </div>
                                     </div>
                                     <div class="row g-2">
-                                        <div class="col-md-8">
-                                            <label class="small">
-                                                {% if hoja.vehiculo.tipo_carroceria == 'Camioneta' %}
-                                                    Nombre Pasajero *
-                                                {% else %}
-                                                    Nombre Paciente *
-                                                {% endif %}
-                                            </label>
-                                            {{ form_paciente.nombre }}
-                                        </div>
-                                        <div class="col-md-4">
-                                            <label class="small">RUT</label>
+                                        <div class="col-md-5">
+                                            <label class="small">RUT *</label>
                                             {{ form_paciente.rut }}
                                         </div>
                                         
@@ -151,15 +167,20 @@
                                             {{ form_paciente.direccion_especifica }}
                                         </div>
                         
-                                        <div class="col-md-3">
-                                            <label class="small">
-                                                {% if hoja.vehiculo.tipo_carroceria == 'Camioneta' %}
-                                                    Servicio/Área
-                                                {% else %}
-                                                    Servicio/Prev
-                                                {% endif %}
-                                            </label>
-                                            {{ form_paciente.prevision }}
+                                    </div>
+
+                                    <div class="row g-2 mt-1 align-items-end fila-categoria-paciente">
+                                        <div class="col-md-4">
+                                            <label class="small">Categoría traslado</label>
+                                            {{ form_paciente.categoria_traslado }}
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label class="small">Sentido</label>
+                                            {{ form_paciente.sentido }}
+                                        </div>
+                                        <div class="col-md-4 container-origen-alta" style="display:none;">
+                                            <label class="small text-primary">Origen del alta</label>
+                                            {{ form_paciente.detalle_origen_alta }}
                                         </div>
                                     </div>
                                     
@@ -172,7 +193,6 @@
                             {% endfor %}
                         </div>
 
-                        <!-- PASAJEROS -->
                         <!-- Formulario vacío para nuevos pacientes -->
                         <template id="empty-form-template">
                             <div class="paciente-row card mb-3 bg-light border-0">
@@ -183,44 +203,63 @@
                                             <select class="form-select paciente-anterior-select" data-row="paciente-row">
                                                 <option value="">-- Ingresar nuevo o seleccionar --</option>
                                                 {% for p in pacientes_anteriores %}
-                                                <option value="{{ p.id }}" data-nombre="{{ p.nombre|escapejs }}" data-rut="{{ p.rut|escapejs }}" data-prevision="{{ p.prevision|default:''|escapejs }}">{{ p.nombre }} ({{ p.rut }})</option>
+                                                <option value="{{ p.id }}" data-rut="{{ p.rut|escapejs }}">{{ p.rut }}</option>
                                                 {% endfor %}
                                             </select>
                                         </div>
                                     </div>
                                     <div class="row g-2">
-                                        <div class="col-md-8">
-                                            <label class="small">Nombre Completo *</label>
-                                            <input type="text" name="pacientes-__prefix__-nombre" class="form-control paciente-nombre" maxlength="150">
-                                        </div>
-                                        <div class="col-md-4">
-                                            <label class="small">RUT</label>
-                                            <input type="text" name="pacientes-__prefix__-rut" class="form-control paciente-rut" maxlength="12">
+                                        <div class="col-md-5">
+                                            <label class="small">RUT *</label>
+                                            <input type="text" name="pacientes-__prefix__-rut" class="form-control paciente-rut" maxlength="12" required>
                                         </div>
                                         <div class="col-md-4">
                                             <label class="small">Destino *</label>
                                             <select name="pacientes-__prefix__-destino_tipo" class="form-select destino-selector">
                                                 <option value="">Seleccione...</option>
-                                                <option value="HBO">Hospital Base Osorno</option>
-                                                <option value="DOMICILIO">Domicilio</option>
-                                                <option value="CESFAM">CESFAM</option>
-                                                <option value="ACHS">ACHS/Mutual</option>
-                                                <option value="OTRO">Otro</option>
+                                                {% for codigo, etiqueta in destinos_choices %}
+                                                <option value="{{ codigo }}">{{ etiqueta }}</option>
+                                                {% endfor %}
                                             </select>
                                         </div>
                                         <div class="col-md-5 container-direccion" style="display:none;">
                                             <label class="small text-primary">Dirección / Detalle</label>
                                             <input type="text" name="pacientes-__prefix__-direccion_especifica" class="form-control direccion-input" maxlength="200">
                                         </div>
-                                        <div class="col-md-3">
-                                            <label class="small">Servicio/Prev</label>
-                                            <input type="text" name="pacientes-__prefix__-prevision" class="form-control paciente-prevision" maxlength="50">
+                                    </div>
+                                    <div class="row g-2 mt-1 align-items-end fila-categoria-paciente">
+                                        <div class="col-md-4">
+                                            <label class="small">Categoría traslado</label>
+                                            <select name="pacientes-__prefix__-categoria_traslado" class="form-select categoria-traslado-select">
+                                                <option value="PRIMARIO">Traslado Primario (Lugar del evento -&gt; Urgencia)</option>
+                                                <option value="SECUNDARIO">Traslado Secundario (Urgencia -&gt; Hospital Base/Red)</option>
+                                                <option value="OTROS">Otros Traslados (Rescates, Exámenes, Especialista)</option>
+                                                <option value="ALTA">Altas</option>
+                                                <option value="Administrativo" selected>Administrativo</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label class="small">Sentido</label>
+                                            <select name="pacientes-__prefix__-sentido" class="form-select sentido-select">
+                                                <option value="IDA" selected>Ida</option>
+                                                <option value="REGRESO">Regreso</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-md-4 container-origen-alta" style="display:none;">
+                                            <label class="small text-primary">Origen del alta</label>
+                                            <select name="pacientes-__prefix__-detalle_origen_alta" class="form-select detalle-origen-alta-select">
+                                                <option value="">---------</option>
+                                                <option value="URGENCIA">Desde Servicio de Urgencia</option>
+                                                <option value="HOSPITALIZADO">Desde Hospitalizado</option>
+                                                <option value="HBO">Desde Hospital Base Osorno</option>
+                                            </select>
                                         </div>
                                     </div>
                                     <button type="button" class="btn btn-sm btn-outline-danger mt-2 remove-paciente">Quitar</button>
                                 </div>
                             </div>
                         </template>
+                        </div>
 
                         <div class="d-grid mt-4">
                             <button type="submit" class="btn btn-primary btn-lg">Guardar Registro</button>
@@ -236,7 +275,11 @@
                 <ul class="list-group list-group-flush">
                     {% for v in ultimos_viajes %}
                     <li class="list-group-item">
-                        <strong>{{ v.hora_salida }}</strong> - {{ v.get_categoria_traslado_display }}<br>
+                        <strong>{{ v.hora_salida }}</strong>
+                        {% with p=v.pacientes.first %}
+                            {% if p %} — {{ p.get_categoria_traslado_display }}{% endif %}
+                        {% endwith %}
+                        <br>
                         <small>{{ v.get_pacientes_str }}</small>
                     </li>
                     {% endfor %}
@@ -245,6 +288,7 @@
         </div>
     </div>
 </div>
+
 <!-- Modal para confirmar cierre de hoja -->
 <div class="modal fade" id="modalCerrar" tabindex="-1" aria-labelledby="modalCerrarLabel" aria-hidden="true">
     <div class="modal-dialog">
@@ -272,5 +316,37 @@
 {% endblock %}
 
 {% block extra_js %}
+<script src="{% static 'js/formateador_rut.js' %}"></script>
 <script src="{% static 'js/registrar_viaje.js' %}"></script>
+<script>
+    (function() {
+        if (window.tipoVehiculo !== 'Camioneta') return;
+        const hboContainer = document.getElementById('hbo-horas-container');
+        if (hboContainer) {
+            hboContainer.style.display = 'none';
+            const horaSalida = document.querySelector('[name="hora_salida_hbo"]');
+            const horaLlegada = document.querySelector('[name="hora_llegada_hbo"]');
+            if (horaSalida) horaSalida.removeAttribute('required');
+            if (horaLlegada) horaLlegada.removeAttribute('required');
+        }
+        const deshabilitarHBO = function() {
+            const suffix = ' (no disponible)';
+            document.querySelectorAll('.destino-selector').forEach(select => {
+                Array.from(select.options).forEach(option => {
+                    if (option.value === 'HBO' && !option.hasAttribute('data-disabled')) {
+                        option.disabled = true;
+                        option.setAttribute('data-disabled', 'true');
+                        option.textContent += suffix;
+                    }
+                });
+            });
+        };
+        deshabilitarHBO();
+        const pacDiv = document.getElementById('pacientes-container');
+        if (pacDiv) {
+            const observer = new MutationObserver(deshabilitarHBO);
+            observer.observe(pacDiv, { childList: true, subtree: true });
+        }
+    })();
+</script>
 {% endblock %}

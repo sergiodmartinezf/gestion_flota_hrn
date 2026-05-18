@@ -30,3 +30,24 @@
 </div>
 {% endblock %}
 
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.querySelector('form[method="post"]');
+    const rutInput = document.querySelector('[name="rut"]');
+    if (!form || !rutInput) return;
+    form.addEventListener('submit', function(e) {
+        if (typeof validarRutChileno !== 'function') return;
+        const errores = validarRutChileno(rutInput.value, 'RUT');
+        if (errores.length > 0) {
+            e.preventDefault();
+            rutInput.classList.add('is-invalid');
+            if (typeof mostrarErroresValidacion === 'function') {
+                mostrarErroresValidacion(errores, 'RUT inválido');
+            }
+        }
+    });
+});
+</script>
+{% endblock %}
+

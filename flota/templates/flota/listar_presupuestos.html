@@ -1,5 +1,6 @@
 {% extends 'base.html' %}
 {% load moneda_clp %}
+{% load l10n %}
 
 {% block title %}Listar Presupuestos - Gestión de Flota{% endblock %}
 
@@ -16,21 +17,10 @@
                     <select name="anio" id="anio" class="form-select">
                         <option value="">Todos los años</option>
                         {% for year in years_range %}
-                            <option value="{{ year }}"
-                                {% if anio_filter|stringformat:"s" == year|stringformat:"s" %}selected{% endif %}>
-                                {{ year }}
-                            </option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <div class="col-md-4">
-                    <label for="vehiculo" class="form-label">Vehículo:</label>
-                    <select name="vehiculo" id="vehiculo" class="form-select">
-                        <option value="">Todos los vehículos</option>
-                        {% for v in vehiculos %}
-                            <option value="{{ v.patente }}" {% if vehiculo_filter == v.patente %}selected{% endif %}>
-                                {{ v.patente }}
-                            </option>
+                        <option value="{% localize off %}{{ year }}{% endlocalize %}"
+                            {% if anio_filter|stringformat:"s" == year|stringformat:"s" %}selected{% endif %}>
+                            {% localize off %}{{ year }}{% endlocalize %}
+                        </option>
                         {% endfor %}
                     </select>
                 </div>
@@ -53,10 +43,7 @@
         <a href="{% url 'registrar_presupuesto' %}" class="btn btn-success">
             <i class="bi bi-plus-circle"></i> Nuevo Presupuesto
         </a>
-        <a href="{% url 'alertas_presupuesto' %}" class="btn btn-warning">
-            <i class="bi bi-exclamation-triangle"></i> Ver Alertas
-        </a>
-        <a href="?{% if mostrar_deshabilitados %}mostrar_deshabilitados=false{% else %}mostrar_deshabilitados=true{% endif %}{% if anio_filter %}&anio={{ anio_filter }}{% endif %}{% if vehiculo_filter %}&vehiculo={{ vehiculo_filter }}{% endif %}"
+        <a href="?{% if mostrar_deshabilitados %}mostrar_deshabilitados=false{% else %}mostrar_deshabilitados=true{% endif %}{% if anio_filter %}&anio={{ anio_filter }}{% endif %}"
         class="btn {% if mostrar_deshabilitados %}btn-secondary{% else %}btn-outline-secondary{% endif %}">
             <i class="bi {% if mostrar_deshabilitados %}bi-eye-slash{% else %}bi-eye{% endif %}"></i>
             {% if mostrar_deshabilitados %}Ocultar{% else %}Mostrar{% endif %} Deshabilitados
@@ -72,7 +59,6 @@
                     <thead class="table-dark">
                         <tr>
                             <th>Año</th>
-                            <th>Vehículo</th>
                             <th>Cuenta SIGFE</th>
                             <th>Monto Asignado</th>
                             <th>Monto Ejecutado</th>
@@ -84,16 +70,7 @@
                     <tbody>
                         {% for p in presupuestos %}
                         <tr>
-                            <td>{{ p.anio }}</td>
-                            <td>
-                                {% if p.vehiculo %}
-                                    <a href="{% url 'ficha_vehiculo' p.vehiculo.patente %}">
-                                        {{ p.vehiculo.patente }}
-                                    </a>
-                                {% else %}
-                                    <span class="text-muted">Flota General</span>
-                                {% endif %}
-                            </td>
+                            <td>{{ p.anio|unlocalize }}</td>
                             <td>
                                 <small>{{ p.cuenta.codigo }}</small><br>
                                 <span class="small text-muted">{{ p.cuenta.nombre|truncatechars:30 }}</span>
@@ -112,10 +89,11 @@
                                             {% elif p.porcentaje_ejecutado < 100 %}bg-danger text-white
                                             {% else %}bg-dark text-white{% endif %}"
                                             role="progressbar"
-                                            style="width: {% if p.porcentaje_ejecutado > 100 %}100{% else %}{{ p.porcentaje_ejecutado }}{% endif %}%; font-weight: bold; display: flex; align-items: center; justify-content: center;"
+                                            style="width: {% if p.porcentaje_ejecutado > 100 %}100{% else %}{{ p.porcentaje_ejecutado|floatformat:0 }}{% endif %}%; font-weight: bold; display: flex; align-items: center; justify-content: center;"
                                             aria-valuenow="{{ p.porcentaje_ejecutado }}"
                                             aria-valuemin="0"
                                             aria-valuemax="100">
+                                            
                                             {{ p.porcentaje_ejecutado|floatformat:1 }}%
                                         </div>
                                     </div>

@@ -72,179 +72,71 @@ def deshabilitar_presupuesto(request, id):
 
 @login_required
 def listar_presupuestos(request):
-    # REQ: Manejo de visualización de deshabilitados
     mostrar_deshabilitados = request.GET.get('mostrar_deshabilitados', 'false') == 'true'
-
-    if mostrar_deshabilitados:
-        presupuestos = Presupuesto.objects.all().order_by('-anio', 'vehiculo')
-    else:
-        presupuestos = Presupuesto.objects.filter(activo=True).order_by('-anio', 'vehiculo')
-
-    # Filtros
+    
+    presupuestos = Presupuesto.objects.all() if mostrar_deshabilitados else Presupuesto.objects.filter(activo=True)
+    presupuestos = presupuestos.order_by('-anio', 'cuenta__codigo')
+    
     anio_filter = request.GET.get('anio')
-    if not anio_filter:
-        anio_filter = '' #timezone.now().year
-    vehiculo_filter = request.GET.get('vehiculo')
-
     if anio_filter:
         presupuestos = presupuestos.filter(anio=anio_filter)
-    if vehiculo_filter:
-        presupuestos = presupuestos.filter(vehiculo__patente=vehiculo_filter)
-
-    anio_actual = timezone.now().year
-    anio_minimo = Presupuesto.objects.aggregate(min_anio=Min('anio'))['min_anio']
-    if anio_minimo is None:
-        years_range = [anio_actual]  # No hay presupuestos, mostrar solo año actual
-    else:
-        years_range = list(range(anio_minimo, anio_actual + 1))
-
-    # Calcular totales
-    total_asignado = presupuestos.aggregate(
-        total=Sum('monto_asignado')
-    )['total'] or Decimal('0')
-
-    total_ejecutado = presupuestos.aggregate(
-        total=Sum('monto_ejecutado')
-    )['total'] or Decimal('0')
-
-    total_disponible = total_asignado - total_ejecutado
-
-    vehiculos = Vehiculo.objects.all().order_by('patente')
-
+    
+    total_asignado = presupuestos.aggregate(total=Sum('monto_asignado'))['total'] or 0
+    total_ejecutado = presupuestos.aggregate(total=Sum('monto_ejecutado'))['total'] or 0
+    
+    # Obtener años únicos correctamente
+    years_range = Presupuesto.objects.values_list('anio', flat=True).distinct().order_by('anio')
+    
     return render(request, 'flota/listar_presupuestos.html', {
         'presupuestos': presupuestos,
-        'vehiculos': vehiculos,
         'anio_filter': anio_filter,
-        'vehiculo_filter': vehiculo_filter,
         'total_asignado': total_asignado,
         'total_ejecutado': total_ejecutado,
-        'total_disponible': total_disponible,
+        'total_disponible': total_asignado - total_ejecutado,
         'mostrar_deshabilitados': mostrar_deshabilitados,
         'years_range': years_range,
     })
 
 
-# RF_22: Visualizar alertas de presupuesto
-@login_required
-def alertas_presupuesto(request):
-    presupuestos = Presupuesto.objects.filter(activo=True)
-    alertas = []
-    
-    for presupuesto in presupuestos:
-        porcentaje = presupuesto.porcentaje_ejecutado
-        if porcentaje >= 80:  # Alerta cuando se ha gastado el 80% o más
-            alertas.append({
-                'presupuesto': presupuesto,
-                'porcentaje': porcentaje,
-                'monto_restante': presupuesto.monto_asignado - presupuesto.monto_ejecutado,
-            })
-    
-    return render(request, 'flota/alertas_presupuesto.html', {'alertas': alertas})
-
-
 # Reporte de Variación Presupuestaria
 @login_required
 def reporte_variacion_presupuestaria(request):
-    """
-    Reporte que compara presupuesto planificado vs ejecutado.
-    Alerta cuando la variación es mayor al 10% (requisito crítico).
-    Incluye filtros por año y vehículo.
-    """
-    # Obtener parámetros de filtro
     anio = request.GET.get('anio', timezone.now().year)
-    vehiculo_patente = request.GET.get('vehiculo')
-    exportar = request.GET.get('exportar') == 'excel'
-
     try:
         anio = int(anio)
-    except (ValueError, TypeError):
+    except ValueError:
         anio = timezone.now().year
 
-    # Base de presupuestos activos del año seleccionado
-    presupuestos = Presupuesto.objects.filter(anio=anio, activo=True).select_related('vehiculo', 'cuenta')
-
-    # Filtrar por vehículo si se especifica
-    if vehiculo_patente:
-        presupuestos = presupuestos.filter(vehiculo__patente=vehiculo_patente)
-
+    presupuestos = Presupuesto.objects.filter(anio=anio, activo=True).select_related('cuenta')
     reporte = []
-    alertas_variacion = []
 
     for presupuesto in presupuestos:
-        # Calcular monto ejecutado solo con mantenimientos preventivos
-        monto_ejecutado_preventivo = Mantenimiento.objects.filter(
+        # Gastos asociados a esta cuenta en el año (mantenimientos, combustible, arriendos, OC)
+        gastos = Mantenimiento.objects.filter(
             cuenta_presupuestaria=presupuesto.cuenta,
-            vehiculo=presupuesto.vehiculo,
             fecha_ingreso__year=anio,
-            tipo_mantencion='Preventivo'
-        ).aggregate(total=Sum('costo_total_real'))['total'] or Decimal('0')
+            estado='Finalizado'
+        ).aggregate(total=Sum('costo_total_real'))['total'] or 0
 
-        # Calcular variación
-        diferencia = monto_ejecutado_preventivo - presupuesto.monto_asignado
+        diferencia = gastos - presupuesto.monto_asignado
         if presupuesto.monto_asignado > 0:
             porcentaje_variacion = (diferencia / presupuesto.monto_asignado) * 100
-            porcentaje_ejecutado = (monto_ejecutado_preventivo / presupuesto.monto_asignado) * 100
         else:
             porcentaje_variacion = 0
-            porcentaje_ejecutado = 0
 
-        # Alerta si se sobrepasa el presupuesto en más del 10%
-        tiene_alerta = porcentaje_variacion > 10
-
-        item_reporte = {
-            'vehiculo': presupuesto.vehiculo.patente if presupuesto.vehiculo else 'Flota General',
-            'marca_modelo': f"{presupuesto.vehiculo.marca} {presupuesto.vehiculo.modelo}" if presupuesto.vehiculo else 'N/A',
-            'cuenta_sigfe': presupuesto.cuenta.codigo,
+        reporte.append({
+            'cuenta': presupuesto.cuenta.codigo,
             'nombre_cuenta': presupuesto.cuenta.nombre,
             'monto_asignado': presupuesto.monto_asignado,
-            'monto_ejecutado': monto_ejecutado_preventivo,
+            'monto_ejecutado': gastos,
             'diferencia': diferencia,
             'porcentaje_variacion': porcentaje_variacion,
-            'porcentaje_ejecutado': porcentaje_ejecutado,
-            'tiene_alerta': tiene_alerta,
-            'presupuesto': presupuesto,  # Para enlaces si es necesario
-        }
+            'tiene_alerta': porcentaje_variacion > 10,
+        })
 
-        reporte.append(item_reporte)
-
-        if tiene_alerta:
-            alertas_variacion.append(item_reporte)
-
-    # Exportar a Excel si se solicita
-    if exportar:
-        columnas = [
-            ('Vehículo', 'vehiculo', 'texto'),
-            ('Marca/Modelo', 'marca_modelo', 'texto'),
-            ('Cuenta SIGFE', 'cuenta_sigfe', 'texto'),
-            ('Nombre Cuenta', 'nombre_cuenta', 'texto'),
-            ('Monto Asignado', 'monto_asignado', 'moneda'),
-            ('Monto Ejecutado', 'monto_ejecutado', 'moneda'),
-            ('Diferencia', 'diferencia', 'moneda'),
-            ('% Variación', 'porcentaje_variacion', 'decimal'),
-            ('% Ejecutado', 'porcentaje_ejecutado', 'decimal'),
-        ]
-        return exportar_reporte_excel(
-            f'Análisis de Variación Presupuestaria - Año {anio}',
-            reporte,
-            columnas,
-            f'variacion_presupuestaria_{anio}_{datetime.now().strftime("%Y%m%d")}.xlsx'
-        )
-
-    # Obtener años disponibles
-    anio_actual = timezone.now().year
-    anios_disponibles = list(range(anio_actual, anio_actual - 6, -1))
-    anios_con_presupuestos = list(Presupuesto.objects.values_list('anio', flat=True).distinct())
-    anios_disponibles = sorted(set(anios_disponibles + anios_con_presupuestos), reverse=True)
-
-    # Obtener todos los vehículos para el filtro
-    vehiculos = Vehiculo.objects.all().order_by('patente')
-
+    # Renderizar template (eliminar filtro de vehículo del contexto)
     return render(request, 'flota/reporte_variacion_presupuestaria.html', {
         'reporte': reporte,
-        'alertas_variacion': alertas_variacion,
         'anio': anio,
-        'vehiculo_filter': vehiculo_patente,
-        'vehiculos': vehiculos,
-        'anios_disponibles': anios_disponibles,
+        'anios_disponibles': Presupuesto.objects.dates('anio', 'year').distinct(),
     })
-

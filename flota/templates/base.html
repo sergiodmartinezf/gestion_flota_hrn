@@ -14,16 +14,7 @@
 
 
 
-{% if arriendo_form.errors %}
-    <pre>Errores del arriendo: {{ arriendo_form.errors }}</pre>
-{% endif %}
-{% if vehiculo_form.errors %}
-    <pre>Errores del vehículo: {{ vehiculo_form.errors }}</pre>
-{% endif %}
-
-
-
-<body>
+<body{% if user.is_authenticated %} data-logout-url="{% url 'logout' %}"{% endif %}>
     {% if user.is_authenticated %}
     <div class="container-fluid">
         <div class="row">
@@ -77,8 +68,8 @@
                         {% endif %}
                         <li><a href="{% url 'listar_ordenes_compra' %}"><i class="bi bi-cart-check"></i> Órdenes de Compra</a></li>
                         <li><a href="{% url 'listar_ordenes_trabajo' %}"><i class="bi bi-wrench"></i> Órdenes de Trabajo</a></li>
-                        <li><a href="{% url 'alertas_mantenimiento' %}"><i class="bi bi-bell"></i> Alertas {% if user.is_authenticated %}<span id="alertas-badge" class="badge bg-danger" style="display: none;"></span>{% endif %}</a></li>
-                        <li><a href="{% url 'reporte_costos' %}"><i class="bi bi-graph-up"></i> Reportes</a></li>
+                        <li><a href="{% url 'alertas' %}"><i class="bi bi-bell"></i> Alertas {% if user.is_authenticated %}<span id="alertas-badge" class="badge bg-danger" style="display: none;"></span>{% endif %}</a></li>
+                        <li><a href="{% url 'reportes' %}"><i class="bi bi-graph-up"></i> Reportes</a></li>
                     
                         {% endif %}
                         <hr>
@@ -93,7 +84,7 @@
 
                 {% if messages %}
                     {% for message in messages %}
-                        <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                        <div class="alert alert-{% if message.tags == 'error' %}danger{% elif message.tags == 'debug' %}secondary{% else %}{{ message.tags }}{% endif %} alert-dismissible fade show" role="alert">
                             {{ message }}
                             <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
                         </div>
@@ -113,7 +104,8 @@
     <script src="{% static 'js/bootstrap.bundle.min.js' %}"></script>
     <script src="{% static 'js/formateador_rut.js' %}"></script>
     <script src="{% static 'js/formatear_fechas.js' %}"></script>
-
+    <script src="{% static 'js/validaciones.js' %}"></script>
+    
     <!-- GRÁFICOS -->
     <script src="{% static 'js/chart.umd.min.js' %}"></script>
 
@@ -141,6 +133,24 @@
     {% endif %}
     
     <script src="{% static 'js/base.js' %}"></script>
+    {% if user.is_authenticated %}
+    <div class="modal fade" id="modalSesionInactiva" tabindex="-1" aria-labelledby="modalSesionInactivaLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="modalSesionInactivaLabel">¿Sigues ahí?</h5>
+                </div>
+                <div class="modal-body">
+                    <p class="mb-0">Por seguridad, tu sesión se cerrará automáticamente en <strong id="sesion-countdown">60</strong> segundos por inactividad.</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-primary" id="btn-sesion-continuar">Seguir conectado</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script src="{% static 'js/sesion_inactiva.js' %}"></script>
+    {% endif %}
     {% block extra_js %}{% endblock %}
 </body>
 </html>

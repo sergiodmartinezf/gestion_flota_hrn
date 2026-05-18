@@ -25,22 +25,22 @@ class HojaRutaAdmin(admin.ModelAdmin):
 
 @admin.register(Viaje)
 class ViajeAdmin(admin.ModelAdmin):
-    list_display = ('id', 'hoja_ruta', 'hora_salida', 'categoria_traslado')
-    list_filter = ('categoria_traslado', 'hoja_ruta__fecha')
+    list_display = ('id', 'hoja_ruta', 'hora_salida')
+    list_filter = ('hoja_ruta__fecha',)
     inlines = [ViajePacienteInline]
 
 @admin.register(PacienteViaje)
 class PacienteViajeAdmin(admin.ModelAdmin):
-    list_display = ('nombre', 'rut', 'prevision', 'creado_en')
-    search_fields = ('nombre', 'rut')
-    ordering = ('nombre',)
+    list_display = ('rut', 'creado_en')
+    search_fields = ('rut',)
+    ordering = ('rut',)
 
 
 @admin.register(PacienteTraslado)
 class PacienteTrasladoAdmin(admin.ModelAdmin):
-    list_display = ('viaje', 'nombre', 'rut', 'destino_tipo', 'prevision', 'paciente_viaje')
-    list_filter = ('destino_tipo',)
-    search_fields = ('nombre', 'rut')
+    list_display = ('viaje', 'rut', 'categoria_traslado', 'sentido', 'destino_tipo', 'paciente_viaje')
+    list_filter = ('destino_tipo', 'categoria_traslado', 'sentido')
+    search_fields = ('rut',)
 
 @admin.register(CargaCombustible)
 class CargaCombustibleAdmin(admin.ModelAdmin):
@@ -54,8 +54,8 @@ class FallaReportadaAdmin(admin.ModelAdmin):
     list_filter = ('nivel_urgencia', 'vehiculo')
     date_hierarchy = 'fecha_reporte'
 
-@admin.register(AlertaMantencion)
-class AlertaMantencionAdmin(admin.ModelAdmin):
+@admin.register(Alerta)
+class AlertaAdmin(admin.ModelAdmin):
     list_display = ('vehiculo', 'descripcion', 'valor_umbral', 'vigente', 'generado_en')
     list_filter = ('vigente', 'vehiculo')
     date_hierarchy = 'generado_en'
@@ -94,7 +94,7 @@ class ProveedorAdmin(admin.ModelAdmin):
 
 @admin.register(Presupuesto)
 class PresupuestoAdmin(admin.ModelAdmin):
-    list_display = ('anio', 'cuenta', 'vehiculo', 'monto_asignado', 'monto_ejecutado', 'disponible', 'activo')
+    list_display = ('anio', 'cuenta', 'monto_asignado', 'monto_ejecutado', 'disponible', 'activo')
     list_filter = ('anio', 'activo', 'cuenta')
     search_fields = ('cuenta__codigo', 'cuenta__nombre')
 

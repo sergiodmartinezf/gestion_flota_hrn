@@ -33,6 +33,7 @@ TIPO_TRASLADO_CATEGORIA = [
     ('SECUNDARIO', 'Traslado Secundario (Urgencia -> Hospital Base/Red)'),
     ('OTROS', 'Otros Traslados (Rescates, Exámenes, Especialista)'),
     ('ALTA', 'Altas'),
+    ('Administrativo', 'Administrativo'),
 ]
 
 # Subcategorías para lógica de negocio
@@ -42,13 +43,23 @@ ORIGEN_ALTA = [
     ('HBO', 'Desde Hospital Base Osorno'),
 ]
 
-DESTINOS_COMUNES = [
+DESTINOS_RED_HOSPITAL = [
     ('HBO', 'Hospital Base Osorno'),
+    ('HEPP_PURRANQUE', 'Hospital Dr. Juan Hepp Purranque'),
+    ('H_PUERTO_OCTAY', 'Hospital Puerto Octay'),
+    ('H_RIO_NEGRO', 'Hospital Río Negro'),
+    ('H_FUTA', 'Hospital Futa Srüka Lawenche Kunko Mapu Mo'),
+    ('H_PU_MULEN', 'Hospital Pu Mülen'),
+]
+
+DESTINOS_COMUNES = DESTINOS_RED_HOSPITAL + [
     ('DOMICILIO', 'Domicilio (Ingresar Dirección)'),
     ('CESFAM', 'CESFAM'),
     ('ACHS', 'ACHS/Mutual'),
     ('OTRO', 'Otro (Especificar)'),
 ]
+
+CODIGOS_DESTINOS_RED = {codigo for codigo, _ in DESTINOS_RED_HOSPITAL}
 
 # Estados de ordenes de compra
 def normalizar_estado_oc(estado):
@@ -297,61 +308,43 @@ class OrdenCompra(models.Model):
         que recalculan basándose en las OCs activas (no anuladas).
         """
         is_new = self.pk is None
-        
+
         # Si es nueva OC o se cambió el monto/estado, validar presupuesto
         if self.cuenta_presupuestaria and self.monto_total > 0 and self.estado != 'Anulada':
-            # Determinar vehículo: desde orden_trabajo o directamente
-            vehiculo_oc = self.vehiculo
-            if not vehiculo_oc and self.orden_trabajo:
-                vehiculo_oc = self.orden_trabajo.vehiculo
-            
-            if vehiculo_oc:
-                anio = self.fecha_emision.year
-                
-                # Buscar presupuesto específico del vehículo
-                presupuesto = Presupuesto.objects.filter(
-                    cuenta=self.cuenta_presupuestaria,
-                    vehiculo=vehiculo_oc,
-                    anio=anio,
-                    activo=True
-                ).first()
-                
-                # Si no hay específico, buscar global
-                if not presupuesto:
-                    presupuesto = Presupuesto.objects.filter(
-                        cuenta=self.cuenta_presupuestaria,
-                        vehiculo__isnull=True,
-                        anio=anio,
-                        activo=True
-                    ).first()
-                
-                # Si es nueva OC, validar presupuesto disponible
-                if is_new and presupuesto:
-                    if not presupuesto.tiene_saldo_suficiente(self.monto_total):
-                        raise ValueError(
-                            f"Presupuesto insuficiente para generar OC. "
-                            f"Disponible: ${presupuesto.disponible:.0f}, "
-                            f"Requerido: ${self.monto_total:.0f}"
-                        )
-                # Si se está modificando y cambió el monto, validar disponibilidad
-                elif not is_new and presupuesto:
-                    # Obtener monto anterior
-                    try:
-                        oc_anterior = OrdenCompra.objects.get(pk=self.pk)
-                        monto_anterior = oc_anterior.monto_total if oc_anterior.estado != 'Anulada' else 0
-                        diferencia = self.monto_total - monto_anterior
-                        
-                        # Si aumentó el monto y no está anulada, validar disponibilidad
-                        if diferencia > 0 and self.estado != 'Anulada':
-                            if not presupuesto.tiene_saldo_suficiente(diferencia):
-                                raise ValueError(
-                                    f"Presupuesto insuficiente para aumentar OC. "
-                                    f"Disponible: ${presupuesto.disponible:.0f}, "
-                                    f"Incremento requerido: ${diferencia:.0f}"
-                                )
-                    except OrdenCompra.DoesNotExist:
-                        pass
-        
+            anio = self.fecha_emision.year
+
+            # Buscar presupuesto por cuenta y año (ya no por vehículo)
+            presupuesto = Presupuesto.objects.filter(
+                cuenta=self.cuenta_presupuestaria,
+                anio=anio,
+                activo=True
+            ).first()
+
+            # Si es nueva OC, validar presupuesto disponible
+            if is_new and presupuesto:
+                if not presupuesto.tiene_saldo_suficiente(self.monto_total):
+                    raise ValueError(
+                        f"Presupuesto insuficiente para generar OC. "
+                        f"Disponible: ${presupuesto.disponible:.0f}, "
+                        f"Requerido: ${self.monto_total:.0f}"
+                    )
+            # Si se está modificando y cambió el monto, validar disponibilidad
+            elif not is_new and presupuesto:
+                try:
+                    oc_anterior = OrdenCompra.objects.get(pk=self.pk)
+                    monto_anterior = oc_anterior.monto_total if oc_anterior.estado != 'Anulada' else 0
+                    diferencia = self.monto_total - monto_anterior
+
+                    if diferencia > 0 and self.estado != 'Anulada':
+                        if not presupuesto.tiene_saldo_suficiente(diferencia):
+                            raise ValueError(
+                                f"Presupuesto insuficiente para aumentar OC. "
+                                f"Disponible: ${presupuesto.disponible:.0f}, "
+                                f"Incremento requerido: ${diferencia:.0f}"
+                            )
+                except OrdenCompra.DoesNotExist:
+                    pass
+
         super().save(*args, **kwargs)
     
     def __str__(self):
@@ -486,7 +479,7 @@ class Vehiculo(models.Model):
         # Si no hay mantenimiento preventivo, no se generan alertas de kilometraje
         if not ultimo_mant:
             # Eliminar posibles alertas previas de kilometraje (por si acaso)
-            AlertaMantencion.objects.filter(
+            Alerta.objects.filter(
                 vehiculo=self,
                 vigente=True,
                 valor_umbral__in=[8000, 12000]
@@ -505,6 +498,11 @@ class Vehiculo(models.Model):
                 f'ALERTA CRÍTICA: {recorrido} km desde última mantención '
                 f'(supera los {UMBRAL_CRITICO} km). Vehículo bloqueado para operación.'
             )
+            if self.estado not in ['Fuera de servicio', 'Baja']:
+                self.estado = 'Fuera de servicio'
+                # Guardamos el cambio de estado (evitamos recursión usando update_fields)
+                Vehiculo.objects.filter(pk=self.pk).update(estado=self.estado)
+
         elif recorrido >= UMBRAL_PREVENTIVO:
             nuevo_umbral = UMBRAL_PREVENTIVO
             descripcion = (
@@ -513,7 +511,7 @@ class Vehiculo(models.Model):
             )
         else:
             # Si el recorrido es menor a 8000, no debe haber alerta de kilometraje vigente.
-            AlertaMantencion.objects.filter(
+            Alerta.objects.filter(
                 vehiculo=self,
                 vigente=True,
                 valor_umbral__in=[UMBRAL_PREVENTIVO, UMBRAL_CRITICO]
@@ -521,7 +519,7 @@ class Vehiculo(models.Model):
             return
 
         # Manejo de alertas existentes
-        alerta_existente = AlertaMantencion.objects.filter(
+        alerta_existente = Alerta.objects.filter(
             vehiculo=self,
             vigente=True,
             valor_umbral=nuevo_umbral
@@ -532,13 +530,13 @@ class Vehiculo(models.Model):
             alerta_existente.save()
         else:
             # Desactivar la otra alerta si existe
-            AlertaMantencion.objects.filter(
+            Alerta.objects.filter(
                 vehiculo=self,
                 vigente=True,
                 valor_umbral__in=[UMBRAL_PREVENTIVO, UMBRAL_CRITICO]
             ).exclude(valor_umbral=nuevo_umbral).update(vigente=False, resuelta_en=timezone.now())
 
-            AlertaMantencion.objects.create(
+            Alerta.objects.create(
                 vehiculo=self,
                 descripcion=descripcion,
                 valor_umbral=nuevo_umbral
@@ -553,7 +551,7 @@ class Presupuesto(models.Model):
 
     TIPO_PRESUPUESTO = [
         ('Preventivo', 'Preventivo (Por Vehículo)'),
-        ('Operativo', 'Operativo/Correctivo (Bolsa General)'),
+        ('Operativo', 'Correctivo (Bolsa General)'),
     ]
     tipo_presupuesto = models.CharField(max_length=20, choices=TIPO_PRESUPUESTO, default='Preventivo')
     
@@ -562,9 +560,6 @@ class Presupuesto(models.Model):
     monto_asignado = models.IntegerField(validators=[MinValueValidator(0)])
     monto_ejecutado = models.IntegerField(default=0, validators=[MinValueValidator(0)])
     
-    # Opcional: Presupuesto específico por vehículo, si es null es presupuesto global de la cuenta
-    vehiculo = models.ForeignKey(Vehiculo, on_delete=models.CASCADE, related_name='presupuestos', null=True, blank=True)
-    
     # Campo para deshabilitar en vez de eliminar
     activo = models.BooleanField(default=True, verbose_name="Activo")
     
@@ -572,11 +567,10 @@ class Presupuesto(models.Model):
         db_table = 'presupuesto'
         verbose_name = 'Presupuesto'
         verbose_name_plural = 'Presupuestos'
-        unique_together = ['anio', 'vehiculo', 'cuenta']
+        unique_together = ['anio', 'cuenta']
     
     def __str__(self):
-        destino = self.vehiculo.patente if self.vehiculo else "Flota General"
-        return f"{self.anio} - {self.cuenta.codigo} - {destino}"
+        return f"{self.anio} - {self.cuenta.codigo} - {self.cuenta.nombre}"
 
     @property
     def disponible(self):
@@ -608,6 +602,12 @@ class Presupuesto(models.Model):
             self.save(update_fields=['monto_ejecutado'])
             return True
         return False
+
+    def save(self, *args, **kwargs):
+        # Si se supera el presupuesto asignado, se deshabilita automáticamente.
+        if self.monto_asignado > 0 and self.monto_ejecutado >= self.monto_asignado:
+            self.activo = False
+        super().save(*args, **kwargs)
 
 
 # --- OPERACIONES Y MANTENIMIENTO ---
@@ -699,30 +699,21 @@ class Mantenimiento(models.Model):
         return True
 
     def _obtener_presupuesto_para_cierre(self):
-        """Obtiene el presupuesto aplicable (vehículo o flota global). No modifica nada."""
+        """Obtiene el presupuesto aplicable por cuenta y año. No modifica nada."""
         if not self.cuenta_presupuestaria or not self.vehiculo:
             return None
         anio = self.fecha_ingreso.year
-        presupuesto = Presupuesto.objects.filter(
+        return Presupuesto.objects.filter(
             cuenta=self.cuenta_presupuestaria,
-            vehiculo=self.vehiculo,
             anio=anio,
             activo=True
         ).first()
-        if not presupuesto:
-            presupuesto = Presupuesto.objects.filter(
-                cuenta=self.cuenta_presupuestaria,
-                vehiculo__isnull=True,
-                anio=anio,
-                activo=True
-            ).first()
-        return presupuesto
 
     def ejecutar_cierre_presupuestario(self):
         """
         Único punto de ejecución presupuestaria por mantenimiento.
-        Valida: OC asociada, estado Finalizado, costos reales > 0, presupuesto existe y con saldo.
-        Dispara recálculo del presupuesto afectado (idempotente por recálculo desde BD).
+        Valida: OC asociada, estado Finalizado, costos reales > 0, cuenta presupuestaria,
+        presupuesto existe y con saldo.
         """
         if self.estado != 'Finalizado':
             return
@@ -732,6 +723,12 @@ class Mantenimiento(models.Model):
             )
         if (self.costo_total_real or 0) <= 0:
             return
+        # Validar que tenga cuenta presupuestaria
+        if not self.cuenta_presupuestaria:
+            raise ValueError(
+                "El mantenimiento no tiene una cuenta presupuestaria asignada. "
+                "No se puede ejecutar el cierre presupuestario."
+            )
         presupuesto = self._obtener_presupuesto_para_cierre()
         if not presupuesto:
             raise ValueError(
@@ -763,7 +760,7 @@ class Mantenimiento(models.Model):
         if self.estado == 'Finalizado':
         # Al finalizar, resolver las alertas de kilometraje de este vehículo
             from django.utils import timezone
-            AlertaMantencion.objects.filter(
+            Alerta.objects.filter(
                 vehiculo=self.vehiculo,
                 vigente=True,
                 descripcion__icontains='kilometraje'
@@ -884,7 +881,7 @@ class HojaRuta(models.Model):
     conductor = models.ForeignKey(Usuario, on_delete=models.PROTECT)
     fecha = models.DateField(default=timezone.now)
     turno = models.CharField(max_length=50, choices=TURNOS)
-    km_inicio = models.PositiveIntegerField()
+    km_inicio = models.IntegerField(validators=[MinValueValidator(0)])
     km_fin = models.PositiveIntegerField(null=True, blank=True)
     
     # Tripulación (Reglas: Medico/Tens obligatorios, otros opcionales)
@@ -967,10 +964,6 @@ class Viaje(models.Model):
     hora_salida_hbo = models.TimeField(null=True, blank=True, verbose_name="Hora Salida HBO")
     hora_llegada_hbo = models.TimeField(null=True, blank=True, verbose_name="Hora Llegada HBO")
     
-    # Categorización del Viaje
-    categoria_traslado = models.CharField(max_length=20, choices=TIPO_TRASLADO_CATEGORIA)
-    detalle_origen_alta = models.CharField(max_length=20, choices=ORIGEN_ALTA, blank=True, null=True, verbose_name="Origen del Alta")
-    
     observaciones = models.TextField(blank=True, null=True)
     
     creado_en = models.DateTimeField(auto_now_add=True)
@@ -990,7 +983,8 @@ class Viaje(models.Model):
         pkts = self.pacientes.all()
         if not pkts:
             return "Sin pacientes"
-        return ", ".join([p.nombre for p in pkts])
+        ruts = [p.rut for p in pkts if p.rut]
+        return ", ".join(ruts) if ruts else "Sin pacientes"
 
     @property
     def km_recorridos_calculados(self):
@@ -1003,26 +997,28 @@ class Viaje(models.Model):
         """Verifica si algún paciente tiene destino HBO"""
         return self.pacientes.filter(destino_tipo='HBO').exists()
 
+    def tiene_destino_red_hospital(self):
+        """Verifica si algún paciente tiene destino en la red hospitalaria"""
+        return self.pacientes.filter(destino_tipo__in=CODIGOS_DESTINOS_RED).exists()
+
 
 class PacienteViaje(models.Model):
     """
-    Tabla maestra de pacientes que han sido trasladados en algún viaje.
-    Permite listado desplegable para reutilizar datos en nuevos traslados.
+    Tabla maestra de RUT de pacientes/pasajeros trasladados en viajes anteriores.
+    Permite listado desplegable para reutilizar el RUT en nuevos traslados.
     """
     id = models.AutoField(primary_key=True)
     rut = models.CharField(max_length=12, unique=True, db_index=True)
-    nombre = models.CharField(max_length=150)
-    prevision = models.CharField(max_length=50, blank=True, verbose_name="Previsión/Tipo Servicio por defecto")
     creado_en = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         db_table = 'paciente_viaje'
         verbose_name = 'Paciente (traslados anteriores)'
         verbose_name_plural = 'Pacientes (traslados anteriores)'
-        ordering = ['nombre']
+        ordering = ['rut']
 
     def __str__(self):
-        return f"{self.nombre} ({self.rut})"
+        return self.rut
 
 
 class PacienteTraslado(models.Model):
@@ -1034,16 +1030,28 @@ class PacienteTraslado(models.Model):
         PacienteViaje, on_delete=models.SET_NULL, null=True, blank=True,
         related_name='traslados', verbose_name="Paciente (de listado anterior)"
     )
-    nombre = models.CharField(max_length=150)
-    rut = models.CharField(max_length=12, blank=True, null=True)
+    rut = models.CharField(max_length=12, blank=True, default='')
+
+    categoria_traslado = models.CharField(
+        max_length=20, choices=TIPO_TRASLADO_CATEGORIA, default='Administrativo'
+    )
+    detalle_origen_alta = models.CharField(
+        max_length=20, choices=ORIGEN_ALTA, blank=True, null=True, verbose_name="Origen del Alta"
+    )
+    sentido = models.CharField(
+        max_length=10,
+        choices=[('IDA', 'Ida'), ('REGRESO', 'Regreso')],
+        default='IDA',
+    )
     
-    # Requerimiento: Cada paciente tiene su destino y tipo de servicio
     destino_tipo = models.CharField(max_length=20, choices=DESTINOS_COMUNES)
     direccion_especifica = models.CharField(max_length=200, blank=True, help_text="Dirección si es domicilio u otro")
-    prevision = models.CharField(max_length=50, blank=True, verbose_name="Previsión/Tipo Servicio")
+
+    class Meta:
+        db_table = 'paciente_traslado'
 
     def __str__(self):
-        return self.nombre
+        return self.rut or f"Paciente #{self.pk}"
 
 
 class CargaCombustible(models.Model):
@@ -1092,16 +1100,16 @@ class FallaReportada(models.Model):
     def __str__(self):
         return f"Falla {self.vehiculo.patente} - {self.fecha_reporte}"
 
-class AlertaMantencion(models.Model):
+class Alerta(models.Model):
     id = models.AutoField(primary_key=True)
     descripcion = models.TextField()
     valor_umbral = models.IntegerField()
     generado_en = models.DateTimeField(auto_now_add=True)
     vigente = models.BooleanField(default=True)
     resuelta_en = models.DateTimeField(null=True, blank=True)
-    vehiculo = models.ForeignKey(Vehiculo, on_delete=models.CASCADE, related_name='alertas_mantencion')
+    vehiculo = models.ForeignKey(Vehiculo, on_delete=models.CASCADE, related_name='alertas')
     
     class Meta:
-        db_table = 'alerta_mantencion'
-        verbose_name = 'Alerta de Mantenimiento'
-        verbose_name_plural = 'Alertas de Mantenimiento'
+        db_table = 'alerta'
+        verbose_name = 'Alerta'
+        verbose_name_plural = 'Alertas'

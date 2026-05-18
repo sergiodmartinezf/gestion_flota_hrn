@@ -1,0 +1,5 @@
+"id","patente","marca","modelo","vin","nro_motor","anio_adquisicion","vida_util","kilometraje_actual","umbral_mantencion","tipo_carroceria","clase_ambulancia","es_samu","establecimiento","criticidad","es_backup","estado","tipo_propiedad","creado_en"
+1,"HR.PG-25","MERCEDES BENZ","SPRINTER 313 CDI 4X4","","65195532892707",2015,8,407951,10000,"Ambulancia","TODO TERRENO (4X4)",False,"Hospital Río Negro","Crítico",False,"Disponible","Propio","2026-04-21 09:50:50.607303-04"
+2,"LX-FG-16","MERCEDES BENZ","SPRINTER 416 CDI 4X4","","65195835427596",2021,8,334513,10000,"Ambulancia","TODO TERRENO (4X4)",False,"Hospital Río Negro","Crítico",False,"Disponible","Propio","2026-04-21 09:50:50.615616-04"
+3,"KX.SL-70","FORD","TRANSIT","","JTY18128",2018,8,336979,10000,"Ambulancia","URBANA (4X2)",False,"Hospital Río Negro","Crítico",False,"Disponible","Propio","2026-04-21 09:50:50.618873-04"
+4,"HL.TS-76","CHEVROLET","D-MAX II","","NA7890",2015,8,327340,10000,"Camioneta",NULL,False,"Hospital Río Negro","No crítico",False,"Disponible","Propio","2026-04-21 09:50:50.657861-04"

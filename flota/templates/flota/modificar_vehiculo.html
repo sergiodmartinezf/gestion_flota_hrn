@@ -5,7 +5,6 @@
 {% block content %}
 <h2 class="mb-4"><i class="bi bi-pencil"></i> Modificar Vehículo: {{ vehiculo.patente }}</h2>
 
-<!-- Agrega esto para mostrar mensajes de error -->
 {% if messages %}
     {% for message in messages %}
         <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
@@ -15,7 +14,6 @@
     {% endfor %}
 {% endif %}
 
-<!-- Muestra errores del formulario -->
 {% if form.errors %}
     <div class="alert alert-danger">
         <strong>Por favor corrige los siguientes errores:</strong>
@@ -162,6 +160,6 @@
     <a href="{% url 'actualizar_estado_vehiculo' vehiculo.patente %}" class="btn btn-info" title="Actualizar Estado">
         <i class="bi bi-arrow-repeat"></i> Actualizar Estado
     </a>
-    <a href="{% url 'ficha_vehiculo' vehiculo.patente %}" class="btn btn-secondary">Cancelar</a>
+    <a href="{% url 'listar_flota' %}" class="btn btn-secondary">Cancelar</a>
 </form>
 {% endblock %}

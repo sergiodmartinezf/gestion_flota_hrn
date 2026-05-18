@@ -8,9 +8,13 @@ from django.http import HttpResponse
 from django.utils import timezone
 from openpyxl import Workbook
 from openpyxl.styles import Font
-from ..models import HojaRuta, CargaCombustible, FallaReportada, AlertaMantencion, Viaje, Vehiculo, Usuario, PacienteTraslado, PacienteViaje
+from ..models import (
+    HojaRuta, CargaCombustible, FallaReportada, Alerta, Viaje, Vehiculo, Usuario,
+    PacienteTraslado, PacienteViaje, DESTINOS_COMUNES,
+)
 from ..forms import HojaRutaForm, CargaCombustibleForm, FallaReportadaForm, ViajeForm, PacienteFormSet
 from .utilidades import es_conductor_o_admin, es_administrador
+from ..validators import normalizar_rut
 from datetime import datetime, timedelta
 
 
@@ -29,42 +33,28 @@ TIPOS_SERVICIO = [
 
 @login_required
 def acceso_bitacora(request):
-    """
-    Despachador inteligente:
-    - Si es Admin/Visualizador -> Lista de bitácoras.
-    - Si es Conductor -> Busca hoja abierta HOY.
-      - Si tiene hoja abierta -> Pantalla agregar viaje.
-      - Si NO tiene hoja abierta -> Pantalla crear nueva hoja.
-    """
+    """Redirige según rol: admin/listado o conductor/hoja del día."""
     if request.user.rol in ['Administrador', 'Visualizador']:
         return redirect('listar_bitacoras')
 
     if request.user.rol == 'Conductor':
-        # Buscamos una hoja de ruta creada HOY por este conductor.
-        # Asumimos que si existe una hoja con fecha de hoy, es la activa.
         hoja_activa = HojaRuta.objects.filter(
             conductor=request.user, 
-            fecha=timezone.now().date()
+            fecha=timezone.now().date(),
+            abierta=True
         ).order_by('-creado_en').first()
 
-        # Lógica adicional: Si el sistema marca km_fin como cierre definitivo, podríamos filtrar por km_fin__isnull=True
-        # Pero como el sistema actual actualiza km_fin con cada viaje, usamos la fecha como indicador de turno activo.
-        
         if hoja_activa:
-            # Mensaje opcional de bienvenida
-            # messages.info(request, f'Retomando turno activo en móvil {hoja_activa.vehiculo.patente}')
             return redirect('agregar_viaje', id=hoja_activa.id)
         else:
             return redirect('registrar_bitacora')
-    
-    # Fallback por defecto
+
     return redirect('listar_bitacoras')
 
 @login_required
 def cerrar_hoja_ruta(request, id):
     hoja = get_object_or_404(HojaRuta, id=id)
-    
-    # Seguridad: solo el conductor dueño o un admin pueden cerrar
+
     if request.user != hoja.conductor and request.user.rol != 'Administrador':
         messages.error(request, "No tienes permiso para cerrar esta hoja de ruta.")
         return redirect('agregar_viaje', id=hoja.id)
@@ -78,23 +68,19 @@ def cerrar_hoja_ruta(request, id):
                 return redirect('agregar_viaje', id=hoja.id)
                 
             km_final = int(km_final_input)
-            
-            # Validación lógica básica
+
             if km_final < hoja.km_inicio:
                 messages.error(request, f"El KM final ({km_final}) no puede ser menor al inicial ({hoja.km_inicio}).")
                 return redirect('agregar_viaje', id=hoja.id)
 
-            # Validar contra el último viaje si existe (Viaje usa km_llegada, no km_fin_viaje)
             ultimo_viaje = hoja.viajes.order_by('-km_llegada').first()
             if ultimo_viaje and ultimo_viaje.km_llegada and km_final < ultimo_viaje.km_llegada:
                 messages.warning(request, f"Atención: El KM de cierre es menor al del último viaje registrado ({ultimo_viaje.km_llegada}).")
-            
-            # Guardar cierre y marcar hoja como cerrada
+
             hoja.km_fin = km_final
             hoja.abierta = False
             hoja.save(update_fields=['km_fin', 'abierta'])
-            
-            # Actualizar KM del vehículo también para asegurar sincronía
+
             vehiculo = hoja.vehiculo
             if km_final > vehiculo.kilometraje_actual:
                 vehiculo.kilometraje_actual = km_final
@@ -145,76 +131,89 @@ def registrar_bitacora(request):
     })
 
 @login_required
-@user_passes_test(es_conductor_o_admin)
+@user_passes_test(lambda u: u.rol == 'Conductor')
 def agregar_viaje(request, id):
     hoja = get_object_or_404(HojaRuta, id=id)
+    if not hoja.abierta:
+        messages.warning(request, 'Esta hoja de ruta ya está cerrada. Debe iniciar una nueva hoja para registrar más viajes.')
+        if request.user.rol == 'Conductor':
+            return redirect('registrar_bitacora')
+        return redirect('listar_bitacoras')
+
+    vehiculo_tipo = hoja.vehiculo.tipo_carroceria
     
-    # Calcular KM sugerido
     ultimo_viaje = hoja.viajes.order_by('-km_llegada').first()
     km_sugerido = ultimo_viaje.km_llegada if ultimo_viaje and ultimo_viaje.km_llegada else hoja.km_inicio
 
     if request.method == 'POST':
-        form = ViajeForm(request.POST)
-        paciente_formset = PacienteFormSet(request.POST, request.FILES)
-        
+        form = ViajeForm(request.POST, vehiculo_tipo=vehiculo_tipo)
+        paciente_formset = PacienteFormSet(
+            request.POST,
+            request.FILES,
+            form_kwargs={'vehiculo_tipo': vehiculo_tipo},
+        )
+
         if form.is_valid():
             viaje = form.save(commit=False)
             viaje.hoja_ruta = hoja
             
-            # Validación de KM
-            if viaje.km_salida < km_sugerido:
-                messages.error(request, f'Error: KM salida ({viaje.km_salida}) es menor al anterior ({km_sugerido}).')
+            # Validaciones que dependen del objeto viaje
+            km_actual_vehiculo = hoja.vehiculo.kilometraje_actual
+            errores = False
+            
+            if viaje.km_salida < km_actual_vehiculo:
+                form.add_error('km_salida', f'El KM de salida ({viaje.km_salida}) no puede ser menor al kilometraje actual del vehículo ({km_actual_vehiculo}).')
+                errores = True
+            elif viaje.km_salida < km_sugerido:
+                form.add_error('km_salida', f'Error: KM salida ({viaje.km_salida}) es menor al anterior ({km_sugerido}).')
+                errores = True
+            
+            if not errores and paciente_formset.is_valid():
+                viaje.save()
+                
+                # Actualizar kilometraje del vehículo
+                if viaje.km_llegada and viaje.km_llegada > hoja.vehiculo.kilometraje_actual:
+                    hoja.vehiculo.kilometraje_actual = viaje.km_llegada
+                    hoja.vehiculo.save()
+                
+                # Guardar pacientes
+                pacientes = paciente_formset.save(commit=False)
+                for paciente in pacientes:
+                    paciente.viaje = viaje
+                    if paciente.rut:
+                        rut_norm = normalizar_rut(paciente.rut) or paciente.rut.strip()
+                        paciente.rut = rut_norm
+                        pv, _ = PacienteViaje.objects.get_or_create(rut=rut_norm)
+                        paciente.paciente_viaje = pv
+                    paciente.save()
+                
+                for form_del in paciente_formset.deleted_forms:
+                    if form_del.instance.pk:
+                        form_del.instance.delete()
+                
+                messages.success(request, 'Viaje registrado correctamente.')
+                return redirect('agregar_viaje', id=hoja.id)
             else:
-                if paciente_formset.is_valid():
-                    viaje.save()  # Guardar viaje primero
-
-                    # ===== ACTUALIZAR KILOMETRAJE DEL VEHÍCULO =====
-                    if viaje.km_llegada:
-                        vehiculo = hoja.vehiculo
-                        if viaje.km_llegada > vehiculo.kilometraje_actual:
-                            vehiculo.kilometraje_actual = viaje.km_llegada
-                            vehiculo.save()
-                    # ===============================================
-
-                    # Guardar pacientes y actualizar tabla maestra PacienteViaje
-                    pacientes = paciente_formset.save(commit=False)
-                    for paciente in pacientes:
-                        paciente.viaje = viaje
-                        if paciente.rut and paciente.nombre:
-                            pv, _ = PacienteViaje.objects.get_or_create(
-                                rut=paciente.rut.strip(),
-                                defaults={'nombre': paciente.nombre, 'prevision': paciente.prevision or ''}
-                            )
-                            paciente.paciente_viaje = pv
-                        paciente.save()
-                    
-                    # Guardar también los que se marcaron para eliminar
-                    for form_del in paciente_formset.deleted_forms:
-                        if form_del.instance.pk:
-                            form_del.instance.delete()
-                    
-                    messages.success(request, 'Viaje registrado correctamente.')
-                    return redirect('agregar_viaje', id=hoja.id)
-                else:
+                if not errores:
                     messages.error(request, 'Error en los datos de los pacientes.')
-    else:
-        form = ViajeForm(initial={
-            'km_salida': km_sugerido,
-            'hora_salida': timezone.now().strftime('%H:%M')
-        })
-        paciente_formset = PacienteFormSet(queryset=PacienteTraslado.objects.none())
+        else:
+            # Si el formulario principal no es válido, se mostrarán los errores en el template
+            pass
 
-    # Para GET también asignamos km_llegada sugerido
-    if request.method == 'GET':
+    else:
         km_sugerido = ultimo_viaje.km_llegada if ultimo_viaje and ultimo_viaje.km_llegada else hoja.km_inicio
         initial_data = {
             'km_salida': km_sugerido,
             'km_llegada': km_sugerido + 1 if km_sugerido is not None else None,
-            'hora_salida': timezone.now().strftime('%H:%M')
+            'hora_salida': timezone.now().strftime('%H:%M'),
         }
-        form = ViajeForm(initial=initial_data)
+        form = ViajeForm(initial=initial_data, vehiculo_tipo=vehiculo_tipo)
+        paciente_formset = PacienteFormSet(
+            queryset=PacienteTraslado.objects.none(),
+            form_kwargs={'vehiculo_tipo': vehiculo_tipo},
+        )
 
-    pacientes_anteriores = PacienteViaje.objects.all().order_by('nombre')[:300]
+    pacientes_anteriores = PacienteViaje.objects.all().order_by('rut')[:300]
     km_actual_vehiculo = hoja.vehiculo.kilometraje_actual
     if km_actual_vehiculo < hoja.km_inicio:
         km_actual_vehiculo = hoja.km_inicio
@@ -226,6 +225,7 @@ def agregar_viaje(request, id):
         'ultimos_viajes': hoja.viajes.all().order_by('-id')[:5],
         'pacientes_anteriores': pacientes_anteriores,
         'km_actual_vehiculo': km_actual_vehiculo,
+        'destinos_choices': DESTINOS_COMUNES,
     }
     return render(request, 'flota/registrar_viaje.html', context)
 
@@ -238,8 +238,8 @@ def listar_bitacoras(request):
         bitacoras = HojaRuta.objects.all()
 
     # Filtros
-    desde_filtro = request.GET.get('desde')
-    hasta_filtro = request.GET.get('hasta')
+    desde_filtro = request.GET.get('desde', '')
+    hasta_filtro = request.GET.get('hasta', '')
     conductor_filtro = request.GET.get('conductor')
     estado_filtro = request.GET.get('estado')
     vehiculo_filtro = request.GET.get('vehiculo')
@@ -279,7 +279,6 @@ def listar_bitacoras(request):
         'estado_filtro': estado_filtro,
     })
 
-# --- NUEVA VISTA MODIFICAR BITÁCORA (REQ: Admin edita info de conductor) ---
 @login_required
 @user_passes_test(es_administrador)
 def modificar_bitacora(request, id):
@@ -300,16 +299,13 @@ def modificar_bitacora(request, id):
     })
 
 
-# --- NUEVA VISTA DETALLE BITÁCORA ---
 @login_required
 def detalle_bitacora(request, id):
     hoja = get_object_or_404(HojaRuta, id=id)
     viajes = hoja.viajes.prefetch_related('pacientes').all()
-    
-    # Calcular totales con atributos reales del modelo (km_salida, km_llegada)
+
     total_km_viajes = sum(v.km_recorridos_calculados for v in viajes)
-    
-    # KM final de la hoja: el mayor km_llegada de los viajes o el ya guardado en la hoja
+
     if viajes.exists():
         km_llegadas = [v.km_llegada for v in viajes if v.km_llegada is not None]
         km_fin_hoja = max(km_llegadas) if km_llegadas else hoja.km_fin or hoja.km_inicio
@@ -366,8 +362,8 @@ def listar_cargas_combustible(request):
         cargas = CargaCombustible.objects.all()
 
     # Filtros
-    desde_filtro = request.GET.get('desde')
-    hasta_filtro = request.GET.get('hasta')
+    desde_filtro = request.GET.get('desde', '')
+    hasta_filtro = request.GET.get('hasta', '')
     conductor_filtro = request.GET.get('conductor')
     vehiculo_filtro = request.GET.get('vehiculo')
 
@@ -414,7 +410,7 @@ def registrar_incidente(request):
                 # Crear alerta por falla cuando se supera el umbral de mantención
                 vehiculo = falla.vehiculo
                 if vehiculo.umbral_mantencion > 0 and vehiculo.kilometraje_actual >= vehiculo.umbral_mantencion:
-                    AlertaMantencion.objects.create(
+                    Alerta.objects.create(
                         vehiculo=vehiculo,
                         descripcion=f'Falla reportada: {falla.descripcion}',
                         valor_umbral=vehiculo.kilometraje_actual,
@@ -447,8 +443,8 @@ def listar_incidentes(request):
         incidentes = FallaReportada.objects.all()
 
     # Filtros
-    desde_filtro = request.GET.get('desde')
-    hasta_filtro = request.GET.get('hasta')
+    desde_filtro = request.GET.get('desde', '')
+    hasta_filtro = request.GET.get('hasta', '')
     conductor_filtro = request.GET.get('conductor')
     vehiculo_filtro = request.GET.get('vehiculo')
 
@@ -480,7 +476,6 @@ def listar_incidentes(request):
         'conductor_filtro': conductor_filtro,
     })
 
-# --- Formulario para exportar traslados con filtros ---
 @login_required
 def exportar_traslados_form(request):
     """Muestra formulario con filtros (desde, hasta, vehículo, conductor) para exportar Excel."""
@@ -492,11 +487,10 @@ def exportar_traslados_form(request):
     })
 
 
-# --- EXPORTAR VIAJES CONSOLIDADO (openpyxl, una fila por paciente) ---
 @login_required
 def exportar_consolidado_viajes(request):
-    desde = request.GET.get('desde')
-    hasta = request.GET.get('hasta')
+    desde = request.GET.get('desde', '')
+    hasta = request.GET.get('hasta', '')
     vehiculo_filtro = request.GET.get('vehiculo')
     conductor_filtro = request.GET.get('conductor')
 
@@ -528,7 +522,7 @@ def exportar_consolidado_viajes(request):
 
     headers = [
         'Fecha', 'Vehículo', 'Conductor', 'Turno', 'Hora Salida', 'Hora Llegada',
-        'Destino', 'Paciente', 'RUT Paciente', 'Tipo Servicio', 'Kms Viaje'
+        'Destino', 'RUT Paciente', 'Categoría Traslado', 'Sentido', 'Kms Viaje'
     ]
     for col_num, header in enumerate(headers, 1):
         cell = ws.cell(row=1, column=col_num, value=header)
@@ -555,8 +549,8 @@ def exportar_consolidado_viajes(request):
             ws.cell(row=row_num, column=6, value=hora_llegada)
             ws.cell(row=row_num, column=7, value='-')
             ws.cell(row=row_num, column=8, value='Sin pacientes')
-            ws.cell(row=row_num, column=9, value='')
-            ws.cell(row=row_num, column=10, value='')
+            ws.cell(row=row_num, column=9, value='-')
+            ws.cell(row=row_num, column=10, value='-')
             ws.cell(row=row_num, column=11, value=km_viaje)
             row_num += 1
         else:
@@ -571,9 +565,9 @@ def exportar_consolidado_viajes(request):
                 ws.cell(row=row_num, column=5, value=hora_salida)
                 ws.cell(row=row_num, column=6, value=hora_llegada)
                 ws.cell(row=row_num, column=7, value=destino_display)
-                ws.cell(row=row_num, column=8, value=p.nombre)
-                ws.cell(row=row_num, column=9, value=p.rut or '')
-                ws.cell(row=row_num, column=10, value=p.prevision or '')
+                ws.cell(row=row_num, column=8, value=p.rut or '')
+                ws.cell(row=row_num, column=9, value=p.get_categoria_traslado_display())
+                ws.cell(row=row_num, column=10, value=p.get_sentido_display())
                 ws.cell(row=row_num, column=11, value=km_viaje)
                 row_num += 1
 

@@ -8,7 +8,9 @@ from django.db.models import Sum
 from django.core.exceptions import ValidationError
 from decimal import Decimal
 import json
-from ..models import Mantenimiento, Vehiculo, Proveedor, Presupuesto, AlertaMantencion, CuentaPresupuestaria, OrdenTrabajo
+from django.core.serializers.json import DjangoJSONEncoder
+from ..constants import MANTENIMIENTO_CUENTAS_MAP
+from ..models import Mantenimiento, Vehiculo, Proveedor, Presupuesto, Alerta, CuentaPresupuestaria, OrdenTrabajo, OrdenCompra
 from ..forms import MantenimientoForm, ProgramarMantenimientoForm, FinalizarMantenimientoForm
 from .utilidades import es_administrador
 from ..utils import exportar_planilla_mantenimientos_excel
@@ -43,17 +45,9 @@ def programar_mantenimiento(request):
         anio = mantenimiento.fecha_ingreso.year
         presupuesto = Presupuesto.objects.filter(
             cuenta=mantenimiento.cuenta_presupuestaria,
-            vehiculo=mantenimiento.vehiculo,
             anio=anio,
             activo=True
         ).first()
-        if not presupuesto:
-            presupuesto = Presupuesto.objects.filter(
-                cuenta=mantenimiento.cuenta_presupuestaria,
-                vehiculo__isnull=True,
-                anio=anio,
-                activo=True
-            ).first()
         if not presupuesto:
             messages.error(request,
                 f"No hay presupuesto asignado para la cuenta {mantenimiento.cuenta_presupuestaria.codigo} "
@@ -98,14 +92,22 @@ def listar_mantenimientos(request):
     
     # Filtros
     patente_filter = request.GET.get('patente')
+    anio_filter = request.GET.get('anio')
     tipo_filter = request.GET.get('tipo')
     estado_filter = request.GET.get('estado')
-    desde_filter = request.GET.get('desde')
-    hasta_filter = request.GET.get('hasta')
+    desde_filter = request.GET.get('desde', '')
+    hasta_filter = request.GET.get('hasta', '')
     proveedor_filter = request.GET.get('proveedor')
     
     if patente_filter:
         mantenimientos = mantenimientos.filter(vehiculo__patente=patente_filter)
+
+    if anio_filter:
+        try:
+            anio_filter = int(anio_filter)
+            mantenimientos = mantenimientos.filter(fecha_ingreso__year=anio_filter)
+        except (ValueError, TypeError):
+            anio_filter = ''
     
     if tipo_filter:
         mantenimientos = mantenimientos.filter(tipo_mantencion=tipo_filter)
@@ -127,17 +129,23 @@ def listar_mantenimientos(request):
     # Obtener datos para filtros
     vehiculos = Vehiculo.objects.all().order_by('patente')
     proveedores = Proveedor.objects.filter(es_taller=True, activo=True).order_by('nombre_fantasia')
+    anios_disponibles = Mantenimiento.objects.dates('fecha_ingreso', 'year', order='DESC')
     
+    anio_export = anio_filter if anio_filter else timezone.now().year
+
     return render(request, 'flota/listar_mantenimientos.html', {
         'mantenimientos': mantenimientos,
         'vehiculos': vehiculos,
         'proveedores': proveedores,
         'patente_filter': patente_filter,
+        'anio_filter': anio_filter,
         'tipo_filter': tipo_filter,
         'estado_filter': estado_filter,
         'desde_filter': desde_filter,
         'hasta_filter': hasta_filter,
         'proveedor_filter': proveedor_filter,
+        'anios_disponibles': anios_disponibles,
+        'anio_export': anio_export,
     })
 
 # Cambiar estado de mantenimiento (AJAX)
@@ -214,6 +222,13 @@ def finalizar_mantenimiento(request, id):
             mant = form.save(commit=False)
             mant.costo_total_real = (mant.costo_mano_obra or 0) + (mant.costo_repuestos or 0)
             mant.estado = 'Finalizado'
+
+            if not mant.cuenta_presupuestaria and mant.orden_compra:
+                mant.cuenta_presupuestaria = mant.orden_compra.cuenta_presupuestaria
+                if not mant.cuenta_presupuestaria:
+                    messages.error(request, "La Orden de Compra seleccionada no tiene cuenta presupuestaria. No se puede finalizar.")
+                    return render(request, 'flota/finalizar_mantenimiento.html', {'form': form, 'mantenimiento': mantenimiento})
+
             try:
                 mant.save()
             except (ValueError, ValidationError) as e:
@@ -240,12 +255,16 @@ def finalizar_mantenimiento(request, id):
 
     else:
         form = FinalizarMantenimientoForm(instance=mantenimiento, initial={'fecha_salida': timezone.now().date()})
+        form.fields['orden_compra'].queryset = OrdenCompra.objects.filter(
+            vehiculo=mantenimiento.vehiculo,
+            estado__in=['EMITIDA', 'ACEPTADA']
+        ).order_by('-fecha_emision')
 
     return render(request, 'flota/finalizar_mantenimiento.html', {
         'form': form,
         'mantenimiento': mantenimiento
     })
-
+    
 
 @login_required
 @user_passes_test(es_administrador)
@@ -255,8 +274,7 @@ def eliminar_mantenimiento(request, id):
         mantenimiento.delete()
         messages.success(request, 'Mantenimiento eliminado correctamente.')
         return redirect('calendario_mantenciones')
-    
-    # Renderizar una confirmación simple
+
     return render(request, 'flota/eliminar_mantenimiento.html', {'mantenimiento': mantenimiento})
 
 
@@ -269,10 +287,22 @@ def calendario_mantenciones(request):
     orden_trabajo_id = request.GET.get('orden_trabajo', '').strip()
     orden_trabajo = get_object_or_404(OrdenTrabajo, id=orden_trabajo_id) if orden_trabajo_id else None
     abrir_modal = request.GET.get('abrir_modal') == '1' or bool(orden_trabajo_id)
+    cuentas_list = [
+        {'id': c.id, 'codigo': c.codigo, 'nombre': c.nombre}
+        for c in cuentas
+    ]
+
+    mapa_json = {}
+    for (tipo, criticidad), ids in MANTENIMIENTO_CUENTAS_MAP.items():
+        clave = f"{tipo}_{criticidad}"
+        mapa_json[clave] = ids
+
     return render(request, 'flota/calendario_mantenciones.html', {
         'vehiculos': vehiculos,
         'proveedores': proveedores,
         'cuentas': cuentas,
+        'cuentas_json': json.dumps(cuentas_list),
+        'mapa_cuentas_json': json.dumps(mapa_json),
         'orden_trabajo': orden_trabajo,
         'abrir_modal': abrir_modal,
     })
@@ -284,14 +314,12 @@ def api_mantenimientos(request):
     eventos = []
     
     for m in mantenimientos:
-        # Definir colores según estado
-        color = '#3788d8' # Azul (Programado)
+        color = '#3788d8'
         if m.estado == 'En taller':
-            color = '#dc3545' # Rojo
+            color = '#dc3545'
         elif m.estado == 'Finalizado':
-            color = '#198754' # Verde
-            
-        # Asegurar que las fechas estén correctamente formateadas
+            color = '#198754'
+
         start_date = m.fecha_ingreso.isoformat() if m.fecha_ingreso else None
         end_date = m.fecha_salida.isoformat() if m.fecha_salida else None
         

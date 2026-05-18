@@ -6,12 +6,21 @@ let calendar;
 function actualizarKilometrajeProgramar() {
     const selectVehiculo = document.getElementById('programar_vehiculo');
     const kmInput = document.getElementById('programar_km_al_ingreso');
-    
+
     if (selectVehiculo && kmInput) {
         const selectedOption = selectVehiculo.options[selectVehiculo.selectedIndex];
-        const kilometraje = selectedOption.getAttribute('data-kilometraje');
+        let kilometraje = selectedOption.getAttribute('data-kilometraje');
         if (kilometraje) {
-            kmInput.value = kilometraje;
+            // Extraer solo dígitos (0-9)
+            const kmLimpio = String(kilometraje).replace(/\D/g, '');
+            if (kmLimpio) {
+                kmInput.value = kmLimpio;
+            } else {
+                console.warn('No se pudo extraer un kilometraje válido de:', kilometraje);
+                kmInput.value = '';
+            }
+        } else {
+            kmInput.value = '';
         }
     }
 }
@@ -64,14 +73,12 @@ document.addEventListener('DOMContentLoaded', function() {
             document.getElementById('modalDescripcion').innerText = props.descripcion || 'Sin observaciones';
             
             // Configurar botones de acción
-            var editUrl = "/mantenimientos/" + evento.id + "/editar/";
-            var deleteUrl = "/mantenimientos/" + evento.id + "/eliminar/";
+            var editUrl = "/mantenimientos/editar/" + evento.id + "/";
             
             var btnEditar = document.getElementById('btnEditar');
             var formEliminar = document.getElementById('formEliminar');
             
             if(btnEditar) btnEditar.href = editUrl;
-            if(formEliminar) formEliminar.action = deleteUrl;
             
             // Mostrar Modal
             var modal = new bootstrap.Modal(document.getElementById('eventoModal'));

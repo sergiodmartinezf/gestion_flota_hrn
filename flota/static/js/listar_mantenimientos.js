@@ -12,7 +12,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]')?.value || 
                                  getCookie('csrftoken');
                 
-                fetch(`/mantenimientos/${mantenimientoId}/cambiar-estado/`, {
+                fetch(`/mantenimientos/cambiar-estado/${mantenimientoId}/`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',

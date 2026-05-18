@@ -1,22 +1,19 @@
 {% extends 'base.html' %}
 {% load static %}
 {% load moneda_clp %}
+{% load l10n %}
+
 {% block content %}
 <div class="container-fluid">
     <h2 class="mb-4"><i class="bi bi-tools"></i> Mantenimientos</h2>
 
     <!-- Botones de acción -->
     <div class="mb-3">
-        {% if user.rol == 'Administrador' %}
-        <a href="{% url 'calendario_mantenciones' %}?abrir_modal=1" class="btn btn-primary me-2">
-            <i class="bi bi-plus-circle"></i> Programar o registrar mantenimiento
-        </a>
-        {% endif %}
         <a href="{% url 'calendario_mantenciones' %}" class="btn btn-info me-2">
             <i class="bi bi-calendar-week"></i> Ver Calendario
         </a>
         {% if user.rol == 'Administrador' %}
-        <a href="?exportar=planilla&anio={% now 'Y' %}" class="btn btn-success">
+        <a href="?exportar=planilla&anio={{ anio_export }}" class="btn btn-success">
             <i class="bi bi-file-earmark-excel"></i> Exportar Planilla
         </a>
         {% endif %}
@@ -43,6 +40,17 @@
                         <option value="">Todos los tipos</option>
                         <option value="Preventivo" {% if tipo_filter == 'Preventivo' %}selected{% endif %}>Preventivo</option>
                         <option value="Correctivo" {% if tipo_filter == 'Correctivo' %}selected{% endif %}>Correctivo</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label for="anio" class="form-label">Año:</label>
+                    <select name="anio" id="anio" class="form-select">
+                        <option value="">Todos los años</option>
+                        {% for anio in anios_disponibles %}
+                        <option value="{{ anio.year }}" {% if anio_filter|stringformat:"s" == anio.year|stringformat:"s" %}selected{% endif %}>
+                            {{ anio.year }}
+                        </option>
+                        {% endfor %}
                     </select>
                 </div>
                 <div class="col-md-3">
@@ -80,7 +88,7 @@
                         <button type="submit" class="btn btn-primary">
                             <i class="bi bi-funnel"></i> Filtrar
                         </button>
-                        {% if patente_filter or tipo_filter or estado_filter or desde_filter or hasta_filter or proveedor_filter %}
+                        {% if patente_filter or anio_filter or tipo_filter or estado_filter or desde_filter or hasta_filter or proveedor_filter %}
                         <a href="{% url 'listar_mantenimientos' %}" class="btn btn-secondary">
                             <i class="bi bi-x-circle"></i> Limpiar
                         </a>

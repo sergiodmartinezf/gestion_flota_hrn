@@ -338,8 +338,8 @@ class BitacoraPasos {
         // Validación paso 2: KM inicial y confirmación
         if (this.pasoActual === 2) {
             const kmInicio = document.getElementById('id_km_inicio');
-            if (kmInicio && (!kmInicio.value || parseInt(kmInicio.value) <= 0)) {
-                this.mostrarError(kmInicio, 'Ingrese un kilometraje inicial válido');
+            if (kmInicio && (kmInicio.value === '' || parseInt(kmInicio.value) < 0)) {
+                this.mostrarError(kmInicio, 'Ingrese un kilometraje inicial válido (0 o más)');
                 esValido = false;
             }
 
