@@ -14,7 +14,7 @@
 
 
 
-<body>
+<body{% if user.is_authenticated %} data-logout-url="{% url 'logout' %}"{% endif %}>
     {% if user.is_authenticated %}
     <div class="container-fluid">
         <div class="row">
@@ -133,6 +133,24 @@
     {% endif %}
     
     <script src="{% static 'js/base.js' %}"></script>
+    {% if user.is_authenticated %}
+    <div class="modal fade" id="modalSesionInactiva" tabindex="-1" aria-labelledby="modalSesionInactivaLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="modalSesionInactivaLabel">¿Sigues ahí?</h5>
+                </div>
+                <div class="modal-body">
+                    <p class="mb-0">Por seguridad, tu sesión se cerrará automáticamente en <strong id="sesion-countdown">60</strong> segundos por inactividad.</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-primary" id="btn-sesion-continuar">Seguir conectado</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script src="{% static 'js/sesion_inactiva.js' %}"></script>
+    {% endif %}
     {% block extra_js %}{% endblock %}
 </body>
 </html>

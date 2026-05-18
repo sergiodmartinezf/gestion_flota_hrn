@@ -31,6 +31,23 @@ document.addEventListener('DOMContentLoaded', function() {
         input.addEventListener('blur', function() {
             if (this.value) {
                 formatearRUT(this);
+                if (typeof validarRutChileno === 'function' && this.value.trim()) {
+                    const errores = validarRutChileno(this.value);
+                    if (errores.length > 0) {
+                        this.classList.add('is-invalid');
+                        let feedback = this.parentNode.querySelector('.invalid-feedback');
+                        if (!feedback) {
+                            feedback = document.createElement('div');
+                            feedback.className = 'invalid-feedback';
+                            this.parentNode.appendChild(feedback);
+                        }
+                        feedback.textContent = errores[0];
+                    } else {
+                        this.classList.remove('is-invalid');
+                        const feedback = this.parentNode.querySelector('.invalid-feedback');
+                        if (feedback) feedback.remove();
+                    }
+                }
             }
         });
 

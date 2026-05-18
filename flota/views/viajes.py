@@ -8,9 +8,13 @@ from django.http import HttpResponse
 from django.utils import timezone
 from openpyxl import Workbook
 from openpyxl.styles import Font
-from ..models import HojaRuta, CargaCombustible, FallaReportada, Alerta, Viaje, Vehiculo, Usuario, PacienteTraslado, PacienteViaje
+from ..models import (
+    HojaRuta, CargaCombustible, FallaReportada, Alerta, Viaje, Vehiculo, Usuario,
+    PacienteTraslado, PacienteViaje, DESTINOS_COMUNES,
+)
 from ..forms import HojaRutaForm, CargaCombustibleForm, FallaReportadaForm, ViajeForm, PacienteFormSet
 from .utilidades import es_conductor_o_admin, es_administrador
+from ..validators import normalizar_rut
 from datetime import datetime, timedelta
 
 
@@ -176,11 +180,10 @@ def agregar_viaje(request, id):
                 pacientes = paciente_formset.save(commit=False)
                 for paciente in pacientes:
                     paciente.viaje = viaje
-                    if paciente.rut and paciente.nombre:
-                        pv, _ = PacienteViaje.objects.get_or_create(
-                            rut=paciente.rut.strip(),
-                            defaults={'nombre': paciente.nombre, 'prevision': paciente.prevision or ''}
-                        )
+                    if paciente.rut:
+                        rut_norm = normalizar_rut(paciente.rut) or paciente.rut.strip()
+                        paciente.rut = rut_norm
+                        pv, _ = PacienteViaje.objects.get_or_create(rut=rut_norm)
                         paciente.paciente_viaje = pv
                     paciente.save()
                 
@@ -210,7 +213,7 @@ def agregar_viaje(request, id):
             form_kwargs={'vehiculo_tipo': vehiculo_tipo},
         )
 
-    pacientes_anteriores = PacienteViaje.objects.all().order_by('nombre')[:300]
+    pacientes_anteriores = PacienteViaje.objects.all().order_by('rut')[:300]
     km_actual_vehiculo = hoja.vehiculo.kilometraje_actual
     if km_actual_vehiculo < hoja.km_inicio:
         km_actual_vehiculo = hoja.km_inicio
@@ -222,6 +225,7 @@ def agregar_viaje(request, id):
         'ultimos_viajes': hoja.viajes.all().order_by('-id')[:5],
         'pacientes_anteriores': pacientes_anteriores,
         'km_actual_vehiculo': km_actual_vehiculo,
+        'destinos_choices': DESTINOS_COMUNES,
     }
     return render(request, 'flota/registrar_viaje.html', context)
 
@@ -518,7 +522,7 @@ def exportar_consolidado_viajes(request):
 
     headers = [
         'Fecha', 'Vehículo', 'Conductor', 'Turno', 'Hora Salida', 'Hora Llegada',
-        'Destino', 'Paciente', 'RUT Paciente', 'Categoría Traslado', 'Sentido', 'Kms Viaje'
+        'Destino', 'RUT Paciente', 'Categoría Traslado', 'Sentido', 'Kms Viaje'
     ]
     for col_num, header in enumerate(headers, 1):
         cell = ws.cell(row=1, column=col_num, value=header)
@@ -545,10 +549,9 @@ def exportar_consolidado_viajes(request):
             ws.cell(row=row_num, column=6, value=hora_llegada)
             ws.cell(row=row_num, column=7, value='-')
             ws.cell(row=row_num, column=8, value='Sin pacientes')
-            ws.cell(row=row_num, column=9, value='')
+            ws.cell(row=row_num, column=9, value='-')
             ws.cell(row=row_num, column=10, value='-')
-            ws.cell(row=row_num, column=11, value='-')
-            ws.cell(row=row_num, column=12, value=km_viaje)
+            ws.cell(row=row_num, column=11, value=km_viaje)
             row_num += 1
         else:
             for p in pacientes:
@@ -562,11 +565,10 @@ def exportar_consolidado_viajes(request):
                 ws.cell(row=row_num, column=5, value=hora_salida)
                 ws.cell(row=row_num, column=6, value=hora_llegada)
                 ws.cell(row=row_num, column=7, value=destino_display)
-                ws.cell(row=row_num, column=8, value=p.nombre)
-                ws.cell(row=row_num, column=9, value=p.rut or '')
-                ws.cell(row=row_num, column=10, value=p.get_categoria_traslado_display())
-                ws.cell(row=row_num, column=11, value=p.get_sentido_display())
-                ws.cell(row=row_num, column=12, value=km_viaje)
+                ws.cell(row=row_num, column=8, value=p.rut or '')
+                ws.cell(row=row_num, column=9, value=p.get_categoria_traslado_display())
+                ws.cell(row=row_num, column=10, value=p.get_sentido_display())
+                ws.cell(row=row_num, column=11, value=km_viaje)
                 row_num += 1
 
     response = HttpResponse(

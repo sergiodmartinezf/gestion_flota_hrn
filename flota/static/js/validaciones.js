@@ -1,3 +1,62 @@
+/**
+ * Calcula el dígito verificador de un RUT chileno (solo cuerpo numérico).
+ */
+function calcularDvRut(cuerpo) {
+    const secuencia = [2, 3, 4, 5, 6, 7];
+    let suma = 0;
+    const digitos = cuerpo.split('').reverse();
+    for (let i = 0; i < digitos.length; i++) {
+        suma += parseInt(digitos[i], 10) * secuencia[i % 6];
+    }
+    const resto = suma % 11;
+    const dv = 11 - resto;
+    if (dv === 11) return '0';
+    if (dv === 10) return 'K';
+    return String(dv);
+}
+
+/**
+ * Valida RUT chileno completo (cuerpo + dígito verificador).
+ * @returns {string[]} lista de mensajes de error (vacía si es válido)
+ */
+function validarRutChileno(rut, campo = 'RUT') {
+    const errores = [];
+    if (!rut || rut.toString().trim() === '') {
+        errores.push(`El ${campo} es obligatorio`);
+        return errores;
+    }
+    let valor = rut.toString().trim().toUpperCase().replace(/\./g, '').replace(/\s/g, '');
+    let cuerpo, dv;
+    if (valor.includes('-')) {
+        const partes = valor.split('-');
+        if (partes.length !== 2) {
+            errores.push(`El ${campo} no tiene un formato válido`);
+            return errores;
+        }
+        cuerpo = partes[0];
+        dv = partes[1];
+    } else if (valor.length >= 2) {
+        cuerpo = valor.slice(0, -1);
+        dv = valor.slice(-1);
+    } else {
+        errores.push(`El ${campo} no tiene un formato válido`);
+        return errores;
+    }
+    if (!/^\d+$/.test(cuerpo)) {
+        errores.push(`El ${campo} debe contener solo números antes del guión`);
+        return errores;
+    }
+    if (cuerpo.length < 7) {
+        errores.push(`El ${campo} debe tener al menos 7 dígitos`);
+        return errores;
+    }
+    const dvCalculado = calcularDvRut(cuerpo);
+    if (dv.toUpperCase() !== dvCalculado) {
+        errores.push(`El dígito verificador del ${campo} no es correcto`);
+    }
+    return errores;
+}
+
 function mostrarErroresValidacion(errores, titulo = 'Errores de Validación') {
     if (errores.length === 0) return false;
 

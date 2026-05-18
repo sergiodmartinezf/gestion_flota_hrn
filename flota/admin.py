@@ -31,16 +31,16 @@ class ViajeAdmin(admin.ModelAdmin):
 
 @admin.register(PacienteViaje)
 class PacienteViajeAdmin(admin.ModelAdmin):
-    list_display = ('nombre', 'rut', 'prevision', 'creado_en')
-    search_fields = ('nombre', 'rut')
-    ordering = ('nombre',)
+    list_display = ('rut', 'creado_en')
+    search_fields = ('rut',)
+    ordering = ('rut',)
 
 
 @admin.register(PacienteTraslado)
 class PacienteTrasladoAdmin(admin.ModelAdmin):
-    list_display = ('viaje', 'nombre', 'rut', 'categoria_traslado', 'sentido', 'destino_tipo', 'prevision', 'paciente_viaje')
+    list_display = ('viaje', 'rut', 'categoria_traslado', 'sentido', 'destino_tipo', 'paciente_viaje')
     list_filter = ('destino_tipo', 'categoria_traslado', 'sentido')
-    search_fields = ('nombre', 'rut')
+    search_fields = ('rut',)
 
 @admin.register(CargaCombustible)
 class CargaCombustibleAdmin(admin.ModelAdmin):

@@ -10,6 +10,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const passwordConfirmId = form.dataset.passwordConfirmId;
     const esNuevoUsuario = form.dataset.esNuevoUsuario === 'true';
 
+    const rutInput = form.querySelector('[name="rut"]');
     const nombreInput = form.querySelector('[name="nombre"]');
     const apellidoInput = form.querySelector('[name="apellido"]');
     const emailInput = form.querySelector('[name="email"]');
@@ -116,7 +117,16 @@ document.addEventListener('DOMContentLoaded', function() {
     form.addEventListener('submit', function(event) {
         let errores = [];
 
-        // Validar campos obligatorios
+        if (rutInput && typeof validarRutChileno === 'function') {
+            const rutErrores = validarRutChileno(rutInput.value, 'RUT');
+            if (rutErrores.length > 0) {
+                mostrarErrorCampo(rutInput, rutErrores[0]);
+                errores.push(...rutErrores);
+            } else {
+                limpiarErrorCampo(rutInput);
+            }
+        }
+
         if (!validarCampoNoVacio(nombreInput, 'Nombre')) errores.push('Nombre es obligatorio.');
         if (!validarCampoNoVacio(apellidoInput, 'Apellido')) errores.push('Apellido es obligatorio.');
         

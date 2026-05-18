@@ -98,8 +98,7 @@
                                 <th>Hora Salida</th>
                                 <th>Hora Llegada</th>
                                 <th>Destino(s)</th>
-                                <th>Paciente(s)</th>
-                                <th>Tipo servicio</th>
+                                <th>RUT paciente(s)</th>
                                 <th>Categoría / Sentido</th>
                                 <th>KM Salida</th>
                                 <th>KM Llegada</th>
@@ -120,16 +119,7 @@
                                     </td>
                                     <td>
                                         {% for p in viaje.pacientes.all %}
-                                            <div class="mb-1">
-                                                {{ p.nombre }}{% if p.rut %} <small class="text-muted">({{ p.rut }})</small>{% endif %}
-                                            </div>
-                                        {% empty %}
-                                            -
-                                        {% endfor %}
-                                    </td>
-                                    <td>
-                                        {% for p in viaje.pacientes.all %}
-                                            <span class="badge bg-info">{{ p.prevision|default:"-" }}</span>
+                                            <div class="mb-1">{{ p.rut|default:"-" }}</div>
                                         {% empty %}
                                             -
                                         {% endfor %}

@@ -1,8 +1,8 @@
 document.addEventListener('DOMContentLoaded', function() {
+    initLlevaPacientes();
     initFormsetPacientes();
     restriccionesCamionetaFilas();
     
-    // 3. Configurar validación del formulario
     configurarValidacionFormulario();
     
     // 4. Configurar observador de cambios en pacientes
@@ -53,19 +53,31 @@ document.addEventListener('DOMContentLoaded', function() {
             selectLabel.innerText = selectLabel.innerText.replace('Paciente', 'Pasajero');
         }
         
-        // Cambiar placeholder del campo nombre en las filas existentes y futuras
-        const cambiarPlaceholder = () => {
-            document.querySelectorAll('.paciente-nombre, input[name*="-nombre"]').forEach(input => {
-                if (input.placeholder === 'Nombre Paciente/Pasajero') {
-                    input.placeholder = 'Nombre Pasajero';
-                }
-            });
-        };
-        cambiarPlaceholder();
-        const observerPlaceholder = new MutationObserver(cambiarPlaceholder);
-        observerPlaceholder.observe(document.getElementById('pacientes-container'), { childList: true, subtree: true });
     }
 });
+
+/** Checkbox: el viaje incluye pacientes/pasajeros antes de poder agregar filas. */
+function initLlevaPacientes() {
+    const checkbox = document.getElementById('lleva-pacientes');
+    const seccion = document.getElementById('seccion-pacientes');
+    const addButton = document.getElementById('add-paciente');
+    const container = document.getElementById('pacientes-container');
+    if (!checkbox || !seccion) return;
+
+    function aplicarEstado() {
+        const activo = checkbox.checked;
+        seccion.style.display = activo ? 'block' : 'none';
+        if (addButton) addButton.disabled = !activo;
+        if (!activo && container) {
+            container.querySelectorAll('.paciente-row').forEach(row => row.remove());
+            const totalFormsInput = document.getElementById('id_pacientes-TOTAL_FORMS');
+            if (totalFormsInput) totalFormsInput.value = '0';
+        }
+    }
+
+    checkbox.addEventListener('change', aplicarEstado);
+    aplicarEstado();
+}
 
 /** Oculta categoría/sentido visualmente en camioneta (valores fijos vienen del servidor). */
 function restriccionesCamionetaFilas() {
@@ -192,34 +204,19 @@ function initRowListeners(rowElement) {
         pacienteAnteriorSelect.addEventListener('change', function() {
             const opt = this.options[this.selectedIndex];
             if (!opt || !opt.value) return;
-            const nombre = opt.getAttribute('data-nombre') || '';
             const rut = opt.getAttribute('data-rut') || '';
-            const prevision = opt.getAttribute('data-prevision') || '';
-            const nombreInput = rowElement.querySelector('input[name*="-nombre"]') || rowElement.querySelector('.paciente-nombre');
-            // Formateo automático de RUT
             const rutInput = rowElement.querySelector('input[name*="-rut"]') || rowElement.querySelector('.paciente-rut');
-            if (rutInput && typeof formatearRUT === 'function') {
-                rutInput.addEventListener('input', function() { formatearRUT(this); });
-                rutInput.addEventListener('blur', function() { formatearRUT(this); });
-                // Si ya tiene un valor, formatearlo ahora
-                if (rutInput.value) formatearRUT(rutInput);
+            if (!rutInput) return;
+            rutInput.value = rut;
+            if (typeof formatearRUT === 'function') {
+                formatearRUT(rutInput);
             }
-            const previsionInput = rowElement.querySelector('input[name*="-prevision"]') || rowElement.querySelector('.paciente-prevision');
-            if (nombreInput) nombreInput.value = nombre;
-            if (rutInput) {
-                rutInput.value = rut;
-                if (typeof formatearRUT === 'function') {
-                    formatearRUT(rutInput);
-                }
-            }
-            if (previsionInput) previsionInput.value = prevision;
         });
     }
 
-    // Hacer nombre obligatorio
-    const nombreInput = rowElement.querySelector('input[name*="-nombre"]');
-    if (nombreInput) {
-        nombreInput.setAttribute('required', 'required');
+    const rutInputReq = rowElement.querySelector('input[name*="-rut"]') || rowElement.querySelector('.paciente-rut');
+    if (rutInputReq) {
+        rutInputReq.setAttribute('required', 'required');
     }
     
     // Lógica Destino -> Dirección
@@ -366,20 +363,39 @@ function configurarValidacionFormulario() {
             }
         }
         
-        // 3. Validar que cada paciente/pasajero (no eliminado) tenga nombre
-        const pacienteRows = document.querySelectorAll('.paciente-row');
-        pacienteRows.forEach(row => {
-            const deleteCheckbox = row.querySelector('input[name*="-DELETE"]');
-            const isDeleted = deleteCheckbox && deleteCheckbox.checked;
-            if (!isDeleted) {
-                const nombre = row.querySelector('input[name*="-nombre"]');
-                if (nombre && !nombre.value.trim()) {
-                    formIsValid = false;
-                    errorMessages.push('Complete el nombre de cada paciente/pasajero (o elimine la fila).');
-                    nombre.classList.add('is-invalid');
-                }
+        const llevaPacientes = document.getElementById('lleva-pacientes');
+        if (llevaPacientes && !llevaPacientes.checked) {
+            const totalFormsInput = document.getElementById('id_pacientes-TOTAL_FORMS');
+            const pacientesContainer = document.getElementById('pacientes-container');
+            if (pacientesContainer) {
+                pacientesContainer.querySelectorAll('.paciente-row').forEach(row => row.remove());
             }
-        });
+            if (totalFormsInput) totalFormsInput.value = '0';
+        } else {
+            const pacienteRows = document.querySelectorAll('.paciente-row');
+            pacienteRows.forEach(row => {
+                const deleteCheckbox = row.querySelector('input[name*="-DELETE"]');
+                const isDeleted = deleteCheckbox && deleteCheckbox.checked;
+                if (!isDeleted) {
+                    const rutInput = row.querySelector('input[name*="-rut"]');
+                    if (rutInput) {
+                        const rutVal = rutInput.value.trim();
+                        if (!rutVal) {
+                            formIsValid = false;
+                            errorMessages.push('Complete el RUT de cada paciente/pasajero (o elimine la fila).');
+                            rutInput.classList.add('is-invalid');
+                        } else if (typeof validarRutChileno === 'function') {
+                            const rutErrores = validarRutChileno(rutVal, 'RUT');
+                            if (rutErrores.length > 0) {
+                                formIsValid = false;
+                                errorMessages.push(rutErrores[0]);
+                                rutInput.classList.add('is-invalid');
+                            }
+                        }
+                    }
+                }
+            });
+        }
         
         if (!formIsValid) {
             event.preventDefault();

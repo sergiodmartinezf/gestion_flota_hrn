@@ -103,14 +103,29 @@
                             </div>
                         </div>
 
-                        <h5 class="border-bottom pb-2 mb-3 mt-4 d-flex justify-content-between">
+                        <h5 class="border-bottom pb-2 mb-3 mt-4">
                             <span id="paciente-label">
                                 {% if hoja.vehiculo.tipo_carroceria == 'Camioneta' %}2. Pasajeros{% else %}2. Pacientes{% endif %}
                             </span>
-                            <button type="button" class="btn btn-sm btn-success" id="add-paciente">
+                        </h5>
+
+                        <div class="form-check mb-3">
+                            <input class="form-check-input" type="checkbox" id="lleva-pacientes">
+                            <label class="form-check-label" for="lleva-pacientes" id="lleva-pacientes-label">
+                                {% if hoja.vehiculo.tipo_carroceria == 'Camioneta' %}
+                                    Este viaje incluye pasajeros
+                                {% else %}
+                                    Este viaje incluye traslado de pacientes
+                                {% endif %}
+                            </label>
+                        </div>
+
+                        <div id="seccion-pacientes" style="display: none;">
+                        <div class="d-flex justify-content-end mb-2">
+                            <button type="button" class="btn btn-sm btn-success" id="add-paciente" disabled>
                                 <i class="bi bi-person-plus"></i> Agregar
                             </button>
-                        </h5>
+                        </div>
                         
                         {{ paciente_formset.management_form }}
                         
@@ -131,24 +146,14 @@
                                             <select class="form-select paciente-anterior-select" data-row="paciente-row">
                                                 <option value="">-- Ingresar nuevo o seleccionar --</option>
                                                 {% for p in pacientes_anteriores %}
-                                                <option value="{{ p.id }}" data-nombre="{{ p.nombre|escapejs }}" data-rut="{{ p.rut|escapejs }}" data-prevision="{{ p.prevision|default:''|escapejs }}">{{ p.nombre }} ({{ p.rut }})</option>
+                                                <option value="{{ p.id }}" data-rut="{{ p.rut|escapejs }}">{{ p.rut }}</option>
                                                 {% endfor %}
                                             </select>
                                         </div>
                                     </div>
                                     <div class="row g-2">
-                                        <div class="col-md-8">
-                                            <label class="small">
-                                                {% if hoja.vehiculo.tipo_carroceria == 'Camioneta' %}
-                                                    Nombre Pasajero *
-                                                {% else %}
-                                                    Nombre Paciente *
-                                                {% endif %}
-                                            </label>
-                                            {{ form_paciente.nombre }}
-                                        </div>
-                                        <div class="col-md-4">
-                                            <label class="small">RUT</label>
+                                        <div class="col-md-5">
+                                            <label class="small">RUT *</label>
                                             {{ form_paciente.rut }}
                                         </div>
                                         
@@ -162,16 +167,6 @@
                                             {{ form_paciente.direccion_especifica }}
                                         </div>
                         
-                                        <div class="col-md-3">
-                                            <label class="small">
-                                                {% if hoja.vehiculo.tipo_carroceria == 'Camioneta' %}
-                                                    Servicio/Área
-                                                {% else %}
-                                                    Servicio/Prev
-                                                {% endif %}
-                                            </label>
-                                            {{ form_paciente.prevision }}
-                                        </div>
                                     </div>
 
                                     <div class="row g-2 mt-1 align-items-end fila-categoria-paciente">
@@ -208,38 +203,28 @@
                                             <select class="form-select paciente-anterior-select" data-row="paciente-row">
                                                 <option value="">-- Ingresar nuevo o seleccionar --</option>
                                                 {% for p in pacientes_anteriores %}
-                                                <option value="{{ p.id }}" data-nombre="{{ p.nombre|escapejs }}" data-rut="{{ p.rut|escapejs }}" data-prevision="{{ p.prevision|default:''|escapejs }}">{{ p.nombre }} ({{ p.rut }})</option>
+                                                <option value="{{ p.id }}" data-rut="{{ p.rut|escapejs }}">{{ p.rut }}</option>
                                                 {% endfor %}
                                             </select>
                                         </div>
                                     </div>
                                     <div class="row g-2">
-                                        <div class="col-md-8">
-                                            <label class="small">Nombre Completo *</label>
-                                            <input type="text" name="pacientes-__prefix__-nombre" class="form-control paciente-nombre" maxlength="150">
-                                        </div>
-                                        <div class="col-md-4">
-                                            <label class="small">RUT</label>
-                                            <input type="text" name="pacientes-__prefix__-rut" class="form-control paciente-rut" maxlength="12">
+                                        <div class="col-md-5">
+                                            <label class="small">RUT *</label>
+                                            <input type="text" name="pacientes-__prefix__-rut" class="form-control paciente-rut" maxlength="12" required>
                                         </div>
                                         <div class="col-md-4">
                                             <label class="small">Destino *</label>
                                             <select name="pacientes-__prefix__-destino_tipo" class="form-select destino-selector">
                                                 <option value="">Seleccione...</option>
-                                                <option value="HBO">Hospital Base Osorno</option>
-                                                <option value="DOMICILIO">Domicilio</option>
-                                                <option value="CESFAM">CESFAM</option>
-                                                <option value="ACHS">ACHS/Mutual</option>
-                                                <option value="OTRO">Otro</option>
+                                                {% for codigo, etiqueta in destinos_choices %}
+                                                <option value="{{ codigo }}">{{ etiqueta }}</option>
+                                                {% endfor %}
                                             </select>
                                         </div>
                                         <div class="col-md-5 container-direccion" style="display:none;">
                                             <label class="small text-primary">Dirección / Detalle</label>
                                             <input type="text" name="pacientes-__prefix__-direccion_especifica" class="form-control direccion-input" maxlength="200">
-                                        </div>
-                                        <div class="col-md-3">
-                                            <label class="small">Servicio/Prev</label>
-                                            <input type="text" name="pacientes-__prefix__-prevision" class="form-control paciente-prevision" maxlength="50">
                                         </div>
                                     </div>
                                     <div class="row g-2 mt-1 align-items-end fila-categoria-paciente">
@@ -274,6 +259,7 @@
                                 </div>
                             </div>
                         </template>
+                        </div>
 
                         <div class="d-grid mt-4">
                             <button type="submit" class="btn btn-primary btn-lg">Guardar Registro</button>

@@ -80,6 +80,7 @@ class Command(BaseCommand):
         # Limpieza completa (orden respetando FK)
         self.stdout.write(self.style.WARNING('🧹 Limpiando tablas existentes...'))
         PacienteTraslado.objects.all().delete()
+        PacienteViaje.objects.all().delete()
         Viaje.objects.all().delete()
         HojaRuta.objects.all().delete()
         CargaCombustible.objects.all().delete()
@@ -481,27 +482,22 @@ class Command(BaseCommand):
         with open(filepath, 'r', encoding='utf-8') as f:
             reader = csv.DictReader(f)
             for row in reader:
-                # Buscar o crear paciente_viaje (maestro)
                 paciente_viaje = None
-                if row.get('rut') and row.get('nombre'):
-                    pv, _ = PacienteViaje.objects.get_or_create(
-                        rut=row['rut'].strip(),
-                        defaults={'nombre': row['nombre'], 'prevision': row.get('prevision', '')}
-                    )
+                rut = (row.get('rut') or '').strip()
+                if rut:
+                    pv, _ = PacienteViaje.objects.get_or_create(rut=rut)
                     paciente_viaje = pv
 
                 PacienteTraslado.objects.create(
                     id=self._parse_int(row['id']),
                     viaje_id=self._parse_int(row['viaje_id']),
                     paciente_viaje=paciente_viaje,
-                    nombre=row['nombre'],
-                    rut=row.get('rut', ''),
+                    rut=rut,
                     categoria_traslado=row.get('categoria_traslado', 'Administrativo'),
                     detalle_origen_alta=row.get('detalle_origen_alta') or None,
                     sentido=row.get('sentido', 'IDA'),
                     destino_tipo=row.get('destino_tipo', 'HBO'),
                     direccion_especifica=row.get('direccion_especifica', ''),
-                    prevision=row.get('prevision', ''),
                 )
         self.stdout.write(self.style.SUCCESS(f'   ✅ {PacienteTraslado.objects.count()} pacientes traslado.'))
 

@@ -840,19 +840,21 @@ def calcular_tiempos_retencion_hbo(vehiculo_ids, fecha_desde, fecha_hasta):
 
 @login_required
 def reporte_servicios(request):
-    servicios = PacienteTraslado.objects.values('prevision').annotate(
+    """Traslados agrupados por categoría (reemplaza el antiguo reporte por tipo de servicio/previsión)."""
+    servicios = PacienteTraslado.objects.values('categoria_traslado').annotate(
         total=Count('id')
     ).order_by('-total')
 
     labels = []
     data = []
+    categorias_display = dict(PacienteTraslado._meta.get_field('categoria_traslado').choices)
     for s in servicios:
-        prev = s['prevision'] or 'Sin especificar'
-        labels.append(prev)
+        codigo = s['categoria_traslado'] or 'Sin especificar'
+        labels.append(categorias_display.get(codigo, codigo))
         data.append(s['total'])
-    
+
     return render(request, 'flota/reporte_servicios.html', {
-        'servicios': [{'prevision': labels[i], 'total': data[i]} for i in range(len(labels))],
+        'servicios': [{'categoria': labels[i], 'total': data[i]} for i in range(len(labels))],
         'chart_labels': labels,
         'chart_data': data
     })

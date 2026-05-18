@@ -43,13 +43,23 @@ ORIGEN_ALTA = [
     ('HBO', 'Desde Hospital Base Osorno'),
 ]
 
-DESTINOS_COMUNES = [
+DESTINOS_RED_HOSPITAL = [
     ('HBO', 'Hospital Base Osorno'),
+    ('HEPP_PURRANQUE', 'Hospital Dr. Juan Hepp Purranque'),
+    ('H_PUERTO_OCTAY', 'Hospital Puerto Octay'),
+    ('H_RIO_NEGRO', 'Hospital Río Negro'),
+    ('H_FUTA', 'Hospital Futa Srüka Lawenche Kunko Mapu Mo'),
+    ('H_PU_MULEN', 'Hospital Pu Mülen'),
+]
+
+DESTINOS_COMUNES = DESTINOS_RED_HOSPITAL + [
     ('DOMICILIO', 'Domicilio (Ingresar Dirección)'),
     ('CESFAM', 'CESFAM'),
     ('ACHS', 'ACHS/Mutual'),
     ('OTRO', 'Otro (Especificar)'),
 ]
+
+CODIGOS_DESTINOS_RED = {codigo for codigo, _ in DESTINOS_RED_HOSPITAL}
 
 # Estados de ordenes de compra
 def normalizar_estado_oc(estado):
@@ -973,7 +983,8 @@ class Viaje(models.Model):
         pkts = self.pacientes.all()
         if not pkts:
             return "Sin pacientes"
-        return ", ".join([p.nombre for p in pkts])
+        ruts = [p.rut for p in pkts if p.rut]
+        return ", ".join(ruts) if ruts else "Sin pacientes"
 
     @property
     def km_recorridos_calculados(self):
@@ -986,26 +997,28 @@ class Viaje(models.Model):
         """Verifica si algún paciente tiene destino HBO"""
         return self.pacientes.filter(destino_tipo='HBO').exists()
 
+    def tiene_destino_red_hospital(self):
+        """Verifica si algún paciente tiene destino en la red hospitalaria"""
+        return self.pacientes.filter(destino_tipo__in=CODIGOS_DESTINOS_RED).exists()
+
 
 class PacienteViaje(models.Model):
     """
-    Tabla maestra de pacientes que han sido trasladados en algún viaje.
-    Permite listado desplegable para reutilizar datos en nuevos traslados.
+    Tabla maestra de RUT de pacientes/pasajeros trasladados en viajes anteriores.
+    Permite listado desplegable para reutilizar el RUT en nuevos traslados.
     """
     id = models.AutoField(primary_key=True)
     rut = models.CharField(max_length=12, unique=True, db_index=True)
-    nombre = models.CharField(max_length=150)
-    prevision = models.CharField(max_length=50, blank=True, verbose_name="Previsión/Tipo Servicio por defecto")
     creado_en = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         db_table = 'paciente_viaje'
         verbose_name = 'Paciente (traslados anteriores)'
         verbose_name_plural = 'Pacientes (traslados anteriores)'
-        ordering = ['nombre']
+        ordering = ['rut']
 
     def __str__(self):
-        return f"{self.nombre} ({self.rut})"
+        return self.rut
 
 
 class PacienteTraslado(models.Model):
@@ -1017,8 +1030,7 @@ class PacienteTraslado(models.Model):
         PacienteViaje, on_delete=models.SET_NULL, null=True, blank=True,
         related_name='traslados', verbose_name="Paciente (de listado anterior)"
     )
-    nombre = models.CharField(max_length=150)
-    rut = models.CharField(max_length=12, blank=True, null=True)
+    rut = models.CharField(max_length=12, blank=True, default='')
 
     categoria_traslado = models.CharField(
         max_length=20, choices=TIPO_TRASLADO_CATEGORIA, default='Administrativo'
@@ -1032,16 +1044,14 @@ class PacienteTraslado(models.Model):
         default='IDA',
     )
     
-    # Requerimiento: Cada paciente tiene su destino y tipo de servicio
     destino_tipo = models.CharField(max_length=20, choices=DESTINOS_COMUNES)
     direccion_especifica = models.CharField(max_length=200, blank=True, help_text="Dirección si es domicilio u otro")
-    prevision = models.CharField(max_length=50, blank=True, verbose_name="Previsión/Tipo Servicio")
 
     class Meta:
         db_table = 'paciente_traslado'
 
     def __str__(self):
-        return self.nombre
+        return self.rut or f"Paciente #{self.pk}"
 
 
 class CargaCombustible(models.Model):

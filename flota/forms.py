@@ -11,6 +11,7 @@ from .models import (
     Mantenimiento, FallaReportada, CuentaPresupuestaria, TIPOS_SERVICIO
 )
 from .constants import MANTENIMIENTO_CUENTAS_MAP
+from .validators import validar_rut_chileno, normalizar_rut
 
 class LoginForm(forms.Form):
     rut = forms.CharField(
@@ -22,6 +23,14 @@ class LoginForm(forms.Form):
         label='Contraseña',
         widget=forms.PasswordInput(attrs={'class': 'form-control', 'placeholder': 'Ingrese su contraseña'})
     )
+
+    def clean_rut(self):
+        rut = self.cleaned_data.get('rut')
+        es_valido, mensaje = validar_rut_chileno(rut)
+        if not es_valido:
+            raise forms.ValidationError(mensaje)
+        rut_norm = normalizar_rut(rut)
+        return rut_norm or rut
 
 
 class UsuarioForm(forms.ModelForm):
@@ -74,6 +83,13 @@ class UsuarioForm(forms.ModelForm):
         # Si se intenta cambiar el RUT en una edición, mantener el original
         if self.instance.pk and rut and self.instance.rut != rut:
             return self.instance.rut
+        if rut:
+            es_valido, mensaje = validar_rut_chileno(rut)
+            if not es_valido:
+                raise forms.ValidationError(mensaje)
+            rut_norm = normalizar_rut(rut)
+            if rut_norm:
+                return rut_norm
         return rut
     
     def clean_password(self):
@@ -264,6 +280,17 @@ class ProveedorForm(forms.ModelForm):
             'es_arrendador': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
             'activo': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
         }
+
+    def clean_rut_empresa(self):
+        rut = self.cleaned_data.get('rut_empresa')
+        if rut:
+            es_valido, mensaje = validar_rut_chileno(rut)
+            if not es_valido:
+                raise forms.ValidationError(mensaje)
+            rut_norm = normalizar_rut(rut)
+            if rut_norm:
+                return rut_norm
+        return rut
 
 
 class HojaRutaForm(forms.ModelForm):
@@ -458,23 +485,39 @@ class PacienteTrasladoForm(forms.ModelForm):
     class Meta:
         model = PacienteTraslado
         fields = [
-            'nombre', 'rut', 'destino_tipo', 'direccion_especifica', 'prevision',
+            'rut', 'destino_tipo', 'direccion_especifica',
             'categoria_traslado', 'sentido', 'detalle_origen_alta',
         ]
         widgets = {
-            'nombre': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Nombre Paciente/Pasajero'}),
-            'rut': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'RUT'}),
+            'rut': forms.TextInput(attrs={'class': 'form-control paciente-rut', 'placeholder': 'RUT'}),
             'destino_tipo': forms.Select(attrs={'class': 'form-select destino-selector'}),
             'direccion_especifica': forms.TextInput(attrs={'class': 'form-control direccion-input', 'placeholder': 'Especifique dirección'}),
-            'prevision': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Tipo Servicio/Prev.'}),
             'categoria_traslado': forms.Select(attrs={'class': 'form-select categoria-traslado-select'}),
             'sentido': forms.Select(attrs={'class': 'form-select sentido-select'}),
             'detalle_origen_alta': forms.Select(attrs={'class': 'form-select detalle-origen-alta-select'}),
         }
 
+    def clean_rut(self):
+        rut = self.cleaned_data.get('rut')
+        if rut and rut.strip():
+            es_valido, mensaje = validar_rut_chileno(rut)
+            if not es_valido:
+                raise forms.ValidationError(mensaje)
+            rut_norm = normalizar_rut(rut)
+            if rut_norm:
+                return rut_norm
+        return rut
+
     def clean(self):
         cleaned_data = super().clean()
         if cleaned_data.get('DELETE'):
+            return cleaned_data
+
+        rut = (cleaned_data.get('rut') or '').strip()
+        destino = cleaned_data.get('destino_tipo')
+        direccion = (cleaned_data.get('direccion_especifica') or '').strip()
+
+        if not rut and not destino and not direccion:
             return cleaned_data
 
         if self.vehiculo_tipo == 'Camioneta':
@@ -489,12 +532,11 @@ class PacienteTrasladoForm(forms.ModelForm):
             else:
                 cleaned_data['detalle_origen_alta'] = None
 
-        nombre = cleaned_data.get('nombre')
-        destino = cleaned_data.get('destino_tipo')
-        if not nombre or not nombre.strip():
-            self.add_error('nombre', 'El nombre del paciente/pasajero es obligatorio.')
+        if not rut:
+            self.add_error('rut', 'El RUT es obligatorio.')
         if not destino:
             self.add_error('destino_tipo', 'Debe seleccionar un destino.')
+
         return cleaned_data
 
 PacienteFormSet = inlineformset_factory(
