@@ -1,5 +1,0 @@
-id,anio,tipo_presupuesto,monto_asignado,monto_ejecutado,activo,cuenta_id
-1,2025,Preventivo,20320000,13288430,True,1
-7,2025,Preventivo,2500000,2120884,True,3
-9,2025,Correctivo,20199497,20199497,True,2
-10,2025,Correctivo,377112,377112,True,4
