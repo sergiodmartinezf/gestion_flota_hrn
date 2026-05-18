@@ -76,8 +76,8 @@ DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
         'NAME': 'flota_hrn_db',
-        'USER': 'postgres',
-        'PASSWORD': 'compuvi',
+        'USER': 'flota_user',
+        'PASSWORD': 'flota1234',
         'HOST': 'localhost',
         'PORT': '5432',
     }
