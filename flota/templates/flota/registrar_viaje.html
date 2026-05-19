@@ -318,35 +318,4 @@
 {% block extra_js %}
 <script src="{% static 'js/formateador_rut.js' %}"></script>
 <script src="{% static 'js/registrar_viaje.js' %}"></script>
-<script>
-    (function() {
-        if (window.tipoVehiculo !== 'Camioneta') return;
-        const hboContainer = document.getElementById('hbo-horas-container');
-        if (hboContainer) {
-            hboContainer.style.display = 'none';
-            const horaSalida = document.querySelector('[name="hora_salida_hbo"]');
-            const horaLlegada = document.querySelector('[name="hora_llegada_hbo"]');
-            if (horaSalida) horaSalida.removeAttribute('required');
-            if (horaLlegada) horaLlegada.removeAttribute('required');
-        }
-        const deshabilitarHBO = function() {
-            const suffix = ' (no disponible)';
-            document.querySelectorAll('.destino-selector').forEach(select => {
-                Array.from(select.options).forEach(option => {
-                    if (option.value === 'HBO' && !option.hasAttribute('data-disabled')) {
-                        option.disabled = true;
-                        option.setAttribute('data-disabled', 'true');
-                        option.textContent += suffix;
-                    }
-                });
-            });
-        };
-        deshabilitarHBO();
-        const pacDiv = document.getElementById('pacientes-container');
-        if (pacDiv) {
-            const observer = new MutationObserver(deshabilitarHBO);
-            observer.observe(pacDiv, { childList: true, subtree: true });
-        }
-    })();
-</script>
 {% endblock %}

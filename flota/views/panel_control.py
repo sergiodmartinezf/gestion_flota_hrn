@@ -135,8 +135,11 @@ def panel_control(request):
             tipo_mantencion='Preventivo',
             estado='Finalizado'
         ).order_by('-fecha_salida').first()
+        if ultimo_mant:
+            recorrido = v.kilometraje_actual - ultimo_mant.km_al_ingreso
+        else:
+            recorrido = 0
         km_ultimo = ultimo_mant.km_al_ingreso if ultimo_mant else 0
-        recorrido = v.kilometraje_actual - km_ultimo
 
         if recorrido < 8000:
             estado = "OK"
