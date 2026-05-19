@@ -1,0 +1,49 @@
+"id","tipo_mantencion","fecha_ingreso","fecha_salida","fecha_programada","km_al_ingreso","descripcion_trabajo","estado","nro_factura","archivo_adjunto","costo_estimado","costo_mano_obra","costo_repuestos","costo_total_real","cuenta_presupuestaria_id","orden_compra_id","orden_trabajo_id","proveedor_id","vehiculo_id"
+1,"Correctivo","2025-01-16","2025-01-17",NULL,407951,"Cambio de tubo flexible de liquido refrigerante – HR.PG-25","Finalizado",NULL,"",0,186854,0,186854,2,2,NULL,1,1
+2,"Correctivo","2025-01-23","2025-01-24",NULL,334513,"Convenio Servicios de Mantención – LX-FG-16","Finalizado",NULL,"",0,3436544,0,3436544,2,3,NULL,1,2
+3,"Preventivo","2025-01-27","2025-01-28",NULL,334513,"Convenio Servicios de Mantención – LX-FG-16","Finalizado",NULL,"",0,682636,0,682636,2,4,NULL,1,2
+5,"Correctivo","2025-02-18","2025-02-19",NULL,327340,"Convenio Mantención Multimarcas – HL.TS-76","Finalizado",NULL,"",0,235739,0,235739,4,6,NULL,3,4
+7,"Preventivo","2025-04-08","2025-04-09",NULL,334513,"SERVICIOS DE MANTENCION CONVERSIONES – LX-FG-16","Finalizado",NULL,"",0,765170,0,765170,2,8,NULL,2,2
+11,"Preventivo","2025-05-29","2025-05-30",NULL,334513,"Convenio Mercedes Benz – LX-FG-16","Finalizado",NULL,"",0,290586,0,290586,2,12,NULL,1,2
+12,"Preventivo","2025-05-19","2025-05-20",NULL,334513,"SERVICIOS DE MANTENCION CONVERSIONES – LX-FG-16","Finalizado",NULL,"",0,2176748,0,2176748,2,13,NULL,2,2
+14,"Preventivo","2025-07-07","2025-07-08",NULL,407951,"Convenio Mercedes Benz – HR.PG-25","Finalizado",NULL,"",0,694330,0,694330,2,15,NULL,1,1
+15,"Preventivo","2025-08-11","2025-08-12",NULL,407951,"Convenio Mercedes Benz – HR.PG-25","Finalizado",NULL,"",0,305374,0,305374,2,16,NULL,1,1
+16,"Preventivo","2025-09-08","2025-09-09",NULL,334513,"Convenio Mercedes Benz – LX-FG-16","Finalizado",NULL,"",0,595916,0,595916,2,17,NULL,1,2
+17,"Preventivo","2025-09-30","2025-10-01",NULL,407951,"SERVICIOS DE MANTENCION CONVERSIONES – HR.PG-25","Finalizado",NULL,"",0,98175,0,98175,2,18,NULL,2,1
+18,"Preventivo","2025-09-30","2025-10-01",NULL,336979,"SERVICIOS DE MANTENCION CONVERSIONES – KX.SL-70","Finalizado",NULL,"",0,2500904,0,2500904,2,19,NULL,2,3
+19,"Preventivo","2025-10-06","2025-10-07",NULL,407951,"Convenio Mercedes Benz – HR.PG-25","Finalizado",NULL,"",0,891022,0,891022,2,21,NULL,1,1
+20,"Preventivo","2025-10-13","2025-10-14",NULL,334513,"Convenio Mercedes Benz – LX-FG-16","Finalizado",NULL,"",0,1187841,0,1187841,2,22,NULL,1,2
+21,"Preventivo","2025-10-15","2025-10-16",NULL,327340,"Convenio Mantención Multimarcas – HL.TS-76","Finalizado",NULL,"",0,141373,0,141373,4,23,NULL,3,4
+22,"Preventivo","2025-11-14","2025-11-15",NULL,334513,"Convenio Mercedes Benz – LX-FG-16","Finalizado",NULL,"",0,95850,0,95850,2,24,NULL,1,2
+28,"Preventivo","2025-01-16","2025-01-17",NULL,407951,"Convenio Mercedes Benz – HR.PG-25 (MP)","Finalizado",NULL,"",0,364360,0,364360,1,30,NULL,1,1
+30,"Correctivo","2025-02-18","2025-02-19",NULL,327340,"Convenio Mantención Multimarcas – HL.TS-76","Finalizado",NULL,"",0,409826,0,409826,4,32,NULL,3,4
+31,"Preventivo","2025-03-28","2025-03-29",NULL,407951,"Convenio Mercedes Benz – HR.PG-25 (MP)","Finalizado",NULL,"",0,619782,0,619782,1,33,NULL,1,1
+35,"Preventivo","2025-05-14","2025-05-15",NULL,334513,"SERVICIOS DE MANTENCION CONVERSIONES – LX-FG-16","Finalizado",NULL,"",0,973539,0,973539,2,37,NULL,2,2
+36,"Preventivo","2025-06-24","2025-06-25",NULL,407951,"Convenio Mercedes Benz – HR.PG-25 (MP)","Finalizado",NULL,"",0,339780,0,339780,1,38,NULL,1,1
+39,"Correctivo","2025-07-04","2025-07-05",NULL,327340,"Convenio Mantención Multimarcas – HL.TS-76","Finalizado",NULL,"",0,366951,0,366951,4,41,NULL,3,4
+41,"Preventivo","2025-09-25","2025-09-25",NULL,336979,"SERVICIOS DE MANTENCION CONVERSIONES – KX.SL-70","Finalizado",NULL,"",0,973539,0,973539,1,43,NULL,2,3
+43,"Preventivo","2025-10-13","2025-10-14",NULL,407951,"Convenio Mercedes Benz – HR.PG-25 (MP)","Finalizado",NULL,"",0,1620939,0,1620939,1,45,NULL,1,1
+45,"Preventivo","2025-10-14","2025-10-15",NULL,327340,"Compra de neumáticos – HL.TS-76","Finalizado",NULL,"",0,1005550,0,1005550,3,47,NULL,8,4
+46,"Correctivo","2025-10-15","2025-10-16",NULL,327340,"Convenio Mantención Multimarcas – HL.TS-76","Finalizado",NULL,"",0,338557,0,338557,4,48,NULL,3,4
+4,"Preventivo","2025-02-04","2025-02-05",NULL,336979,"Convenio Mantención Multimarcas – KX.SL-70","Finalizado",NULL,"",0,351348,0,351348,1,5,NULL,3,3
+6,"Preventivo","2025-03-07","2025-03-08",NULL,407951,"SERVICIOS DE MANTENCION CONVERSIONES – HR.PG-25","Finalizado",NULL,"",0,611541,0,611541,1,7,NULL,2,1
+8,"Preventivo","2025-04-29","2025-04-30",NULL,336979,"Convenio Mantención Multimarcas – KX.SL-70","Finalizado",NULL,"",0,348075,0,348075,1,9,NULL,3,3
+9,"Preventivo","2025-05-02","2025-05-03",NULL,336979,"Convenio Mantención Multimarcas – KX.SL-70","Finalizado",NULL,"",0,244902,0,244902,1,10,NULL,3,3
+10,"Preventivo","2025-05-12","2025-05-13",NULL,407951,"SERVICIOS DE MANTENCION CONVERSIONES – HR.PG-25","Finalizado",NULL,"",0,3615208,0,3615208,1,11,NULL,2,1
+13,"Preventivo","2025-06-24","2025-06-25",NULL,407951,"SERVICIOS DE MANTENCION CONVERSIONES – HR.PG-25","Finalizado",NULL,"",0,77350,0,77350,1,14,NULL,2,1
+24,"Preventivo","2025-12-15","2025-12-16",NULL,336979,"Convenio Mantención Multimarcas – KX.SL-70","Finalizado",NULL,"",0,706483,0,706483,1,26,NULL,3,3
+25,"Preventivo","2025-01-16","2025-01-17",NULL,407951,"Compra de neumáticos – HR.PG-25","Finalizado",NULL,"",0,305801,0,305801,1,27,NULL,5,1
+26,"Preventivo","2025-01-29","2025-01-30",NULL,334513,"Convenio Mercedes Benz – LX-FG-16","Finalizado",NULL,"",0,1006958,0,1006958,1,28,NULL,1,2
+27,"Preventivo","2025-01-06","2025-01-07",NULL,407951,"Compra de neumáticos – HR.PG-25","Finalizado",NULL,"",0,944551,0,944551,1,29,NULL,6,1
+29,"Preventivo","2025-03-05","2025-03-06",NULL,407951,"SERVICIOS DE MANTENCION CONVERSIONES – HR.PG-25","Finalizado",NULL,"",0,973539,0,973539,1,31,NULL,2,1
+32,"Preventivo","2025-03-25","2025-03-26",NULL,334513,"Convenio Mercedes Benz – LX-FG-16","Finalizado",NULL,"",0,562085,0,562085,1,34,NULL,1,2
+33,"Preventivo","2025-05-02","2025-05-03",NULL,336979,"Convenio Mantención Multimarcas – KX.SL-70","Finalizado",NULL,"",0,509314,0,509314,1,35,NULL,3,3
+34,"Preventivo","2025-05-22","2025-05-23",NULL,334513,"Convenio Mercedes Benz – LX-FG-16","Finalizado",NULL,"",0,337958,0,337958,1,36,NULL,1,2
+37,"Preventivo","2025-07-09","2025-07-10",NULL,334513,"Convenio Mercedes Benz – LX-FG-16","Finalizado",NULL,"",0,677547,0,677547,1,39,NULL,1,2
+38,"Preventivo","2025-07-28","2025-07-29",NULL,336979,"Compra de neumáticos – KX.SL-70","Finalizado",NULL,"",0,802106,0,802106,1,40,NULL,7,3
+40,"Preventivo","2025-08-14","2025-08-15",NULL,334513,"Convenio Mercedes Benz – LX-FG-16","Finalizado",NULL,"",0,375544,0,375544,1,42,NULL,1,2
+42,"Preventivo","2025-09-23","2025-09-24",NULL,336979,"Convenio Mantención Multimarcas – KX.SL-70","Finalizado",NULL,"",0,889562,0,889562,1,44,NULL,3,3
+44,"Preventivo","2025-10-10","2025-10-11",NULL,334513,"Convenio Mercedes Benz – LX-FG-16","Finalizado",NULL,"",0,1081429,0,1081429,1,46,NULL,1,2
+23,"Preventivo","2025-12-18","2025-12-19",NULL,400951,"Convenio Mercedes Benz – HR.PG-25","Finalizado",NULL,"",0,1157977,0,1157977,2,25,NULL,1,1
+47,"Preventivo","2025-12-18","2025-12-19",NULL,327213,"Convenio Mercedes Benz – LX-FG-16","Finalizado",NULL,"",0,1436303,0,1436303,1,49,NULL,1,2
+48,"Preventivo","2025-12-18","2025-12-19",NULL,329479,"Convenio Mantención Multimarcas – KX.SL-70","Finalizado",NULL,"",0,546252,0,546252,1,50,NULL,3,3

@@ -459,8 +459,8 @@ class Vehiculo(models.Model):
             ultimo_km=Subquery(last_maint, output_field=IntegerField())
         ).annotate(
             recorrido=Case(
-                When(ultimo_km__isnull=True, then=F('kilometraje_actual')),  # ← corregido
-                default=F('kilometraje_actual') - F('ultimo_km'),            # ← corregido
+                When(ultimo_km__isnull=True, then=Value(0)), 
+                default=F('kilometraje_actual') - F('ultimo_km'),
                 output_field=IntegerField()
             )
         ).filter(recorrido__lt=12000)

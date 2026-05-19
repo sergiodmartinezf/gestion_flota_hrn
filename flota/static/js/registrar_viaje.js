@@ -253,19 +253,6 @@ function initRowListeners(rowElement) {
         });
     }
 
-    // Para filas dinámicas de pacientes/pasajeros en registro de viajes
-    if (destinoSelect && window.tipoVehiculo === 'Camioneta') {
-        const hboOption = Array.from(destinoSelect.options).find(opt => opt.value === 'HBO');
-        if (hboOption && !hboOption.disabled) {
-            hboOption.disabled = true;
-            // Si se quiere el texto modificado, hacerlo aquí una sola vez
-            if (!hboOption.hasAttribute('data-disabled')) {
-                hboOption.setAttribute('data-disabled', 'true');
-                hboOption.textContent += ' (no disponible)';
-            }
-        }
-    }
-
     initFilaPaciente(rowElement);
 }
 
