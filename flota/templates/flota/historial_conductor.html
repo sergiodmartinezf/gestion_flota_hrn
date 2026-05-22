@@ -1,0 +1,187 @@
+{% extends 'base.html' %}
+{% load km_miles %}
+{% load moneda_clp %}
+
+{% block title %}Mi Historial - Conductor{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <h2 class="mb-4"><i class="bi bi-clock-history"></i> Mi Historial</h2>
+    <p class="text-muted">Registros de bitácoras, cargas de combustible e incidentes asociados a tu cuenta.</p>
+
+    <!-- ==================== SECCIÓN BITÁCORAS ==================== -->
+    <div class="card mb-5">
+        <div class="card-header bg-primary text-white">
+            <h4 class="mb-0"><i class="bi bi-journal-text"></i> Bitácoras</h4>
+        </div>
+        <div class="card-body">
+            <!-- Filtros bitácoras -->
+            <form method="get" class="row g-3 mb-3">
+                <div class="col-md-3">
+                    <label class="form-label">Desde</label>
+                    <input type="date" name="b_desde" class="form-control" value="{{ b_desde }}">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Hasta</label>
+                    <input type="date" name="b_hasta" class="form-control" value="{{ b_hasta }}">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Vehículo</label>
+                    <select name="b_vehiculo" class="form-select">
+                        <option value="">Todos</option>
+                        {% for v in vehiculos %}
+                        <option value="{{ v.patente }}" {% if b_vehiculo == v.patente %}selected{% endif %}>
+                            {{ v.patente }} - {{ v.marca }} {{ v.modelo }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary w-100">Filtrar Bitácoras</button>
+                </div>
+            </form>
+
+            {% if bitacoras %}
+            <div class="table-responsive">
+                <table class="table table-hover table-striped">
+                    <thead class="table-dark">
+                        <tr><th>Fecha</th><th>Vehículo</th><th>Turno</th><th>Km Recorridos</th><th>Estado</th><th>Acciones</th></tr>
+                    </thead>
+                    <tbody>
+                        {% for b in bitacoras %}
+                        <tr>
+                            <td>{{ b.fecha|date:"d/m/Y" }}</td>
+                            <td>{{ b.vehiculo.patente }}<br><small>{{ b.vehiculo.marca }} {{ b.vehiculo.modelo }}</small></td>
+                            <td>{{ b.get_turno_display }}</td>
+                            <td>{{ b.km_recorridos|km }} km</td>
+                            <td>{% if b.abierta %}<span class="badge bg-success">Abierta</span>{% else %}<span class="badge bg-secondary">Cerrada</span>{% endif %}</td>
+                            <td><a href="{% url 'detalle_bitacora' b.id %}" class="btn btn-sm btn-info">Ver</a></td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% if bitacoras|length == 50 %}<p class="text-muted">Mostrando hasta 50 registros. <a href="{% url 'listar_bitacoras' %}?conductor={{ request.user.rut }}">Ver todas las bitácoras →</a></p>{% endif %}
+            {% else %}
+            <div class="alert alert-info">No hay bitácoras registradas.</div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- ==================== SECCIÓN CARGAS DE COMBUSTIBLE ==================== -->
+    <div class="card mb-5">
+        <div class="card-header bg-success text-white">
+            <h4 class="mb-0"><i class="bi bi-fuel-pump"></i> Cargas de Combustible</h4>
+        </div>
+        <div class="card-body">
+            <!-- Filtros cargas -->
+            <form method="get" class="row g-3 mb-3">
+                <div class="col-md-3">
+                    <label class="form-label">Desde</label>
+                    <input type="date" name="c_desde" class="form-control" value="{{ c_desde }}">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Hasta</label>
+                    <input type="date" name="c_hasta" class="form-control" value="{{ c_hasta }}">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Vehículo</label>
+                    <select name="c_vehiculo" class="form-select">
+                        <option value="">Todos</option>
+                        {% for v in vehiculos %}
+                        <option value="{{ v.patente }}" {% if c_vehiculo == v.patente %}selected{% endif %}>
+                            {{ v.patente }} - {{ v.marca }} {{ v.modelo }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3 d-flex align-items-end">
+                    <button type="submit" class="btn btn-success w-100">Filtrar Cargas</button>
+                </div>
+            </form>
+
+            {% if cargas %}
+            <div class="table-responsive">
+                <table class="table table-hover table-striped">
+                    <thead class="table-dark">
+                        <tr><th>Fecha</th><th>Vehículo</th><th>Kilometraje</th><th>Litros</th><th>Costo</th><th>N° Boleta</th></tr>
+                    </thead>
+                    <tbody>
+                        {% for c in cargas %}
+                        <tr>
+                            <td>{{ c.fecha|date:"d/m/Y" }}</td>
+                            <td>{{ c.patente_vehiculo.patente }}<br><small>{{ c.patente_vehiculo.marca }} {{ c.patente_vehiculo.modelo }}</small></td>
+                            <td>{{ c.kilometraje_al_cargar|km }} km</td>
+                            <td>{{ c.litros|floatformat:1 }}</td>
+                            <td>${{ c.costo_total|clp }}</td>
+                            <td>{{ c.nro_boleta|default:"-" }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% if cargas|length == 50 %}<p class="text-muted">Mostrando hasta 50 registros. <a href="{% url 'listar_cargas_combustible' %}?conductor={{ request.user.rut }}">Ver todas las cargas →</a></p>{% endif %}
+            {% else %}
+            <div class="alert alert-info">No hay cargas de combustible registradas.</div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- ==================== SECCIÓN INCIDENTES ==================== -->
+    <div class="card mb-5">
+        <div class="card-header bg-danger text-white">
+            <h4 class="mb-0"><i class="bi bi-exclamation-triangle"></i> Incidentes Reportados</h4>
+        </div>
+        <div class="card-body">
+            <!-- Filtros incidentes -->
+            <form method="get" class="row g-3 mb-3">
+                <div class="col-md-3">
+                    <label class="form-label">Desde</label>
+                    <input type="date" name="i_desde" class="form-control" value="{{ i_desde }}">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Hasta</label>
+                    <input type="date" name="i_hasta" class="form-control" value="{{ i_hasta }}">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Vehículo</label>
+                    <select name="i_vehiculo" class="form-select">
+                        <option value="">Todos</option>
+                        {% for v in vehiculos %}
+                        <option value="{{ v.patente }}" {% if i_vehiculo == v.patente %}selected{% endif %}>
+                            {{ v.patente }} - {{ v.marca }} {{ v.modelo }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3 d-flex align-items-end">
+                    <button type="submit" class="btn btn-danger w-100">Filtrar Incidentes</button>
+                </div>
+            </form>
+
+            {% if incidentes %}
+            <div class="table-responsive">
+                <table class="table table-hover table-striped">
+                    <thead class="table-dark">
+                        <tr><th>Fecha</th><th>Vehículo</th><th>Descripción</th><th>Urgencia</th></tr>
+                    </thead>
+                    <tbody>
+                        {% for i in incidentes %}
+                        <tr>
+                            <td>{{ i.fecha_reporte|date:"d/m/Y" }}</td>
+                            <td>{{ i.vehiculo.patente }}<br><small>{{ i.vehiculo.marca }} {{ i.vehiculo.modelo }}</small></td>
+                            <td>{{ i.descripcion|truncatechars:80 }}</td>
+                            <td>{% if i.nivel_urgencia %}{{ i.nivel_urgencia }}{% else %}Media{% endif %}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% if incidentes|length == 50 %}<p class="text-muted">Mostrando hasta 50 registros. <a href="{% url 'listar_incidentes' %}?conductor={{ request.user.rut }}">Ver todos los incidentes →</a></p>{% endif %}
+            {% else %}
+            <div class="alert alert-info">No hay incidentes reportados.</div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

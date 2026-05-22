@@ -28,6 +28,7 @@ from .viajes import (
     listar_cargas_combustible,
     registrar_incidente,
     listar_incidentes,
+    historial_conductor,
     exportar_consolidado_viajes,
     exportar_traslados_form,
     agregar_viaje,
