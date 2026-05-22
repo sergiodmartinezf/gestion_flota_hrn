@@ -1,2 +1,3 @@
 "password","last_login","id","rut","nombre","apellido","email","rol","activo","creado_en"
 "pbkdf2_sha256$1000000$HiVM3hVNPSPPxxe4LfqtI2$XH8tB34sB0lzrkSkzlYBKwAPNiqnB+vZenpi4GR8JIM=","2026-01-15 09:16:56.456766-03",1,"20.842.524-2","Sergio","Martínez","sergiodaniel.martinezf@gmail.com","Administrador",True,"2026-04-21 09:50:50.55685-04"
+"pbkdf2_sha256$1000000$0u1GYoqk5NHtmh35QLA7Cy$gdiNyiRQTEvGa/l64UIqcLdmYQbO8ubH/hZgM3kO9ow=","2026-01-15 09:16:56.456766-03",2,"12.345.678-5","conductor","conductor","conductor@gmail.com","Conductor",True,"2026-04-21 09:50:50.558791-04"

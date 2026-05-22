@@ -20,7 +20,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = 'django-insecure-gestion-flota-hrn-2025-change-in-production'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = False
 
 ALLOWED_HOSTS = ['*']
 
@@ -76,8 +76,8 @@ DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
         'NAME': 'flota_hrn_db',
-        'USER': 'postgres',
-        'PASSWORD': 'compuvi',
+        'USER': 'flota_user',
+        'PASSWORD': 'flota1234',
         'HOST': 'localhost',
         'PORT': '5432',
     }
@@ -127,7 +127,7 @@ NUMBER_GROUPING = 3
 
 STATIC_URL = 'static/'
 STATICFILES_DIRS = [BASE_DIR / 'flota/static']
-STATIC_ROOT = BASE_DIR / 'staticfiles'
+STATIC_ROOT = BASE_DIR / 'static'
 
 MEDIA_URL = 'media/'
 MEDIA_ROOT = BASE_DIR / 'media'
