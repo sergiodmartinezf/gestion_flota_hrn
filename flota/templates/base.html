@@ -39,13 +39,6 @@
                                 <i class="bi bi-journal-text"></i> Bitácora
                             </a>
                         </li>
-                        {% if user.rol == 'Conductor' %}
-                        <li>
-                            <a href="{% url 'listar_bitacoras' %}">
-                                <i class="bi bi-clock-history"></i> Historial
-                            </a>
-                        </li>
-                        {% endif %}
                         <li>
                             <a href="{% if user.rol == 'Administrador' %}{% url 'listar_cargas_combustible' %}{% else %}{% url 'registrar_carga_combustible' %}{% endif %}">
                                 <i class="bi bi-fuel-pump"></i> Combustible
@@ -54,6 +47,14 @@
                         <li>
                             <a href="{% if user.rol == 'Administrador' %}{% url 'listar_incidentes' %}{% else %}{% url 'registrar_incidente' %}{% endif %}">
                                 <i class="bi bi-exclamation-triangle"></i> Incidente
+                            </a>
+                        </li>
+                        {% endif %}
+                        
+                        {% if user.rol == 'Conductor' %}
+                        <li>
+                            <a href="{% url 'historial_conductor' %}">
+                                <i class="bi bi-clock-history"></i> Historial
                             </a>
                         </li>
                         {% endif %}

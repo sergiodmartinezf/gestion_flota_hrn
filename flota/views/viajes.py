@@ -13,7 +13,7 @@ from ..models import (
     PacienteTraslado, PacienteViaje, DESTINOS_COMUNES,
 )
 from ..forms import HojaRutaForm, CargaCombustibleForm, FallaReportadaForm, ViajeForm, PacienteFormSet
-from .utilidades import es_conductor_o_admin, es_administrador
+from .utilidades import es_conductor_o_admin, es_administrador, es_conductor
 from ..validators import normalizar_rut
 from datetime import datetime, timedelta
 
@@ -475,6 +475,73 @@ def listar_incidentes(request):
         'hasta_filtro': hasta_filtro,
         'conductor_filtro': conductor_filtro,
     })
+
+
+@login_required
+@user_passes_test(es_conductor)
+def historial_conductor(request):
+    # Base querysets filtrados por conductor
+    bitacoras_qs = HojaRuta.objects.filter(conductor=request.user).order_by('-fecha', '-creado_en')
+    cargas_qs = CargaCombustible.objects.filter(conductor=request.user).order_by('-fecha')
+    incidentes_qs = FallaReportada.objects.filter(conductor=request.user).order_by('-fecha_reporte')
+
+    # Filtros para Bitácoras (prefijo b_)
+    b_desde = request.GET.get('b_desde')
+    b_hasta = request.GET.get('b_hasta')
+    b_vehiculo = request.GET.get('b_vehiculo')
+    if b_desde:
+        bitacoras_qs = bitacoras_qs.filter(fecha__gte=b_desde)
+    if b_hasta:
+        bitacoras_qs = bitacoras_qs.filter(fecha__lte=b_hasta)
+    if b_vehiculo:
+        bitacoras_qs = bitacoras_qs.filter(vehiculo__patente=b_vehiculo)
+
+    # Filtros para Cargas (prefijo c_)
+    c_desde = request.GET.get('c_desde')
+    c_hasta = request.GET.get('c_hasta')
+    c_vehiculo = request.GET.get('c_vehiculo')
+    if c_desde:
+        cargas_qs = cargas_qs.filter(fecha__gte=c_desde)
+    if c_hasta:
+        cargas_qs = cargas_qs.filter(fecha__lte=c_hasta)
+    if c_vehiculo:
+        cargas_qs = cargas_qs.filter(patente_vehiculo__patente=c_vehiculo)
+
+    # Filtros para Incidentes (prefijo i_)
+    i_desde = request.GET.get('i_desde')
+    i_hasta = request.GET.get('i_hasta')
+    i_vehiculo = request.GET.get('i_vehiculo')
+    if i_desde:
+        incidentes_qs = incidentes_qs.filter(fecha_reporte__gte=i_desde)
+    if i_hasta:
+        incidentes_qs = incidentes_qs.filter(fecha_reporte__lte=i_hasta)
+    if i_vehiculo:
+        incidentes_qs = incidentes_qs.filter(vehiculo__patente=i_vehiculo)
+
+    # Obtener IDs de vehículos únicos de los tres querysets (sin usar union().distinct())
+    vehiculos_ids = set()
+    vehiculos_ids.update(bitacoras_qs.values_list('vehiculo_id', flat=True))
+    vehiculos_ids.update(cargas_qs.values_list('patente_vehiculo_id', flat=True))
+    vehiculos_ids.update(incidentes_qs.values_list('vehiculo_id', flat=True))
+    vehiculos_usados = Vehiculo.objects.filter(id__in=vehiculos_ids).order_by('patente')
+
+    context = {
+        'bitacoras': bitacoras_qs[:50],
+        'cargas': cargas_qs[:50],
+        'incidentes': incidentes_qs[:50],
+        'vehiculos': vehiculos_usados,
+        'b_desde': b_desde,
+        'b_hasta': b_hasta,
+        'b_vehiculo': b_vehiculo,
+        'c_desde': c_desde,
+        'c_hasta': c_hasta,
+        'c_vehiculo': c_vehiculo,
+        'i_desde': i_desde,
+        'i_hasta': i_hasta,
+        'i_vehiculo': i_vehiculo,
+    }
+    return render(request, 'flota/historial_conductor.html', context)
+
 
 @login_required
 def exportar_traslados_form(request):

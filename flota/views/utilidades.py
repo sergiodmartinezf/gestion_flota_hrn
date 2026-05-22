@@ -4,6 +4,10 @@ def es_administrador(user):
     return user.is_authenticated and user.rol == 'Administrador'
 
 
+def es_conductor(user):
+    return user.is_authenticated and user.rol == 'Conductor'
+
+
 def es_conductor_o_admin(user):
     return user.is_authenticated and (user.rol == 'Administrador' or user.rol == 'Conductor')
 

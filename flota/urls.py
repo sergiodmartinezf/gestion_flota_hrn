@@ -40,6 +40,7 @@ urlpatterns = [
     path('incidentes/registrar/', views.registrar_incidente, name='registrar_incidente'),
     path('incidentes/listar/', views.listar_incidentes, name='listar_incidentes'),
     path('bitacoras/<int:id>/agregar-viaje/', views.agregar_viaje, name='agregar_viaje'),
+    path('historial/', views.historial_conductor, name='historial_conductor'),
     
     # Mantenimiento (RF_18-23): registro unificado desde calendario (preventivo y correctivo)
     path('mantenimientos/programar/', views.programar_mantenimiento, name='programar_mantenimiento'),
