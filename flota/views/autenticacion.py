@@ -31,7 +31,7 @@ def login_view(request):
             if user is not None:
                 login(request, user)
                 if user.rol == 'Conductor':
-                    return redirect('listar_bitacoras')
+                    return redirect('historial_conductor')
                 else:
                     return redirect('dashboard')
             else:
