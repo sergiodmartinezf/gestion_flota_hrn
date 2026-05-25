@@ -33,16 +33,16 @@ TIPOS_SERVICIO = [
 
 @login_required
 def acceso_bitacora(request):
-    """Redirige según rol: admin/listado o conductor/hoja del día."""
+    """Redirige según rol: admin/listado o conductor/hoja activa."""
     if request.user.rol in ['Administrador', 'Visualizador']:
         return redirect('listar_bitacoras')
 
     if request.user.rol == 'Conductor':
+        # Buscar cualquier bitácora abierta del conductor, sin filtrar por fecha
         hoja_activa = HojaRuta.objects.filter(
-            conductor=request.user, 
-            fecha=timezone.now().date(),
+            conductor=request.user,
             abierta=True
-        ).order_by('-creado_en').first()
+        ).order_by('-fecha', '-creado_en').first()
 
         if hoja_activa:
             return redirect('agregar_viaje', id=hoja_activa.id)
@@ -50,6 +50,7 @@ def acceso_bitacora(request):
             return redirect('registrar_bitacora')
 
     return redirect('listar_bitacoras')
+
 
 @login_required
 def cerrar_hoja_ruta(request, id):
@@ -541,6 +542,46 @@ def historial_conductor(request):
         'i_vehiculo': i_vehiculo,
     }
     return render(request, 'flota/historial_conductor.html', context)
+
+
+@login_required
+def reabrir_bitacora(request, id):
+    hoja = get_object_or_404(HojaRuta, id=id)
+
+    # Verificar permisos: el conductor de la hoja o administrador
+    if request.user != hoja.conductor and request.user.rol != 'Administrador':
+        messages.error(request, "No tienes permiso para reabrir esta hoja de ruta.")
+        return redirect('historial_conductor')
+
+    if hoja.abierta:
+        messages.warning(request, "La hoja de ruta ya está abierta.")
+        return redirect('agregar_viaje', id=hoja.id)
+
+    # Verificar que no exista otra bitácora abierta para este conductor
+    otra_abierta = HojaRuta.objects.filter(
+        conductor=request.user,
+        abierta=True
+    ).exclude(id=hoja.id).exists()
+
+    if otra_abierta:
+        messages.error(
+            request,
+            "No se puede reabrir esta bitácora porque ya tienes otra hoja de ruta abierta. "
+            "Por favor, cierra la bitácora activa primero."
+        )
+        return redirect('historial_conductor')
+
+    # Reabrir: establecer abierta=True y eliminar km_fin
+    hoja.abierta = True
+    hoja.km_fin = None
+    hoja.save(update_fields=['abierta', 'km_fin'])
+
+    messages.success(
+        request,
+        f"Hoja de ruta del {hoja.fecha.strftime('%d/%m/%Y')} reabierta correctamente. "
+        "Puedes agregar más viajes."
+    )
+    return redirect('agregar_viaje', id=hoja.id)
 
 
 @login_required
