@@ -186,7 +186,7 @@ function initTimeCharts() {
                             responsive: true,
                             maintainAspectRatio: true,
                             plugins: {
-                                legend: { display: false },
+                                legend: { position: 'bottom', display: false },
                                 tooltip: {
                                     callbacks: {
                                         label: (context) => {
@@ -342,6 +342,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     responsive: true,
                     maintainAspectRatio: true,
                     plugins: {
+                        legend: { position: 'bottom' },
                         tooltip: {
                             callbacks: {
                                 label: (context) => {
@@ -409,6 +410,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     responsive: true,
                     maintainAspectRatio: true,
                     plugins: {
+                        legend: { position: 'bottom' },
                         tooltip: {
                             callbacks: {
                                 label: (c) => '$' + new Intl.NumberFormat('es-CL').format(c.raw || 0)
@@ -461,7 +463,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     responsive: true,
                     maintainAspectRatio: true,
                     plugins: {
-                        legend: { position: 'top' },
+                        legend: { position: 'bottom' },
                         tooltip: {
                             callbacks: {
                                 label: (context) => context.dataset.label + ': $' + (context.raw || 0).toLocaleString('es-CL')
@@ -507,6 +509,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     responsive: true,
                     maintainAspectRatio: true,
                     plugins: {
+                        legend: { position: 'bottom' },
                         tooltip: {
                             callbacks: {
                                 label: (context) => {
@@ -568,6 +571,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 responsive: true,
                 maintainAspectRatio: false,
                 plugins: {
+                    legend: { position: 'bottom' },
                     annotation: {
                         annotations: {
                             line8000: {
