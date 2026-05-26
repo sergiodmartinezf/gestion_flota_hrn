@@ -29,7 +29,22 @@ document.addEventListener('DOMContentLoaded', function() {
                 options: {
                     responsive: true,
                     scales: { x: { stacked: true }, y: { stacked: true, beginAtZero: true, title: { display: true, text: 'Costo ($)' }, ticks: { callback: (v) => '$' + v.toLocaleString('es-CL') } } },
-                    plugins: { tooltip: { callbacks: { label: (ctx) => `${ctx.dataset.label}: $${ctx.parsed.y.toLocaleString('es-CL')}` } } },
+                    plugins: { 
+                        tooltip: { 
+                            callbacks: { label: (ctx) => `${ctx.dataset.label}: $${ctx.parsed.y.toLocaleString('es-CL')}` } 
+                        },
+                        datalabels: {
+                            anchor: 'end',      // posición: 'end' = arriba de la barra
+                            align: 'top',
+                            offset: 4,
+                            color: '#333',
+                            font: { weight: 'bold', size: 11 },
+                            formatter: (value, context) => {
+                                // Formatea el valor, por ejemplo en pesos chilenos
+                                return '$' + value.toLocaleString('es-CL');
+                            }
+                        }
+                    },
                     onClick: (evt, elements) => { if (elements.length) actualizarDesgloseCostos(elements[0].index); }
                 }
             });
