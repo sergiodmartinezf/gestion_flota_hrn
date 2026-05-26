@@ -632,5 +632,4 @@ document.addEventListener('DOMContentLoaded', function() {
         ctxKm.getContext('2d').clearRect(0, 0, ctxKm.width, ctxKm.height);
         console.warn('No hay datos para el gráfico de kilómetros');
     }
-
 });
