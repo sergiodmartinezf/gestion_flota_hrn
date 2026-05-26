@@ -62,6 +62,11 @@ function initTimeCharts() {
                 }]
             },
             options: {
+                layout: {
+                    padding: {
+                      top: 30 
+                    } 
+                },
                 responsive: true,
                 maintainAspectRatio: true,
                 plugins: {
@@ -102,6 +107,11 @@ function initTimeCharts() {
                     }]
                 },
                 options: {
+                    layout: {
+                        padding: {
+                          top: 30 
+                        } 
+                    },
                     responsive: true,
                     maintainAspectRatio: true,
                     plugins: {
@@ -183,6 +193,11 @@ function initTimeCharts() {
                             }]
                         },
                         options: {
+                            layout: {
+                                padding: {
+                                  top: 30 
+                                } 
+                            },
                             responsive: true,
                             maintainAspectRatio: true,
                             plugins: {
@@ -245,6 +260,11 @@ function initTimeCharts() {
                 ]
             },
             options: {
+                layout: {
+                    padding: {
+                      top: 30 
+                    } 
+                },
                 responsive: true,
                 maintainAspectRatio: true,
                 plugins: {
@@ -338,6 +358,11 @@ document.addEventListener('DOMContentLoaded', function() {
                     ]
                 },
                 options: {
+                    layout: {
+                        padding: {
+                            right: 60
+                        } 
+                    },
                     indexAxis: 'y',
                     responsive: true,
                     maintainAspectRatio: true,
@@ -352,7 +377,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         },
                         datalabels: { 
                             anchor: 'end', 
-                            align: 'start',
+                            align: 'end',
                             clip: false,
                             formatter: (value) => value ? '$' + value.toLocaleString('es-CL') : ''
                         } 
@@ -407,6 +432,13 @@ document.addEventListener('DOMContentLoaded', function() {
                     }]
                 },
                 options: {
+                    layout: {
+                        padding: {
+                          top: 30,
+                          //left: 50,
+                          right: 30
+                        } 
+                    },
                     responsive: true,
                     maintainAspectRatio: true,
                     plugins: {
@@ -460,6 +492,11 @@ document.addEventListener('DOMContentLoaded', function() {
                     ]
                 },
                 options: {
+                    layout: {
+                        padding: {
+                          top: 30 
+                        } 
+                    },
                     responsive: true,
                     maintainAspectRatio: true,
                     plugins: {
@@ -505,6 +542,11 @@ document.addEventListener('DOMContentLoaded', function() {
                     ]
                 },
                 options: {
+                    layout: {
+                        padding: {
+                          top: 30 
+                        } 
+                    },
                     indexAxis: 'y',
                     responsive: true,
                     maintainAspectRatio: true,
@@ -568,6 +610,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 }]
             },
             options: {
+                layout: {
+                    padding: {
+                      top: 30 
+                    } 
+                },
                 responsive: true,
                 maintainAspectRatio: false,
                 plugins: {

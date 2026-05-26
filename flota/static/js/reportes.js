@@ -72,6 +72,11 @@ document.addEventListener('DOMContentLoaded', function() {
                     ]
                 },
                 options: {
+                    layout: {
+                        padding: {
+                          top: 30 
+                        } 
+                    },
                     responsive: true,
                     scales: { 
                         x: { 
@@ -148,6 +153,11 @@ document.addEventListener('DOMContentLoaded', function() {
                     ]
                 },
                 options: {
+                    layout: {
+                        padding: {
+                          top: 30 
+                        } 
+                    },
                     responsive: true, 
                     cutout: '60%',
                     plugins: {
@@ -198,6 +208,11 @@ document.addEventListener('DOMContentLoaded', function() {
                         ] 
                     },
                     options: { 
+                        layout: {
+                            padding: {
+                              top: 30 
+                            } 
+                        },
                         responsive: true, 
                         scales: { 
                             y: { 
@@ -262,6 +277,11 @@ document.addEventListener('DOMContentLoaded', function() {
                         ]
                     },
                     options: {
+                        layout: {
+                            padding: {
+                              top: 30 
+                            } 
+                        },
                         responsive: true,
                         scales: {
                             y: {
@@ -321,6 +341,11 @@ document.addEventListener('DOMContentLoaded', function() {
                     ]
                 },
                 options: {
+                    layout: {
+                        padding: {
+                          top: 30 
+                        } 
+                    },
                     responsive: true, 
                     maintainAspectRatio: true,
                     plugins: { 
@@ -358,6 +383,11 @@ document.addEventListener('DOMContentLoaded', function() {
                     ] 
                 },
                 options: {
+                    layout: {
+                        padding: {
+                          top: 30 
+                        } 
+                    },
                     indexAxis: 'y', 
                     responsive: true,
                     plugins: {
@@ -410,6 +440,11 @@ document.addEventListener('DOMContentLoaded', function() {
                         ] 
                     },
                     options: { 
+                        layout: {
+                            padding: {
+                              top: 30 
+                            } 
+                        },
                         responsive: true, 
                         scales: { 
                             y: { 
@@ -473,6 +508,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 ]
             },
             options: {
+                layout: {
+                    padding: {
+                      top: 30 
+                    } 
+                },
                 responsive: true,
                 maintainAspectRatio: true,
                 scales: {
@@ -522,6 +562,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 ]
             },
             options: {
+                layout: {
+                    padding: {
+                      top: 30 
+                    } 
+                },
                 responsive: true,
                 scales: {
                     y: {
@@ -570,6 +615,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 ]
             },
             options: {
+                layout: {
+                    padding: {
+                      top: 30 
+                    } 
+                },
                 responsive: true,
                 scales: {
                     y: {
@@ -618,6 +668,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 ]
             },
             options: {
+                layout: {
+                    padding: {
+                      top: 30 
+                    } 
+                },
                 responsive: true,
                 scales: {
                     y: {
@@ -666,6 +721,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 ]
             },
             options: {
+                layout: {
+                    padding: {
+                      top: 30 
+                    } 
+                },
                 responsive: true,
                 scales: {
                     y: {
@@ -714,6 +774,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 ]
             },
             options: {
+                layout: {
+                    padding: {
+                      top: 30 
+                    } 
+                },
                 responsive: true,
                 scales: {
                     y: {
