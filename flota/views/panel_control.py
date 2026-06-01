@@ -30,7 +30,13 @@ def panel_control(request):
 
     inicio_anio = date(anio_seleccionado, 1, 1)
     fin_anio = date(anio_seleccionado, 12, 31)
-    fin_calculo = fin_anio
+
+    # Si el año seleccionado es el actual, usar la fecha de hoy como límite superior
+    if anio_seleccionado == hoy.year:
+        fin_calculo = hoy
+    else:
+        fin_calculo = fin_anio
+
     dias_del_periodo = (fin_calculo - inicio_anio).days + 1
 
     presupuestos_todos = Presupuesto.objects.filter(anio=anio_seleccionado)
@@ -98,7 +104,7 @@ def panel_control(request):
         for m in mants_v:
             inicio = max(m.fecha_ingreso, inicio_anio)
             fecha_termino_real = m.fecha_salida if m.fecha_salida else hoy
-            fin = min(fecha_termino_real, fin_anio)
+            fin = min(fecha_termino_real, fin_calculo)
             
             if fin >= inicio:
                 duracion = (fin - inicio).days + 1
