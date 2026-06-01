@@ -466,7 +466,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         // 2. Comparativa global (Preventivo vs Correctivo)
-        // "Comparativa: Preventivo vs Correctivo (Global)"
         if (ctxBarras && comparativaData && comparativaData.labels && comparativaData.programado && comparativaData.ejecutado) {
             comparativaChart = new Chart(ctxBarras, {
                 type: 'bar',
@@ -476,13 +475,13 @@ document.addEventListener('DOMContentLoaded', function() {
                         {
                             label: 'Programado ($)',
                             data: comparativaData.programado.map(v => v || 0),
-                            backgroundColor: 'rgba(201, 203, 207, 0.8)',
+                            backgroundColor: 'rgb(201, 203, 207)',
                             borderRadius: 5
                         },
                         {
                             label: 'Ejecutado ($)',
                             data: comparativaData.ejecutado.map(v => v || 0),
-                            backgroundColor: '#0d6efd',
+                            backgroundColor: 'rgb(87, 87, 87)',
                             borderRadius: 5
                         }
                     ]
