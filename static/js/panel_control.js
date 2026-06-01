@@ -1,4 +1,4 @@
-//Chart.register(ChartDataLabels);
+Chart.register(ChartDataLabels);
 
 function getJSON(elementId, defaultValue = null) {
     const el = document.getElementById(elementId);
@@ -62,6 +62,11 @@ function initTimeCharts() {
                 }]
             },
             options: {
+                layout: {
+                    padding: {
+                      top: 30 
+                    } 
+                },
                 responsive: true,
                 maintainAspectRatio: true,
                 plugins: {
@@ -76,11 +81,19 @@ function initTimeCharts() {
                                 return `${label}: ${value} días / ${percentage}%`;
                             }
                         }
-                    }/*,
+                    },
                     datalabels: { 
-                        anchor: 'end', 
-                        align: 'top'
-                    }*/
+                        color: 'white',
+                        formatter: (value, context) => {
+                            if (value === 0) {
+                                return '';
+                            } else {
+                                const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : '0.0';
+                                return `${value} días / ${percentage}%`;
+                            }
+                        }
+                    }
                 }
             }
         });
@@ -102,6 +115,11 @@ function initTimeCharts() {
                     }]
                 },
                 options: {
+                    layout: {
+                        padding: {
+                          top: 30 
+                        } 
+                    },
                     responsive: true,
                     maintainAspectRatio: true,
                     plugins: {
@@ -116,11 +134,19 @@ function initTimeCharts() {
                                     return `${label}: ${value} días / ${percentage}%`;
                                 }
                             }
-                        }/*,
+                        },
                         datalabels: { 
-                            anchor: 'end', 
-                            align: 'top'
-                        }*/
+                            color: 'white',
+                            formatter: (value, context) => {
+                                if (value === 0) {
+                                    return '';
+                                } else {
+                                    const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                    const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : '0.0';
+                                    return `${value} días / ${percentage}%`;
+                                }
+                            }
+                        }
                     }
                 }
             });
@@ -183,6 +209,11 @@ function initTimeCharts() {
                             }]
                         },
                         options: {
+                            layout: {
+                                padding: {
+                                  top: 30 
+                                } 
+                            },
                             responsive: true,
                             maintainAspectRatio: true,
                             plugins: {
@@ -203,11 +234,19 @@ function initTimeCharts() {
                                             }
                                         }
                                     }
-                                }/*,
+                                },
                                 datalabels: {
-                                    anchor: 'end', 
-                                    align: 'top'
-                                }*/
+                                    color: 'white',
+                                    formatter: (value, context) => {
+                                        if (value === 0) {
+                                            return '';
+                                        } else {
+                                            const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                            const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : '0.0';
+                                            return `${percentage}%`;
+                                        }
+                                    }
+                                }
                             }
                         }
                     });
@@ -245,6 +284,11 @@ function initTimeCharts() {
                 ]
             },
             options: {
+                layout: {
+                    padding: {
+                      top: 30 
+                    } 
+                },
                 responsive: true,
                 maintainAspectRatio: true,
                 plugins: {
@@ -257,11 +301,14 @@ function initTimeCharts() {
                                 return `${label}: ${value} días`;
                             }
                         }
-                    }/*,
+                    },
                     datalabels: { 
                         anchor: 'end', 
                         align: 'top',
-                    }*/
+                        formatter: (value, context) => {
+                            return `${value} días`;
+                        }
+                    }
                 },
                 scales: { y: { beginAtZero: true } }
             }
@@ -297,7 +344,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // ------------------------------------------------------------------
     // Función para actualizar el detalle mensual (llamada desde el gráfico)
-    // "2. Gasto en ..."
     // ------------------------------------------------------------------
     function updateFinanceDetail(mes, data) {
         const ctxDetail = document.getElementById('chartFinanceDetail');
@@ -306,7 +352,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         if (!ctxDetail || !detailTitle || !detailContent) return;
 
-        detailTitle.innerText = `2. Gasto en ${mes}`;
+        detailTitle.innerText = `Gasto en ${mes}`;
         detailContent.classList.add('d-none');
         ctxDetail.classList.remove('d-none');
 
@@ -338,6 +384,11 @@ document.addEventListener('DOMContentLoaded', function() {
                     ]
                 },
                 options: {
+                    layout: {
+                        padding: {
+                            right: 60
+                        } 
+                    },
                     indexAxis: 'y',
                     responsive: true,
                     maintainAspectRatio: true,
@@ -352,9 +403,11 @@ document.addEventListener('DOMContentLoaded', function() {
                         },
                         datalabels: { 
                             anchor: 'end', 
-                            align: 'start',
+                            align: 'end',
                             clip: false,
-                            formatter: (value) => value ? '$' + value.toLocaleString('es-CL') : ''
+                            formatter: (value, context) => {
+                                return `$${value.toLocaleString('es-CL')}`;
+                            }
                         } 
                     },
                     scales: {
@@ -407,6 +460,13 @@ document.addEventListener('DOMContentLoaded', function() {
                     }]
                 },
                 options: {
+                    layout: {
+                        padding: {
+                          top: 30,
+                          //left: 50,
+                          right: 30
+                        } 
+                    },
                     responsive: true,
                     maintainAspectRatio: true,
                     plugins: {
@@ -419,7 +479,9 @@ document.addEventListener('DOMContentLoaded', function() {
                         datalabels: { 
                             anchor: 'end', 
                             align: 'top',
-                            formatter: (value) => value ? '$' + value.toLocaleString('es-CL') : ''
+                            formatter: (value, context) => {
+                                return `$${value.toLocaleString('es-CL')}`;
+                            }
                         } 
                     },
                     onClick: (e, activeElements) => {
@@ -438,7 +500,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         // 2. Comparativa global (Preventivo vs Correctivo)
-        // "Comparativa: Preventivo vs Correctivo (Global)"
         if (ctxBarras && comparativaData && comparativaData.labels && comparativaData.programado && comparativaData.ejecutado) {
             comparativaChart = new Chart(ctxBarras, {
                 type: 'bar',
@@ -448,18 +509,23 @@ document.addEventListener('DOMContentLoaded', function() {
                         {
                             label: 'Programado ($)',
                             data: comparativaData.programado.map(v => v || 0),
-                            backgroundColor: 'rgba(201, 203, 207, 0.8)',
+                            backgroundColor: 'rgb(201, 203, 207)',
                             borderRadius: 5
                         },
                         {
                             label: 'Ejecutado ($)',
                             data: comparativaData.ejecutado.map(v => v || 0),
-                            backgroundColor: '#0d6efd',
+                            backgroundColor: 'rgb(87, 87, 87)',
                             borderRadius: 5
                         }
                     ]
                 },
                 options: {
+                    layout: {
+                        padding: {
+                          top: 30 
+                        } 
+                    },
                     responsive: true,
                     maintainAspectRatio: true,
                     plugins: {
@@ -472,7 +538,9 @@ document.addEventListener('DOMContentLoaded', function() {
                         datalabels: { 
                             anchor: 'end', 
                             align: 'top',
-                            formatter: (value) => value ? '$' + value.toLocaleString('es-CL') : ''
+                            formatter: (value, context) => {
+                                return `$${value.toLocaleString('es-CL')}`;
+                            }
                         } 
                     }
                 }
@@ -483,7 +551,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         // 3. Gasto acumulado por vehículo (desglosado)
-        // "Gasto Acumulado por Vehículo (Preventivo vs Correctivo)"
         if (ctxVehicle && vehicleData && Array.isArray(vehicleData) && vehicleData.length > 0) {
             vehicleChart = new Chart(ctxVehicle, {
                 type: 'bar',
@@ -505,6 +572,11 @@ document.addEventListener('DOMContentLoaded', function() {
                     ]
                 },
                 options: {
+                    layout: {
+                        padding: {
+                          top: 30 
+                        } 
+                    },
                     indexAxis: 'y',
                     responsive: true,
                     maintainAspectRatio: true,
@@ -519,14 +591,15 @@ document.addEventListener('DOMContentLoaded', function() {
                         },
                         datalabels: { 
                             anchor: 'end', 
-                            align: 'start',
-                            color: 'white',
-                            formatter: (value) => value ? '$' + value.toLocaleString('es-CL') : ''
+                            align: 'end',
+                            formatter: (value, context) => {
+                                return `$${value.toLocaleString('es-CL')}`;
+                            }
                         } 
                     },
                     scales: {
-                        x: { stacked: true, beginAtZero: true },
-                        y: { stacked: true }
+                        x: { stacked: false, beginAtZero: true },
+                        y: { stacked: false }
                     }
                 }
             });
@@ -568,6 +641,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 }]
             },
             options: {
+                layout: {
+                    padding: {
+                      top: 30 
+                    } 
+                },
                 responsive: true,
                 maintainAspectRatio: false,
                 plugins: {
@@ -616,7 +694,17 @@ document.addEventListener('DOMContentLoaded', function() {
                     },
                     datalabels: { 
                         anchor: 'end', 
-                        align: 'top'
+                        align: 'top',
+                        formatter: (value, context) => {
+                            const item = kmData[context.dataIndex];
+                            let msg = `${item.recorrido} km`;
+                            if (item.recorrido >= 12000) {
+                                msg += ' - BLOQUEADO';
+                            } else if (item.recorrido >= 8000) {
+                                msg += ' - Próximo a mantenimiento';
+                            }
+                            return msg;
+                        }
                     } 
                 },
                 scales: {

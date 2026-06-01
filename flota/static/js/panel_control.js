@@ -85,9 +85,13 @@ function initTimeCharts() {
                     datalabels: { 
                         color: 'white',
                         formatter: (value, context) => {
-                            const total = context.dataset.data.reduce((a, b) => a + b, 0);
-                            const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : '0.0';
-                            return `${value} días / ${percentage}%`;
+                            if (value === 0) {
+                                return '';
+                            } else {
+                                const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : '0.0';
+                                return `${value} días / ${percentage}%`;
+                            }
                         }
                     }
                 }
@@ -134,9 +138,13 @@ function initTimeCharts() {
                         datalabels: { 
                             color: 'white',
                             formatter: (value, context) => {
-                                const total = context.dataset.data.reduce((a, b) => a + b, 0);
-                                const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : '0.0';
-                                return `${value} días / ${percentage}%`;
+                                if (value === 0) {
+                                    return '';
+                                } else {
+                                    const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                    const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : '0.0';
+                                    return `${value} días / ${percentage}%`;
+                                }
                             }
                         }
                     }
@@ -230,9 +238,13 @@ function initTimeCharts() {
                                 datalabels: {
                                     color: 'white',
                                     formatter: (value, context) => {
-                                        const total = typeof DIAS_DEL_PERIODO !== 'undefined' ? DIAS_DEL_PERIODO : context.dataset.data.reduce((a, b) => a + b, 0);
-                                        const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : '0.0';
-                                        return `${percentage}%`;
+                                        if (value === 0) {
+                                            return '';
+                                        } else {
+                                            const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                            const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : '0.0';
+                                            return `${percentage}%`;
+                                        }
                                     }
                                 }
                             }

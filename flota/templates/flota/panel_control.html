@@ -195,7 +195,7 @@
                 <h5>Distribución individual por vehículo</h5>
                 <div class="row" id="vehicle-charts-container">
                     {% for v in dias_por_vehiculo_ambulancias %}
-                    <div class="col-md-3 col-sm-6">
+                    <div class="col-md-4 col-sm-6">
                         <div class="vehicle-card text-center">
                             <strong>{{ v.patente }}</strong>
                             <canvas id="chartPatente{{ forloop.counter }}" width="100" height="100"></canvas>
