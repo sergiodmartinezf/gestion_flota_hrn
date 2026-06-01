@@ -8,7 +8,8 @@
 {% block title %}Reportes - Gestión de Flota{% endblock %}
 
 {% block extra_js %}
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<!-- GRÁFICOS -->        
+<script src="{% static 'js/chart.umd.min.js' %}"></script>
 <script>
     window.patentesDisp = {{ patentes_disp|safe }};
     window.diasFueraDisp = {{ dias_fuera_disp|safe }};
