@@ -1,3 +1,5 @@
+Chart.register(ChartDataLabels);
+
 function getJSON(elementId, defaultValue = null) {
     const el = document.getElementById(elementId);
     if (!el) {
@@ -11,6 +13,8 @@ function getJSON(elementId, defaultValue = null) {
         return defaultValue;
     }
 }
+
+// Gráficos de disponibilidad
 
 // Variables para los gráficos del modal Tiempo
 let ambulanciasChart = null;
@@ -58,6 +62,11 @@ function initTimeCharts() {
                 }]
             },
             options: {
+                layout: {
+                    padding: {
+                      top: 30 
+                    } 
+                },
                 responsive: true,
                 maintainAspectRatio: true,
                 plugins: {
@@ -72,6 +81,9 @@ function initTimeCharts() {
                                 return `${label}: ${value} días / ${percentage}%`;
                             }
                         }
+                    },
+                    datalabels: { 
+                        color: 'white',
                     }
                 }
             }
@@ -94,6 +106,11 @@ function initTimeCharts() {
                     }]
                 },
                 options: {
+                    layout: {
+                        padding: {
+                          top: 30 
+                        } 
+                    },
                     responsive: true,
                     maintainAspectRatio: true,
                     plugins: {
@@ -108,6 +125,9 @@ function initTimeCharts() {
                                     return `${label}: ${value} días / ${percentage}%`;
                                 }
                             }
+                        },
+                        datalabels: { 
+                            color: 'white',
                         }
                     }
                 }
@@ -171,10 +191,15 @@ function initTimeCharts() {
                             }]
                         },
                         options: {
+                            layout: {
+                                padding: {
+                                  top: 30 
+                                } 
+                            },
                             responsive: true,
                             maintainAspectRatio: true,
                             plugins: {
-                                legend: { display: false },
+                                legend: { position: 'bottom', display: false },
                                 tooltip: {
                                     callbacks: {
                                         label: (context) => {
@@ -191,6 +216,9 @@ function initTimeCharts() {
                                             }
                                         }
                                     }
+                                },
+                                datalabels: {
+                                    color: 'white',
                                 }
                             }
                         }
@@ -229,6 +257,11 @@ function initTimeCharts() {
                 ]
             },
             options: {
+                layout: {
+                    padding: {
+                      top: 30 
+                    } 
+                },
                 responsive: true,
                 maintainAspectRatio: true,
                 plugins: {
@@ -241,6 +274,10 @@ function initTimeCharts() {
                                 return `${label}: ${value} días`;
                             }
                         }
+                    },
+                    datalabels: { 
+                        anchor: 'end', 
+                        align: 'top',
                     }
                 },
                 scales: { y: { beginAtZero: true } }
@@ -285,7 +322,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         if (!ctxDetail || !detailTitle || !detailContent) return;
 
-        detailTitle.innerText = `2. Gasto en ${mes}`;
+        detailTitle.innerText = `Gasto en ${mes}`;
         detailContent.classList.add('d-none');
         ctxDetail.classList.remove('d-none');
 
@@ -317,17 +354,29 @@ document.addEventListener('DOMContentLoaded', function() {
                     ]
                 },
                 options: {
+                    layout: {
+                        padding: {
+                            right: 60
+                        } 
+                    },
                     indexAxis: 'y',
                     responsive: true,
                     maintainAspectRatio: true,
                     plugins: {
+                        legend: { position: 'bottom' },
                         tooltip: {
                             callbacks: {
                                 label: (context) => {
                                     return context.dataset.label + ': $' + context.raw.toLocaleString('es-CL');
                                 }
                             }
-                        }
+                        },
+                        datalabels: { 
+                            anchor: 'end', 
+                            align: 'end',
+                            clip: false,
+                            formatter: (value) => value ? '$' + value.toLocaleString('es-CL') : ''
+                        } 
                     },
                     scales: {
                         x: { stacked: false, beginAtZero: true },
@@ -379,14 +428,27 @@ document.addEventListener('DOMContentLoaded', function() {
                     }]
                 },
                 options: {
+                    layout: {
+                        padding: {
+                          top: 30,
+                          //left: 50,
+                          right: 30
+                        } 
+                    },
                     responsive: true,
                     maintainAspectRatio: true,
                     plugins: {
+                        legend: { position: 'bottom' },
                         tooltip: {
                             callbacks: {
                                 label: (c) => '$' + new Intl.NumberFormat('es-CL').format(c.raw || 0)
                             }
-                        }
+                        },
+                        datalabels: { 
+                            anchor: 'end', 
+                            align: 'top',
+                            formatter: (value) => value ? '$' + value.toLocaleString('es-CL') : ''
+                        } 
                     },
                     onClick: (e, activeElements) => {
                         if (activeElements.length > 0) {
@@ -413,27 +475,37 @@ document.addEventListener('DOMContentLoaded', function() {
                         {
                             label: 'Programado ($)',
                             data: comparativaData.programado.map(v => v || 0),
-                            backgroundColor: 'rgba(201, 203, 207, 0.8)',
+                            backgroundColor: 'rgb(201, 203, 207)',
                             borderRadius: 5
                         },
                         {
                             label: 'Ejecutado ($)',
                             data: comparativaData.ejecutado.map(v => v || 0),
-                            backgroundColor: '#0d6efd',
+                            backgroundColor: 'rgb(87, 87, 87)',
                             borderRadius: 5
                         }
                     ]
                 },
                 options: {
+                    layout: {
+                        padding: {
+                          top: 30 
+                        } 
+                    },
                     responsive: true,
                     maintainAspectRatio: true,
                     plugins: {
-                        legend: { position: 'top' },
+                        legend: { position: 'bottom' },
                         tooltip: {
                             callbacks: {
                                 label: (context) => context.dataset.label + ': $' + (context.raw || 0).toLocaleString('es-CL')
                             }
-                        }
+                        },
+                        datalabels: { 
+                            anchor: 'end', 
+                            align: 'top',
+                            formatter: (value) => value ? '$' + value.toLocaleString('es-CL') : ''
+                        } 
                     }
                 }
             });
@@ -443,6 +515,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         // 3. Gasto acumulado por vehículo (desglosado)
+        // "Gasto Acumulado por Vehículo (Preventivo vs Correctivo)"
         if (ctxVehicle && vehicleData && Array.isArray(vehicleData) && vehicleData.length > 0) {
             vehicleChart = new Chart(ctxVehicle, {
                 type: 'bar',
@@ -464,21 +537,32 @@ document.addEventListener('DOMContentLoaded', function() {
                     ]
                 },
                 options: {
+                    layout: {
+                        padding: {
+                          top: 30 
+                        } 
+                    },
                     indexAxis: 'y',
                     responsive: true,
                     maintainAspectRatio: true,
                     plugins: {
+                        legend: { position: 'bottom' },
                         tooltip: {
                             callbacks: {
                                 label: (context) => {
                                     return context.dataset.label + ': $' + (context.raw || 0).toLocaleString('es-CL');
                                 }
                             }
-                        }
+                        },
+                        datalabels: { 
+                            anchor: 'end', 
+                            align: 'end',
+                            formatter: (value) => value ? '$' + value.toLocaleString('es-CL') : ''
+                        } 
                     },
                     scales: {
-                        x: { stacked: true, beginAtZero: true },
-                        y: { stacked: true }
+                        x: { stacked: false, beginAtZero: true },
+                        y: { stacked: false }
                     }
                 }
             });
@@ -520,9 +604,15 @@ document.addEventListener('DOMContentLoaded', function() {
                 }]
             },
             options: {
+                layout: {
+                    padding: {
+                      top: 30 
+                    } 
+                },
                 responsive: true,
                 maintainAspectRatio: false,
                 plugins: {
+                    legend: { position: 'bottom' },
                     annotation: {
                         annotations: {
                             line8000: {
@@ -531,13 +621,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                 yMax: 8000,
                                 borderColor: 'orange',
                                 borderWidth: 2,
-                                borderDash: [6, 6]/*,
-                                label: {
-                                    content: '8.000 km (umbral preventivo)',
-                                    enabled: true,
-                                    position: 'end',
-                                    xAdjust: 60
-                                }*/
+                                borderDash: [6, 6]
                             },
                             line10000: {
                                 type: 'line',
@@ -545,13 +629,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                 yMax: 10000,
                                 borderColor: 'red',
                                 borderWidth: 2,
-                                borderDash: [6, 6]/*,
-                                label: {
-                                    content: '10.000 km (límite mantención)',
-                                    enabled: true,
-                                    position: 'end',
-                                    xAdjust: 60
-                                }*/
+                                borderDash: [6, 6]
                             },
                             line12000: {
                                 type: 'line',
@@ -559,13 +637,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                 yMax: 12000,
                                 borderColor: 'darkred',
                                 borderWidth: 2,
-                                borderDash: [6, 6]/*,
-                                label: {
-                                    content: '12.000 km (bloqueo)',
-                                    enabled: true,
-                                    position: 'end',
-                                    xAdjust: 60
-                                }*/
+                                borderDash: [6, 6]
                             }
                         }
                     },
@@ -582,7 +654,11 @@ document.addEventListener('DOMContentLoaded', function() {
                                 return msg;
                             }
                         }
-                    }
+                    },
+                    datalabels: { 
+                        anchor: 'end', 
+                        align: 'top'
+                    } 
                 },
                 scales: {
                     y: {
@@ -597,5 +673,4 @@ document.addEventListener('DOMContentLoaded', function() {
         ctxKm.getContext('2d').clearRect(0, 0, ctxKm.width, ctxKm.height);
         console.warn('No hay datos para el gráfico de kilómetros');
     }
-
 });

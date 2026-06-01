@@ -1,6 +1,6 @@
 # Sistema de Gestión de Flota - Hospital Río Negro
 
-Sistema web integral desarrollado en Django para la gestión completa de la flota vehicular del Hospital Río Negro. El sistema permite administrar desde la adquisición hasta el mantenimiento de vehículos, incluyendo control presupuestario, hojas de ruta con registro de personal médico, bitácoras de viaje, gestión de combustible, reportes de incidentes y seguimiento de mantenimientos preventivos y correctivos.
+Sistema web integral desarrollado en Django para la gestión completa de la flota vehicular del Hospital Río Negro. El sistema permite administrar desde la adquisición hasta el mantenimiento de vehículos, incluyendo control presupuestario, hojas de ruta con registro de personal médico, bitácoras de viaje, gestión de combustible, reportes de incidentes y seguimiento de mantenimientos preventivos y correctivos. 
 
 ## Características Principales
 
@@ -161,7 +161,7 @@ proyecto/
 │   ├── utils.py                 # Utilidades auxiliares
 │   ├── management/              # Comandos de gestión
 │   │   └── commands/
-│   │       └── crear_datos_iniciales.py
+│   │       └── datos_base.py
 │   ├── migrations/              # Migraciones de base de datos
 │   ├── static/                  # Archivos estáticos
 │   │   ├── css/                # Estilos personalizados + Bootstrap
