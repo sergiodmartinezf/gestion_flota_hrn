@@ -84,6 +84,11 @@ function initTimeCharts() {
                     },
                     datalabels: { 
                         color: 'white',
+                        formatter: (value, context) => {
+                            const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                            const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : '0.0';
+                            return `${value} días / ${percentage}%`;
+                        }
                     }
                 }
             }
@@ -128,6 +133,11 @@ function initTimeCharts() {
                         },
                         datalabels: { 
                             color: 'white',
+                            formatter: (value, context) => {
+                                const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : '0.0';
+                                return `${value} días / ${percentage}%`;
+                            }
                         }
                     }
                 }
@@ -219,6 +229,11 @@ function initTimeCharts() {
                                 },
                                 datalabels: {
                                     color: 'white',
+                                    formatter: (value, context) => {
+                                        const total = typeof DIAS_DEL_PERIODO !== 'undefined' ? DIAS_DEL_PERIODO : context.dataset.data.reduce((a, b) => a + b, 0);
+                                        const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : '0.0';
+                                        return `${percentage}%`;
+                                    }
                                 }
                             }
                         }
@@ -278,6 +293,9 @@ function initTimeCharts() {
                     datalabels: { 
                         anchor: 'end', 
                         align: 'top',
+                        formatter: (value, context) => {
+                            return `${value} días`;
+                        }
                     }
                 },
                 scales: { y: { beginAtZero: true } }
@@ -375,7 +393,9 @@ document.addEventListener('DOMContentLoaded', function() {
                             anchor: 'end', 
                             align: 'end',
                             clip: false,
-                            formatter: (value) => value ? '$' + value.toLocaleString('es-CL') : ''
+                            formatter: (value, context) => {
+                                return `$${value.toLocaleString('es-CL')}`;
+                            }
                         } 
                     },
                     scales: {
@@ -447,7 +467,9 @@ document.addEventListener('DOMContentLoaded', function() {
                         datalabels: { 
                             anchor: 'end', 
                             align: 'top',
-                            formatter: (value) => value ? '$' + value.toLocaleString('es-CL') : ''
+                            formatter: (value, context) => {
+                                return `$${value.toLocaleString('es-CL')}`;
+                            }
                         } 
                     },
                     onClick: (e, activeElements) => {
@@ -504,7 +526,9 @@ document.addEventListener('DOMContentLoaded', function() {
                         datalabels: { 
                             anchor: 'end', 
                             align: 'top',
-                            formatter: (value) => value ? '$' + value.toLocaleString('es-CL') : ''
+                            formatter: (value, context) => {
+                                return `$${value.toLocaleString('es-CL')}`;
+                            }
                         } 
                     }
                 }
@@ -515,7 +539,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         // 3. Gasto acumulado por vehículo (desglosado)
-        // "Gasto Acumulado por Vehículo (Preventivo vs Correctivo)"
         if (ctxVehicle && vehicleData && Array.isArray(vehicleData) && vehicleData.length > 0) {
             vehicleChart = new Chart(ctxVehicle, {
                 type: 'bar',
@@ -557,7 +580,9 @@ document.addEventListener('DOMContentLoaded', function() {
                         datalabels: { 
                             anchor: 'end', 
                             align: 'end',
-                            formatter: (value) => value ? '$' + value.toLocaleString('es-CL') : ''
+                            formatter: (value, context) => {
+                                return `$${value.toLocaleString('es-CL')}`;
+                            }
                         } 
                     },
                     scales: {
@@ -657,7 +682,17 @@ document.addEventListener('DOMContentLoaded', function() {
                     },
                     datalabels: { 
                         anchor: 'end', 
-                        align: 'top'
+                        align: 'top',
+                        formatter: (value, context) => {
+                            const item = kmData[context.dataIndex];
+                            let msg = `${item.recorrido} km`;
+                            if (item.recorrido >= 12000) {
+                                msg += ' - BLOQUEADO';
+                            } else if (item.recorrido >= 8000) {
+                                msg += ' - Próximo a mantenimiento';
+                            }
+                            return msg;
+                        }
                     } 
                 },
                 scales: {
