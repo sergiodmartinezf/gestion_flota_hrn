@@ -1,4 +1,4 @@
-//Chart.register(ChartDataLabels);
+Chart.register(ChartDataLabels);
 
 function getJSON(elementId, defaultValue = null) {
     const el = document.getElementById(elementId);
@@ -81,11 +81,10 @@ function initTimeCharts() {
                                 return `${label}: ${value} días / ${percentage}%`;
                             }
                         }
-                    }/*,
+                    },
                     datalabels: { 
-                        anchor: 'end', 
-                        align: 'top'
-                    }*/
+                        color: 'white',
+                    }
                 }
             }
         });
@@ -126,11 +125,10 @@ function initTimeCharts() {
                                     return `${label}: ${value} días / ${percentage}%`;
                                 }
                             }
-                        }/*,
+                        },
                         datalabels: { 
-                            anchor: 'end', 
-                            align: 'top'
-                        }*/
+                            color: 'white',
+                        }
                     }
                 }
             });
@@ -218,11 +216,10 @@ function initTimeCharts() {
                                             }
                                         }
                                     }
-                                }/*,
+                                },
                                 datalabels: {
-                                    anchor: 'end', 
-                                    align: 'top'
-                                }*/
+                                    color: 'white',
+                                }
                             }
                         }
                     });
@@ -277,11 +274,11 @@ function initTimeCharts() {
                                 return `${label}: ${value} días`;
                             }
                         }
-                    }/*,
+                    },
                     datalabels: { 
                         anchor: 'end', 
                         align: 'top',
-                    }*/
+                    }
                 },
                 scales: { y: { beginAtZero: true } }
             }
@@ -317,7 +314,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // ------------------------------------------------------------------
     // Función para actualizar el detalle mensual (llamada desde el gráfico)
-    // "2. Gasto en ..."
     // ------------------------------------------------------------------
     function updateFinanceDetail(mes, data) {
         const ctxDetail = document.getElementById('chartFinanceDetail');
@@ -326,7 +322,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         if (!ctxDetail || !detailTitle || !detailContent) return;
 
-        detailTitle.innerText = `2. Gasto en ${mes}`;
+        detailTitle.innerText = `Gasto en ${mes}`;
         detailContent.classList.add('d-none');
         ctxDetail.classList.remove('d-none');
 
@@ -561,14 +557,13 @@ document.addEventListener('DOMContentLoaded', function() {
                         },
                         datalabels: { 
                             anchor: 'end', 
-                            align: 'start',
-                            color: 'white',
+                            align: 'end',
                             formatter: (value) => value ? '$' + value.toLocaleString('es-CL') : ''
                         } 
                     },
                     scales: {
-                        x: { stacked: true, beginAtZero: true },
-                        y: { stacked: true }
+                        x: { stacked: false, beginAtZero: true },
+                        y: { stacked: false }
                     }
                 }
             });
