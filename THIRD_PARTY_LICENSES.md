@@ -149,9 +149,9 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 ## 6. chartjs-plugin-annotation
 
 **Versión:** 3.1.0  
-**Copyright:** © 2016-2023 chartjs-plugin-annotation contributors 
-**Sitio web:** https://www.chartjs.org/chartjs-plugin-annotation/latest/
-**Repositorio:** https://github.com/chartjs/chartjs-plugin-annotation
+**Copyright:** © 2016-2023 chartjs-plugin-annotation contributors  
+**Sitio web:** https://www.chartjs.org/chartjs-plugin-annotation/latest/  
+**Repositorio:** https://github.com/chartjs/chartjs-plugin-annotation  
 
 ### Texto de Licencia MIT:
 
