@@ -3,6 +3,7 @@ from django.dispatch import receiver
 from django.db.models import Sum, Q
 from decimal import Decimal
 from .models import Mantenimiento, Presupuesto, CargaCombustible, Arriendo, OrdenCompra
+from .services.presupuesto import validar_presupuesto_disponible
 
 @receiver(pre_save, sender=Mantenimiento)
 def validar_cierre_administrativo_mantenimiento(sender, instance, **kwargs):
@@ -23,27 +24,13 @@ def validar_cierre_administrativo_mantenimiento(sender, instance, **kwargs):
         )
     if not instance.cuenta_presupuestaria or not instance.vehiculo:
         return
-    presupuesto = Presupuesto.objects.filter(
-        cuenta=instance.cuenta_presupuestaria,
-        anio=instance.fecha_ingreso.year,
-        activo=True
-    ).first()
-    if not presupuesto:
-        presupuesto = Presupuesto.objects.filter(
-            cuenta=instance.cuenta_presupuestaria,
-            anio=instance.fecha_ingreso.year,
-            activo=True
-        ).first()
-    if not presupuesto:
-        raise ValueError(
-            f"No hay presupuesto asignado para la cuenta {instance.cuenta_presupuestaria.codigo} "
-            f"en el año {instance.fecha_ingreso.year}."
-        )
-    if not presupuesto.tiene_saldo_suficiente(instance.costo_total_real):
-        raise ValueError(
-            f"Presupuesto insuficiente. Disponible: ${presupuesto.disponible:.0f}, "
-            f"Requerido: ${instance.costo_total_real:.0f}"
-        )
+    ok, mensaje, presupuesto = validar_presupuesto_disponible(
+        instance.cuenta_presupuestaria,
+        instance.fecha_ingreso.year,
+        instance.costo_total_real,
+    )
+    if not ok:
+        raise ValueError(mensaje)
 
 @receiver(post_delete, sender=Mantenimiento)
 def actualizar_presupuesto_al_borrar_mantenimiento(sender, instance, **kwargs):

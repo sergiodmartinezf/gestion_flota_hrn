@@ -20,13 +20,13 @@ document.addEventListener('DOMContentLoaded', function() {
     // 5. Verificar horas HBO inicialmente
     setTimeout(toggleHorasHBO, 100);
 
-    // 6. Establecer hora actual en el campo hora_salida
-    const horaSalidaInput = document.querySelector('[name="hora_salida"]');
-    if (horaSalidaInput) {
+    // 6. Establecer hora actual en el campo hora_llegada
+    const horaLlegadaInput = document.querySelector('[name="hora_llegada"]');
+    if (horaLlegadaInput) {
         const ahora = new Date();
         const horas = ahora.getHours().toString().padStart(2, '0');
         const minutos = ahora.getMinutes().toString().padStart(2, '0');
-        horaSalidaInput.value = `${horas}:${minutos}`;
+        horaLlegadaInput.value = `${horas}:${minutos}`;
     }
 
     if (window.tipoVehiculo === 'Camioneta') {

@@ -132,7 +132,7 @@ def registrar_bitacora(request):
     })
 
 @login_required
-@user_passes_test(lambda u: u.rol == 'Conductor')
+@user_passes_test(es_conductor)
 def agregar_viaje(request, id):
     hoja = get_object_or_404(HojaRuta, id=id)
     if not hoja.abierta:
@@ -205,8 +205,7 @@ def agregar_viaje(request, id):
         km_sugerido = ultimo_viaje.km_llegada if ultimo_viaje and ultimo_viaje.km_llegada else hoja.km_inicio
         initial_data = {
             'km_salida': km_sugerido,
-            'km_llegada': km_sugerido + 1 if km_sugerido is not None else None,
-            'hora_salida': timezone.now().strftime('%H:%M'),
+            'km_llegada': km_sugerido if km_sugerido is not None else None,
         }
         form = ViajeForm(initial=initial_data, vehiculo_tipo=vehiculo_tipo)
         paciente_formset = PacienteFormSet(

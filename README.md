@@ -43,7 +43,8 @@ Sistema web integral desarrollado en Django para la gestión completa de la flot
 - **Historial de Servicios**: Seguimiento de trabajos realizados por proveedor
 
 ### Reportes y Analytics
-- **Dashboard Ejecutivo**: Visión general del estado de la flota
+- **Dashboard**: KPIs del mes actual, alertas y resumen operativo
+- **Panel de control**: Gráficos anuales de presupuesto y gasto por vehículo (filtro por año)
 - **Reportes de Disponibilidad**: Análisis de uptime por vehículo
 - **Costos por Kilómetro**: Métricas de eficiencia operativa
 - **Historial por Unidad**: Reportes detallados de cada vehículo
@@ -61,8 +62,7 @@ Sistema web integral desarrollado en Django para la gestión completa de la flot
 - **UI Framework**: Bootstrap 5
 - **Librerías**: 
   - Pillow (manejo de imágenes)
-  - openpyxl (exportación Excel moderna)
-  - xlwt (exportación Excel legacy)
+  - openpyxl (exportación Excel)
   - python-dotenv (gestión de variables de entorno)
   - requests (peticiones HTTP para integraciones)
 - **Autenticación**: Sistema personalizado con RUT chileno
@@ -126,6 +126,8 @@ python manage.py runserver
 
 11. Acceder al sistema en: http://127.0.0.1:8000/
 
+En producción, generar estáticos con `python manage.py collectstatic` (salida en `static/`, ignorada por Git; fuente en `flota/static/`).
+
 ## Estructura del Proyecto
 
 ```
@@ -137,7 +139,11 @@ proyecto/
 │   ├── asgi.py                  # Configuración ASGI
 │   └── wsgi.py                  # Configuración WSGI
 ├── flota/                       # Aplicación principal
-│   ├── models.py                # Modelos de datos (13 entidades)
+│   ├── models/                  # Modelos de datos por dominio
+│   ├── forms/                   # Formularios por módulo
+│   ├── constants.py             # Códigos SIGFE y mapa mantenimiento–cuenta
+│   ├── services/                # Lógica compartida (p. ej. validación de presupuesto)
+│   ├── tests/                   # Pruebas automatizadas
 │   ├── views/                   # Lógica de negocio organizada modularmente
 │   │   ├── __init__.py         # Exportación centralizada de vistas
 │   │   ├── autenticacion.py    # Vistas de login/logout
@@ -146,15 +152,15 @@ proyecto/
 │   │   ├── viajes.py           # Hojas de ruta, viajes, combustible e incidentes
 │   │   ├── mantenimiento.py    # Mantenimientos preventivos y correctivos
 │   │   ├── presupuesto.py      # Gestión presupuestaria
-│   │   ├── reportes.py         # Reportes y análisis
+│   │   ├── reportes/           # Reportes (cálculos, exportaciones, vistas)
 │   │   ├── arriendos.py        # Gestión de arriendos
 │   │   ├── proveedores.py      # Gestión de proveedores
 │   │   ├── ordenes.py          # Órdenes de compra y trabajo
-│   │   ├── dashboard.py        # Dashboard ejecutivo
+│   │   ├── dashboard.py        # Dashboard mensual
+│   │   ├── panel_control.py    # Panel anual / gráficos presupuesto
 │   │   ├── api.py              # Endpoints API REST
-│   │   └── utilidades.py       # Funciones auxiliares
+│   │   └── utilidades.py       # Roles, permisos y helpers de vistas
 │   ├── urls.py                  # Definición de rutas
-│   ├── forms.py                 # Formularios del sistema
 │   ├── admin.py                 # Configuración Django Admin
 │   ├── apps.py                  # Configuración de la aplicación
 │   ├── signals.py               # Señales y lógica automática
@@ -192,6 +198,7 @@ El sistema utiliza PostgreSQL. La base de datos incluye las siguientes entidades
 - **Arriendo**: Arriendos temporales de vehículos
 - **HojaRuta**: Hojas de ruta diarias con personal y kilometraje
 - **Viaje**: Viajes individuales asociados a hojas de ruta
+- **PacienteViaje** / **PacienteTraslado**: Pacientes asociados a viajes y traslados
 - **CargaCombustible**: Registro de cargas de combustible
 - **FallaReportada**: Incidentes y fallas reportadas por conductores
 - **Alerta**: Alertas automáticas de mantenimiento

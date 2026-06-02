@@ -9,7 +9,7 @@ from django.core.exceptions import ValidationError
 from decimal import Decimal
 import json
 from django.core.serializers.json import DjangoJSONEncoder
-from ..constants import MANTENIMIENTO_CUENTAS_MAP
+from ..constants import mapa_mantenimiento_cuenta_ids
 from ..models import Mantenimiento, Vehiculo, Proveedor, Presupuesto, Alerta, CuentaPresupuestaria, OrdenTrabajo, OrdenCompra
 from ..forms import MantenimientoForm, ProgramarMantenimientoForm, FinalizarMantenimientoForm
 from .utilidades import es_administrador
@@ -292,10 +292,10 @@ def calendario_mantenciones(request):
         for c in cuentas
     ]
 
-    mapa_json = {}
-    for (tipo, criticidad), ids in MANTENIMIENTO_CUENTAS_MAP.items():
-        clave = f"{tipo}_{criticidad}"
-        mapa_json[clave] = ids
+    mapa_json = {
+        f"{tipo}_{criticidad}": ids
+        for (tipo, criticidad), ids in mapa_mantenimiento_cuenta_ids().items()
+    }
 
     return render(request, 'flota/calendario_mantenciones.html', {
         'vehiculos': vehiculos,
