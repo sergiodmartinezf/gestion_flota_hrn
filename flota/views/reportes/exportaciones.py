@@ -1,7 +1,7 @@
 from decimal import Decimal
 from datetime import datetime
 from calendar import monthrange
-
+from django.db.models import Sum
 from ...models import Vehiculo, Mantenimiento, Presupuesto, FallaReportada
 from ...utils import exportar_reporte_excel, MESES
 from ...indicadores import (
