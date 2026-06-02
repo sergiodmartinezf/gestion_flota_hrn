@@ -132,7 +132,7 @@ def registrar_bitacora(request):
     })
 
 @login_required
-@user_passes_test(lambda u: u.rol == 'Conductor')
+@user_passes_test(es_conductor)
 def agregar_viaje(request, id):
     hoja = get_object_or_404(HojaRuta, id=id)
     if not hoja.abierta:

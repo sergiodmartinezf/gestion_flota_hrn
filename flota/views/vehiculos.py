@@ -6,7 +6,7 @@ from django.utils import timezone
 from decimal import Decimal
 from ..models import Vehiculo, Mantenimiento, CargaCombustible, Presupuesto, Alerta, CuentaPresupuestaria
 from ..forms import VehiculoForm
-from .utilidades import es_administrador
+from .utilidades import es_administrador, rechazar_escritura_visualizador
 
 # RF_06: Registrar vehículo
 @login_required
@@ -208,6 +208,7 @@ def _alertas_no_pausadas():
 
 # RF_14: Centro unificado de alertas (mantenimiento + presupuesto)
 @login_required
+@rechazar_escritura_visualizador
 def alertas(request):
     from datetime import timedelta
     # Sincronizar alertas por tiempo: mantenimientos Programado con fecha_programada próxima o vencida

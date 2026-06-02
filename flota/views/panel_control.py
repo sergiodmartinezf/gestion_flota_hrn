@@ -6,6 +6,14 @@ import json
 import logging
 from datetime import date
 from ..models import Vehiculo, Mantenimiento, Presupuesto, CuentaPresupuestaria
+from ..constants import (
+    PREVENTIVE_ACCOUNT_CODES,
+    CORRECTIVE_ACCOUNT_CODES,
+    CUENTA_PREVENTIVO_CRITICO,
+    CUENTA_CORRECTIVO_CRITICO,
+    CUENTA_PREVENTIVO_NO_CRITICO,
+    CUENTA_CORRECTIVO_NO_CRITICO,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -48,8 +56,8 @@ def panel_control(request):
         cuenta_presupuestaria__isnull=False
     )
 
-    preventive_codes = ['22.06.002.001', '22.06.002.003']
-    corrective_codes = ['22.06.002.002', '22.06.002.004']
+    preventive_codes = PREVENTIVE_ACCOUNT_CODES
+    corrective_codes = CORRECTIVE_ACCOUNT_CODES
 
     # --- Gasto mensual desglosado (preventivo vs correctivo) ---
     meses_labels = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"]
@@ -218,10 +226,10 @@ def panel_control(request):
             dias_por_vehiculo_ambulancias.append(d_clean)
 
     # --- Comparativa Preventivo vs Correctivo (global) usando TODOS los presupuestos ---
-    cuenta_prev_amb = CuentaPresupuestaria.objects.filter(codigo='22.06.002.001').first()
-    cuenta_corr_amb = CuentaPresupuestaria.objects.filter(codigo='22.06.002.002').first()
-    cuenta_prev_cam = CuentaPresupuestaria.objects.filter(codigo='22.06.002.003').first()
-    cuenta_corr_cam = CuentaPresupuestaria.objects.filter(codigo='22.06.002.004').first()
+    cuenta_prev_amb = CuentaPresupuestaria.objects.filter(codigo=CUENTA_PREVENTIVO_CRITICO).first()
+    cuenta_corr_amb = CuentaPresupuestaria.objects.filter(codigo=CUENTA_CORRECTIVO_CRITICO).first()
+    cuenta_prev_cam = CuentaPresupuestaria.objects.filter(codigo=CUENTA_PREVENTIVO_NO_CRITICO).first()
+    cuenta_corr_cam = CuentaPresupuestaria.objects.filter(codigo=CUENTA_CORRECTIVO_NO_CRITICO).first()
 
     prog_prev = 0
     prog_corr = 0

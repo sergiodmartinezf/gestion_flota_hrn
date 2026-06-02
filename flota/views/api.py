@@ -3,7 +3,7 @@ from django.http import JsonResponse
 from django.utils import timezone
 from decimal import Decimal
 from ..models import Vehiculo, Alerta, CuentaPresupuestaria, Mantenimiento, Presupuesto
-from .utilidades import verificar_presupuesto_cuenta
+from ..services.presupuesto import validar_presupuesto_disponible
 
 # API para obtener el kilometraje de los vehículos
 @login_required
@@ -50,21 +50,23 @@ def api_verificar_presupuesto(request):
     except (ValueError, CuentaPresupuestaria.DoesNotExist):
         return JsonResponse({'error': 'Parámetros inválidos'}, status=400)
     
-    presupuesto = Presupuesto.objects.filter(cuenta=cuenta, anio=anio, activo=True).first()
-    
+    ok, mensaje, presupuesto = validar_presupuesto_disponible(cuenta, anio, monto)
+
     if not presupuesto:
         return JsonResponse({
             'tiene_presupuesto': False,
-            'mensaje': f'No hay presupuesto para {cuenta.codigo} en {anio}.'
+            'mensaje': mensaje,
         })
-    
-    tiene_saldo = presupuesto.disponible >= monto
-    porcentaje = (presupuesto.monto_ejecutado / presupuesto.monto_asignado * 100) if presupuesto.monto_asignado else 0
-    
+
+    tiene_saldo = ok
+    porcentaje = (
+        presupuesto.monto_ejecutado / presupuesto.monto_asignado * 100
+    ) if presupuesto.monto_asignado else 0
+
     return JsonResponse({
         'tiene_presupuesto': True,
         'tiene_saldo': tiene_saldo,
         'disponible': float(presupuesto.disponible),
         'porcentaje_ejecutado': porcentaje,
-        'mensaje': f'Presupuesto disponible: ${presupuesto.disponible:.0f}'
+        'mensaje': mensaje if not ok else f'Presupuesto disponible: ${presupuesto.disponible:.0f}',
     })

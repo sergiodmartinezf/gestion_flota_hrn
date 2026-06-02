@@ -1,6 +1,14 @@
 """Reexportación de vistas para `gestion_flota.urls`."""
 
-from .utilidades import es_administrador, es_conductor_o_admin, verificar_presupuesto_cuenta
+from .utilidades import (
+    es_administrador,
+    es_conductor,
+    es_conductor_o_admin,
+    es_visualizador,
+    puede_escribir,
+    verificar_presupuesto_cuenta,
+    rechazar_escritura_visualizador,
+)
 from .autenticacion import login_view, logout_view
 from .usuarios import (
     registrar_usuario,
@@ -52,7 +60,6 @@ from .presupuesto import (
     modificar_presupuesto,
     deshabilitar_presupuesto,
     listar_presupuestos,
-    reporte_variacion_presupuestaria,
 )
 from .reportes import (
     reportes,
@@ -96,8 +103,12 @@ from .api import (
 
 __all__ = [
     'es_administrador',
+    'es_conductor',
     'es_conductor_o_admin',
+    'es_visualizador',
+    'puede_escribir',
     'verificar_presupuesto_cuenta',
+    'rechazar_escritura_visualizador',
     'login_view',
     'logout_view',
     'registrar_usuario',
@@ -121,6 +132,7 @@ __all__ = [
     'listar_cargas_combustible',
     'registrar_incidente',
     'listar_incidentes',
+    'historial_conductor',
     'reabrir_bitacora',
     'exportar_consolidado_viajes',
     'exportar_traslados_form',
@@ -140,7 +152,6 @@ __all__ = [
     'modificar_presupuesto',
     'deshabilitar_presupuesto',
     'listar_presupuestos',
-    'reporte_variacion_presupuestaria',
     'reportes',
     'reporte_disponibilidad',
     'reporte_historial_unidad',

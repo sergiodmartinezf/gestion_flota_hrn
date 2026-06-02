@@ -1,17 +1,12 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib import messages
-from django.db.models import Sum, F, Min
-from django.http import HttpResponse
-from django.utils import timezone
-from decimal import Decimal
-from datetime import datetime
-from ..models import Presupuesto, Mantenimiento, Vehiculo, CuentaPresupuestaria
+from django.db.models import Sum
+from ..models import Presupuesto
 from ..forms import PresupuestoForm
 from .utilidades import es_administrador
-from ..utils import exportar_reporte_excel
 
-# RF_21: Registrar presupuesto anual por convenio
+
 @login_required
 @user_passes_test(es_administrador)
 def registrar_presupuesto(request):
@@ -95,48 +90,4 @@ def listar_presupuestos(request):
         'total_disponible': total_asignado - total_ejecutado,
         'mostrar_deshabilitados': mostrar_deshabilitados,
         'years_range': years_range,
-    })
-
-
-# Reporte de Variación Presupuestaria
-@login_required
-def reporte_variacion_presupuestaria(request):
-    anio = request.GET.get('anio', timezone.now().year)
-    try:
-        anio = int(anio)
-    except ValueError:
-        anio = timezone.now().year
-
-    presupuestos = Presupuesto.objects.filter(anio=anio, activo=True).select_related('cuenta')
-    reporte = []
-
-    for presupuesto in presupuestos:
-        # Gastos asociados a esta cuenta en el año (mantenimientos, combustible, arriendos, OC)
-        gastos = Mantenimiento.objects.filter(
-            cuenta_presupuestaria=presupuesto.cuenta,
-            fecha_ingreso__year=anio,
-            estado='Finalizado'
-        ).aggregate(total=Sum('costo_total_real'))['total'] or 0
-
-        diferencia = gastos - presupuesto.monto_asignado
-        if presupuesto.monto_asignado > 0:
-            porcentaje_variacion = (diferencia / presupuesto.monto_asignado) * 100
-        else:
-            porcentaje_variacion = 0
-
-        reporte.append({
-            'cuenta': presupuesto.cuenta.codigo,
-            'nombre_cuenta': presupuesto.cuenta.nombre,
-            'monto_asignado': presupuesto.monto_asignado,
-            'monto_ejecutado': gastos,
-            'diferencia': diferencia,
-            'porcentaje_variacion': porcentaje_variacion,
-            'tiene_alerta': porcentaje_variacion > 10,
-        })
-
-    # Renderizar template (eliminar filtro de vehículo del contexto)
-    return render(request, 'flota/reporte_variacion_presupuestaria.html', {
-        'reporte': reporte,
-        'anio': anio,
-        'anios_disponibles': Presupuesto.objects.dates('anio', 'year').distinct(),
     })

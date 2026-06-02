@@ -9,9 +9,11 @@ import re
 from ..models import OrdenCompra, OrdenTrabajo, Proveedor, Vehiculo, Mantenimiento, CuentaPresupuestaria
 from ..forms import OrdenCompraForm, OrdenTrabajoForm
 from .utilidades import es_administrador
-from flota.utils import consultar_oc_mercado_publico
+from ..utils import consultar_oc_mercado_publico
 
 
+@login_required
+@user_passes_test(es_administrador)
 def importar_orden_compra(request):
     if request.method == 'POST':
         codigo_oc = request.POST.get('codigo_oc', '').strip().upper()
