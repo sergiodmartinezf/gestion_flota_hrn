@@ -35,7 +35,7 @@
     </thead>
     <tbody>
         {% for usuario in usuarios %}
-        <tr>
+        <tr class="{% if not usuario.activo %}table-secondary text-muted{% endif %}"></tr>
             <td>{{ usuario.rut }}</td>
             <td>{{ usuario.nombre_completo }}</td>
             <td>{{ usuario.email }}</td>

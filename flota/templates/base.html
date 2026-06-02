@@ -33,23 +33,21 @@
                         <!--<li><a href="{% url 'disponibilidad_flota' %}"><i class="bi bi-check-circle"></i> Disponibilidad</a></li>-->
                         {% endif %}
 
-                        {% if user.rol == 'Conductor' or user.rol == 'Administrador' %}
                         <li>
-                            <a href="{% if user.rol == 'Administrador' %}{% url 'listar_bitacoras' %}{% else %}{% url 'bitacora_inteligente' %}{% endif %}">
+                            <a href="{% if user.rol == 'Conductor' %}{% url 'bitacora_inteligente' %}{% else %}{% url 'listar_bitacoras' %}{% endif %}">
                                 <i class="bi bi-journal-text"></i> Bitácora
                             </a>
                         </li>
                         <li>
-                            <a href="{% if user.rol == 'Administrador' %}{% url 'listar_cargas_combustible' %}{% else %}{% url 'registrar_carga_combustible' %}{% endif %}">
+                            <a href="{% if user.rol == 'Conductor' %}{% url 'registrar_carga_combustible' %}{% else %}{% url 'listar_cargas_combustible' %}{% endif %}">
                                 <i class="bi bi-fuel-pump"></i> Combustible
                             </a>
                         </li>
                         <li>
-                            <a href="{% if user.rol == 'Administrador' %}{% url 'listar_incidentes' %}{% else %}{% url 'registrar_incidente' %}{% endif %}">
+                            <a href="{% if user.rol == 'Conductor' %}{% url 'registrar_incidente' %}{% else %}{% url 'listar_incidentes' %}{% endif %}">
                                 <i class="bi bi-exclamation-triangle"></i> Incidente
                             </a>
                         </li>
-                        {% endif %}
                         
                         {% if user.rol == 'Conductor' %}
                         <li>
@@ -83,16 +81,16 @@
     <div class="container py-4">
     {% endif %}
 
-                {% if messages %}
-                    {% for message in messages %}
-                        <div class="alert alert-{% if message.tags == 'error' %}danger{% elif message.tags == 'debug' %}secondary{% else %}{{ message.tags }}{% endif %} alert-dismissible fade show" role="alert">
-                            {{ message }}
-                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                        </div>
-                    {% endfor %}
-                {% endif %}
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-{% if message.tags == 'error' %}danger{% elif message.tags == 'debug' %}secondary{% else %}{{ message.tags }}{% endif %} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
 
-                {% block content %}{% endblock %}
+    {% block content %}{% endblock %}
 
     {% if user.is_authenticated %}
             </main>
