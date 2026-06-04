@@ -111,6 +111,21 @@ class Vehiculo(models.Model):
         ).filter(recorrido__lt=12000)
         return qs
 
+    @classmethod
+    def queryset_para_hoja_ruta(cls, incluir_pk=None):
+        """Operativos más vehículos con hoja abierta (aunque otro conductor los use)."""
+        from .operativa import HojaRuta
+
+        qs = cls.objetos_operativos()
+        ids_en_hoja_abierta = set(
+            HojaRuta.objects.filter(abierta=True).values_list('vehiculo_id', flat=True)
+        )
+        if incluir_pk:
+            ids_en_hoja_abierta.add(incluir_pk)
+        if ids_en_hoja_abierta:
+            qs = (qs | cls.objects.filter(pk__in=ids_en_hoja_abierta)).distinct()
+        return qs.order_by('patente')
+
     def save(self, *args, **kwargs):
         from .operativa import Alerta
 
