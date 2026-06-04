@@ -175,5 +175,5 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 ---
 
-**Fecha de generación:** 22/12/2025
+**Fecha de generación:** 04/06/2026
 **Proyecto:** Sistema de Gestión de Flota - Hospital de Río Negro
