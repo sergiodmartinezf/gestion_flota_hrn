@@ -15,7 +15,7 @@ from ..validators import validar_rut_chileno, normalizar_rut
 
 class HojaRutaForm(forms.ModelForm):
     vehiculo = forms.ModelChoiceField(
-        queryset=Vehiculo.objetos_operativos(),  # ← Cambio aquí
+        queryset=Vehiculo.queryset_para_hoja_ruta(),
         to_field_name='patente',
         widget=forms.Select(attrs={'class': 'form-select'})
     )
@@ -40,6 +40,9 @@ class HojaRutaForm(forms.ModelForm):
     
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+
+        incluir_pk = self.instance.vehiculo_id if self.instance.pk else None
+        self.fields['vehiculo'].queryset = Vehiculo.queryset_para_hoja_ruta(incluir_pk=incluir_pk)
 
         if not self.data and not self.instance.pk:
             self.fields['fecha'].initial = datetime.now().date()

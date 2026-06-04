@@ -36,7 +36,7 @@
                 </thead>
                 <tbody>
                     {% for proveedor in proveedores %}
-                    <tr class="{% if not proveedor.activo %}table-secondary{% endif %}">
+                    <tr class="{% if not proveedor.activo %}table-secondary text-muted{% endif %}">
                         <td>
                             {{ proveedor.nombre_fantasia }}
                             {% if not proveedor.activo %}
