@@ -57,7 +57,14 @@ def reportes(request):
                 mes_disp = None
             return exportar_disponibilidad_excel(request, anio_disp, mes_disp)
         else:
-            return exportar_costos_excel(request)
+            anio_str = request.GET.get('anio', str(datetime.now().year))
+            anio = int(anio_str) if anio_str.isdigit() else datetime.now().year
+            mes_costos = request.GET.get('mes_costos')
+            if mes_costos and mes_costos.isdigit():
+                mes_costos = int(mes_costos)
+            else:
+                mes_costos = None
+            return exportar_costos_excel(request, anio, mes_costos)
 
     active_tab = request.GET.get('tab', 'costos')
     tab_manager = TabManager(request)
@@ -73,7 +80,16 @@ def reportes(request):
     if anio_costos not in anios_disponibles:
         anio_costos = anios_disponibles[0]
 
-    fecha_desde_c, fecha_hasta_c = rango_fechas_reporte(anio_costos, None)
+    # Obtener mes para costos (similar a disponibilidad)
+    mes_costos = request.GET.get('mes_costos')
+    if mes_costos and mes_costos.isdigit():
+        mes_costos = int(mes_costos)
+        if not (1 <= mes_costos <= 12):
+            mes_costos = None
+    else:
+        mes_costos = None
+
+    fecha_desde_c, fecha_hasta_c = rango_fechas_reporte(anio_costos, mes_costos)
 
     vehiculos = Vehiculo.objects.all().order_by('patente')
     v_ids = [v.id for v in vehiculos]
@@ -281,6 +297,7 @@ def reportes(request):
         'alertas_variacion': alertas_variacion,
         'anio': anio,
         'anio_costos': anio_costos,
+        'mes_costos': mes_costos,
         'anios_disponibles': anios_disponibles,
         'active_tab': active_tab,
         'tab_manager': tab_manager,
