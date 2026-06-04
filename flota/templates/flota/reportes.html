@@ -105,19 +105,37 @@
             <input type="hidden" name="tab" value="costos">
             <div class="col-md-2">
                 <label for="anio-costos" class="form-label mb-0">Año</label>
-                <select name="anio" id="anio-costos" class="form-select form-select-sm">
+                <select name="anio" id="anio-costos" class="form-select">
                     {% for a in anios_disponibles %}
                         <option value="{{ a|unlocalize }}" {% if a == anio_costos %}selected{% endif %}>{{ a|unlocalize }}</option>
                     {% endfor %}
                 </select>
             </div>
+            <div class="col-md-2">
+                <label for="mes-costos" class="form-label mb-0">Mes</label>
+                <select name="mes_costos" id="mes-costos" class="form-select">
+                    <option value="">Todo el año</option>
+                    <option value="1" {% if mes_costos == 1 %}selected{% endif %}>Enero</option>
+                    <option value="2" {% if mes_costos == 2 %}selected{% endif %}>Febrero</option>
+                    <option value="3" {% if mes_costos == 3 %}selected{% endif %}>Marzo</option>
+                    <option value="4" {% if mes_costos == 4 %}selected{% endif %}>Abril</option>
+                    <option value="5" {% if mes_costos == 5 %}selected{% endif %}>Mayo</option>
+                    <option value="6" {% if mes_costos == 6 %}selected{% endif %}>Junio</option>
+                    <option value="7" {% if mes_costos == 7 %}selected{% endif %}>Julio</option>
+                    <option value="8" {% if mes_costos == 8 %}selected{% endif %}>Agosto</option>
+                    <option value="9" {% if mes_costos == 9 %}selected{% endif %}>Septiembre</option>
+                    <option value="10" {% if mes_costos == 10 %}selected{% endif %}>Octubre</option>
+                    <option value="11" {% if mes_costos == 11 %}selected{% endif %}>Noviembre</option>
+                    <option value="12" {% if mes_costos == 12 %}selected{% endif %}>Diciembre</option>
+                </select>
+            </div>
             <div class="col-auto">
-                <button type="submit" class="btn btn-primary btn-sm">Aplicar</button>
+                <button type="submit" class="btn btn-primary">Filtrar</button>
             </div>
         </form>
 
         <div class="mb-3">
-            <a href="?exportar=excel&tab=costos&amp;anio={{ anio_costos|unlocalize }}" class="btn btn-success">
+            <a href="?exportar=excel&tab=costos&amp;anio={{ anio_costos|unlocalize }}{% if mes_costos %}&amp;mes_costos={{ mes_costos }}{% endif %}" class="btn btn-success">
                 <i class="bi bi-file-earmark-excel"></i> Exportar a Excel
             </a>
         </div>

@@ -13,13 +13,8 @@ from ...indicadores import (
 )
 from .calculos import ReporteCalculos, obtener_anios_disponibles_disponibilidad
 
-def exportar_costos_excel(request):
-    anio_str = request.GET.get('anio', str(datetime.now().year))
-    try:
-        anio_excel = int(anio_str)
-    except (TypeError, ValueError):
-        anio_excel = datetime.now().year
-    fecha_desde, fecha_hasta = rango_fechas_reporte(anio_excel, None)
+def exportar_costos_excel(request, anio_excel, mes_excel=None):
+    fecha_desde, fecha_hasta = rango_fechas_reporte(anio_excel, mes_excel)
 
     vehiculos = Vehiculo.objects.all().order_by('patente')
     v_ids = [v.id for v in vehiculos]
@@ -64,13 +59,13 @@ def exportar_costos_excel(request):
         ('Presupuesto', 'presupuesto', 'moneda'),
     ]
     
+    nombre_mes = f"_mes_{mes_excel}" if mes_excel else ""
     return exportar_reporte_excel(
-        f'Reporte de Costos por Vehículo - {anio_excel}',
+        f'Reporte de Costos por Vehículo - {anio_excel}{f" (Mes {mes_excel})" if mes_excel else ""}',
         datos,
         columnas,
-        f'reporte_costos_{anio_excel}_{datetime.now().strftime("%Y%m%d")}.xlsx'
+        f'reporte_costos_{anio_excel}{nombre_mes}_{datetime.now().strftime("%Y%m%d")}.xlsx'
     )
-
 
 def exportar_variacion_excel(anio, tipo_mantencion=None):
     reporte, _ = ReporteCalculos.calcular_variacion_anio(anio, tipo_mantencion)
