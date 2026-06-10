@@ -8,7 +8,6 @@ from ..models import Vehiculo, Mantenimiento, CargaCombustible, Presupuesto, Ale
 from ..forms import VehiculoForm
 from .utilidades import es_administrador, rechazar_escritura_visualizador
 
-# RF_06: Registrar vehículo
 @login_required
 @user_passes_test(es_administrador)
 def registrar_vehiculo(request):
@@ -24,7 +23,6 @@ def registrar_vehiculo(request):
     return render(request, 'flota/registrar_vehiculo.html', {'form': form})
 
 
-# RF_07: Listar flota
 @login_required
 def listar_flota(request):
     vehiculos = Vehiculo.objects.all().order_by('patente')
@@ -60,7 +58,7 @@ def listar_flota(request):
         'tipos_carroceria': tipos_carroceria,   # ← NUEVO
     })
 
-# RF_08: Visualizar ficha de unidad
+
 @login_required
 def ficha_vehiculo(request, patente):
     vehiculo = get_object_or_404(Vehiculo, patente=patente)
@@ -90,7 +88,6 @@ def ficha_vehiculo(request, patente):
     })
 
 
-# RF_09: Modificar datos de unidad
 @login_required
 @user_passes_test(es_administrador)
 def modificar_vehiculo(request, patente):
@@ -107,7 +104,6 @@ def modificar_vehiculo(request, patente):
     return render(request, 'flota/modificar_vehiculo.html', {'form': form, 'vehiculo': vehiculo})
     
 
-# RF_10: Actualizar estado de unidad
 @login_required
 @user_passes_test(es_administrador)
 def actualizar_estado_vehiculo(request, patente):
@@ -123,7 +119,6 @@ def actualizar_estado_vehiculo(request, patente):
     return render(request, 'flota/actualizar_estado_vehiculo.html', {'vehiculo': vehiculo})
 
 
-# RF_11: Visualizar disponibilidad de flota
 @login_required
 def disponibilidad_flota(request):
     vehiculos = Vehiculo.objects.all()
@@ -137,7 +132,6 @@ def disponibilidad_flota(request):
     })
 
 
-# RF_12: Visualizar costo por kilometro
 @login_required
 def costo_por_kilometro(request):
     vehiculos = Vehiculo.objects.all()
@@ -169,7 +163,6 @@ def costo_por_kilometro(request):
     })
 
 
-# RF_13: Visualizar gastos de mantenimientos
 @login_required
 def gastos_mantenimientos(request):
     vehiculos = Vehiculo.objects.all()
@@ -196,7 +189,9 @@ def gastos_mantenimientos(request):
 
 
 def _alertas_no_pausadas():
-    """Alertas vigentes excluyendo las pausadas (vehículo en taller con mantenimiento activo)."""
+    """
+    Alertas vigentes excluyendo las pausadas (vehículo en taller con mantenimiento activo).
+    """
     ids_pausadas = set()
     for a in Alerta.objects.filter(vigente=True):
         if a.vehiculo.estado == 'En mantenimiento' and Mantenimiento.objects.filter(
@@ -206,7 +201,6 @@ def _alertas_no_pausadas():
     return Alerta.objects.filter(vigente=True).exclude(id__in=ids_pausadas).order_by('-generado_en')
 
 
-# RF_14: Centro unificado de alertas (mantenimiento + presupuesto)
 @login_required
 @rechazar_escritura_visualizador
 def alertas(request):

@@ -27,12 +27,16 @@ def es_conductor_o_admin(user):
 
 
 def puede_escribir(user):
-    """Administrador y Conductor pueden modificar datos; Visualizador solo lectura."""
+    """
+    Administrador y Conductor pueden modificar datos; Visualizador solo lectura.
+    """
     return user.is_authenticated and user.rol in ('Administrador', 'Conductor')
 
 
 def verificar_presupuesto_cuenta(cuenta, anio, monto_requerido=0):
-    """Verifica presupuesto disponible (compatibilidad con vistas y API)."""
+    """
+    Verifica presupuesto disponible (compatibilidad con vistas y API).
+    """
     ok, mensaje, presupuesto = validar_presupuesto_disponible(cuenta, anio, monto_requerido)
     if not ok:
         return False, mensaje, presupuesto
@@ -40,7 +44,9 @@ def verificar_presupuesto_cuenta(cuenta, anio, monto_requerido=0):
 
 
 def rechazar_escritura_visualizador(view_func):
-    """Bloquea POST/PUT/PATCH/DELETE para usuarios con rol Visualizador."""
+    """
+    Bloquea POST/PUT/PATCH/DELETE para usuarios con rol Visualizador.
+    """
     @wraps(view_func)
     def _wrapped(request, *args, **kwargs):
         if (

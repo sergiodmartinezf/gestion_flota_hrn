@@ -90,7 +90,7 @@ class MantenimientoForm(forms.ModelForm):
         costo_estimado = cleaned_data.get('costo_estimado', 0)
         costo_total_real = cleaned_data.get('costo_total_real', 0)
         
-        # Validar que o bien se seleccione un vehículo arrendado existente, o se proporcione uno nuevo
+        # Validar que se seleccione un vehículo arrendado existente, o se proporcione uno nuevo
         vehiculo = cleaned_data.get('vehiculo')
         orden_trabajo = cleaned_data.get('orden_trabajo')
         

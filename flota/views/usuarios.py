@@ -5,7 +5,6 @@ from ..models import Usuario
 from ..forms import UsuarioForm
 from .utilidades import es_administrador
 
-# RF_02: Registrar usuario
 @login_required
 @user_passes_test(es_administrador)
 def registrar_usuario(request):
@@ -29,7 +28,6 @@ def registrar_usuario(request):
     return render(request, 'flota/registrar_usuario.html', {'form': form})
 
 
-# RF_03: Listar usuarios
 @login_required
 @user_passes_test(es_administrador)
 def listar_usuarios(request):
@@ -46,7 +44,6 @@ def listar_usuarios(request):
     })
 
 
-# RF_04: Modificar usuario
 @login_required
 @user_passes_test(es_administrador)
 def modificar_usuario(request, rut):
@@ -71,7 +68,6 @@ def modificar_usuario(request, rut):
     return render(request, 'flota/modificar_usuario.html', {'form': form, 'usuario': usuario})
 
 
-# RF_05: Deshabilitar usuario
 @login_required
 @user_passes_test(es_administrador)
 def deshabilitar_usuario(request, rut):

@@ -17,7 +17,9 @@ def api_vehiculos_kilometraje(request):
 
 @login_required
 def api_alertas_count(request):
-    """API para obtener el conteo de alertas activas (mantenimiento no pausadas + presupuesto >= 80%)."""
+    """
+    API para obtener el conteo de alertas activas (mantenimiento no pausadas + presupuesto >= 80%).
+    """
     # Alertas de mantenimiento vigentes, excluyendo pausadas (vehículo en taller con mantenimiento activo)
     ids_pausadas = set()
     for a in Alerta.objects.filter(vigente=True).select_related('vehiculo'):

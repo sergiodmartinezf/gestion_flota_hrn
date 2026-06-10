@@ -13,18 +13,21 @@ from ...indicadores import (
 from ...constants import ids_cuentas_por_tipo_mantencion as _ids_cuentas_por_tipo_mantencion
 
 def obtener_cuentas_por_tipo_mantencion(tipo_mantencion):
-    """IDs de cuentas SIGFE asociadas al tipo de mantención (resueltos desde BD)."""
+    """
+    IDs de cuentas SIGFE asociadas al tipo de mantención (resueltos desde BD).
+    """
     return _ids_cuentas_por_tipo_mantencion(tipo_mantencion)
 
 
 class ReporteCalculos:
-    """Cálculos compartidos entre exportación y vista HTML de reportes."""
+    """
+    Cálculos compartidos entre exportación y vista HTML de reportes.
+    """
     
     @staticmethod
     def calcular_costos_vehiculo(vehiculo, fecha_desde=None, fecha_hasta=None):
         """
-        Calcula costos de mantenimiento, combustible y arriendos.
-        Si se proporcionan fechas, filtra por ese período.
+        Calcula costos de mantenimiento, combustible y arriendos. Si se proporcionan fechas, filtra por ese período.
         """
         mantenimientos_qs = Mantenimiento.objects.filter(vehiculo=vehiculo)
         if fecha_desde:
@@ -101,8 +104,7 @@ class ReporteCalculos:
     @staticmethod
     def calcular_tiempo_mantenimiento(vehiculo, fecha_desde, fecha_hasta):
         """
-        Calcula horas totales en mantenimiento y costo por hora detenida.
-        Solo considera mantenimientos finalizados con fecha_salida.
+        Calcula horas totales en mantenimiento y costo por hora detenida. Solo considera mantenimientos finalizados con fecha_salida.
         """
         from decimal import Decimal
         mants = Mantenimiento.objects.filter(
@@ -207,7 +209,9 @@ class ReporteCalculos:
 
 
 class TabManager:
-    """Estado de pestañas vía query string."""
+    """
+    Estado de pestañas vía query string.
+    """
     
     def __init__(self, request):
         self.active = request.GET.get('tab', 'costos')
@@ -217,7 +221,9 @@ class TabManager:
         return self.active == tab_name
     
     def url(self, tab_name, **params):
-        """Genera URL para pestaña manteniendo parámetros"""
+        """
+        Genera URL para pestaña manteniendo parámetros
+        """
         from django.http import QueryDict
         query_dict = self.request.GET.copy()
         query_dict['tab'] = tab_name
@@ -231,8 +237,7 @@ class TabManager:
 
 def obtener_anios_disponibles_disponibilidad():
     """
-    Retorna lista de años únicos ordenados descendente que tengan
-    al menos un mantenimiento o falla reportada.
+    Retorna lista de años únicos ordenados descendente que tengan al menos un mantenimiento o falla reportada.
     """
     years_mant = Mantenimiento.objects.dates('fecha_ingreso', 'year').values_list('fecha_ingreso__year', flat=True).distinct()
     years_falla = FallaReportada.objects.dates('fecha_reporte', 'year').values_list('fecha_reporte__year', flat=True).distinct()

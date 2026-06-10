@@ -28,8 +28,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }
         
-        // También corregir valores iniciales establecidos por Django
-        // Django puede renderizar fechas en formato del locale, necesitamos forzar el formato
+        // Correcciones de valores iniciales establecidos por Django
         if (input.hasAttribute('data-initial-value')) {
             let initialValue = input.getAttribute('data-initial-value');
             if (initialValue && /^\d{4}-\d{2}-\d{2}$/.test(initialValue)) {

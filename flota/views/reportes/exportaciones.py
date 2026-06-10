@@ -90,7 +90,9 @@ def exportar_variacion_excel(anio, tipo_mantencion=None):
 
 
 def exportar_disponibilidad_excel(request, anio_disp, mes_disp):
-    """Exporta el reporte de disponibilidad a Excel con período en título y nombre."""
+    """
+    Exporta el reporte de disponibilidad a Excel con período en título y nombre.
+    """
     from calendar import monthrange
     if mes_disp:
         dias_periodo = monthrange(anio_disp, mes_disp)[1]

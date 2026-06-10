@@ -32,7 +32,9 @@ from .exportaciones import (
 )
 
 def reportes(request):
-    """Reportes: costos, variación presupuestaria y disponibilidad (HTML o Excel)."""
+    """
+    Reportes: costos, variación presupuestaria y disponibilidad (HTML o Excel).
+    """
     if request.GET.get('exportar') == 'excel':
         tab = request.GET.get('tab', 'costos')
         if tab == 'variacion':
@@ -326,7 +328,6 @@ def reportes(request):
     })
     
 
-# RF_25: Generar reporte de disponibilidad (disponibilidad efectiva: días disponibles en período)
 @login_required
 def reporte_disponibilidad(request):
     from calendar import monthrange
@@ -410,7 +411,6 @@ def reporte_disponibilidad(request):
     })
 
 
-# RF_28: Generar reporte de historial por unidad
 @login_required
 def reporte_historial_unidad(request, patente):
     vehiculo = get_object_or_404(Vehiculo, patente=patente)
@@ -450,8 +450,7 @@ def reporte_historial_unidad(request, patente):
 
 def calcular_tiempos_retencion_hbo(vehiculo_ids, fecha_desde, fecha_hasta):
     """
-    Retorna un diccionario {vehiculo_id: minutos_promedio_en_HBO}
-    para cada vehículo en el período.
+    Retorna un diccionario {vehiculo_id: minutos_promedio_en_HBO} para cada vehículo en el período.
     """
     resultados = {}
     for vid in vehiculo_ids:
@@ -503,8 +502,7 @@ def calcular_disponibilidad_global(vehiculos, fecha_desde, fecha_hasta, dias_per
 
 def calcular_dias_fuera_por_mes(vehiculos, anio):
     """
-    Retorna una lista de 12 elementos con la suma de días fuera de servicio
-    cuyos mantenimientos comenzaron en cada mes del año.
+    Retorna una lista de 12 elementos con la suma de días fuera de servicio cuyos mantenimientos comenzaron en cada mes del año.
     """
     meses_dias = [0] * 12
     for v in vehiculos:

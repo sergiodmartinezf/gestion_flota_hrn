@@ -20,7 +20,9 @@ MESES = [
 ]
 
 def crear_estilos_excel():
-    """Estilos reutilizables para el Excel"""
+    """
+    Estilos reutilizables para el Excel
+    """
     estilo_titulo = Font(name='Arial', size=14, bold=True)
     estilo_encabezado_font = Font(name='Arial', size=12, bold=True, color='FFFFFF')
     estilo_encabezado_fill = PatternFill(start_color='366092', end_color='366092', fill_type='solid')
@@ -304,7 +306,9 @@ def exportar_reporte_excel(titulo, datos, columnas, nombre_archivo=None):
 
 
 def aplicar_estilos_cabecera(ws, fila, columnas, estilos):
-    """Aplica estilos a una fila de encabezados"""
+    """
+    Aplica estilos a una fila de encabezados
+    """
     for idx, nombre in enumerate(columnas, start=1):
         celda = ws.cell(row=fila, column=idx)
         celda.value = nombre
@@ -419,8 +423,6 @@ def exportar_planilla_mantenimientos_excel(anio=None):
         nombre_proveedor = ""
         id_convenio = ""
         costo_anual_convenio = 0
-        # Calcular costo anual sumando OC del proveedor de convenio (ej. Kaufmann, Francisco Alejandro)
-        # Para simplificar, tomamos el proveedor más frecuente en los mantenimientos preventivos
         proveedores_mp = set()
         for m in mant_por_vehiculo.get(v.id, []):
             if m.tipo_mantencion == 'Preventivo' and m.proveedor:
@@ -501,7 +503,6 @@ def exportar_planilla_mantenimientos_excel(anio=None):
             # Completar las 28 primeras columnas vacías (excepto patente y algunos)
             # Luego añadir datos mensuales del concepto
             # Para simplificar, reutilizamos los mismos datos mensuales del vehículo pero con estado del concepto
-            # Realmente deberíamos tener seguimiento específico para neumáticos, pero lo dejaremos como ejemplo.
             datos_concepto = {mes: ('', '') for mes in range(1, 13)}
             if hasattr(obj, 'fecha_emision'):  # es orden de compra
                 mes = obj.fecha_emision.month
@@ -559,7 +560,7 @@ def exportar_planilla_mantenimientos_excel(anio=None):
     ws2.row_dimensions[fila_enc_mp].height = 25
 
     # Agrupar órdenes de compra por proveedor de convenio (es_taller=True y proveedor_base o similar)
-    # Usaremos los proveedores con es_taller=True y que aparezcan en OC con cuenta 22.06.002.001 o .003 (preventivo)
+    # Se usan los proveedores con es_taller=True y que aparezcan en OC con cuenta 22.06.002.001 o .003 (preventivo)
     proveedores_mp = Proveedor.objects.filter(es_taller=True, activo=True)
     convenios = {}
     for p in proveedores_mp:
@@ -691,7 +692,6 @@ def exportar_planilla_mantenimientos_excel(anio=None):
         if oc.descripcion and 'NEUMÁTICO' in oc.descripcion.upper() and oc.vehiculo_id:
             neumaticos_por_vehiculo[oc.vehiculo.patente] += oc.monto_total
 
-    # Estimar costo anual por vehículo (asumimos 2 juegos de neumáticos al año? valor aproximado 1.880.000 para ambulancias, 940.000 para camionetas)
     fila_neu = fila_enc_neu + 1
     for patente, gasto in neumaticos_por_vehiculo.items():
         vehiculo = Vehiculo.objects.filter(patente=patente).first()

@@ -10,13 +10,13 @@ urlpatterns = [
     # Dashboard
     path('dashboard/', views.dashboard, name='dashboard'),
     
-    # Usuarios (RF_01-05)
+    # Usuarios
     path('usuarios/registrar/', views.registrar_usuario, name='registrar_usuario'),
     path('usuarios/listar/', views.listar_usuarios, name='listar_usuarios'),
     path('usuarios/modificar/<str:rut>/', views.modificar_usuario, name='modificar_usuario'),
     path('usuarios/deshabilitar/<str:rut>/', views.deshabilitar_usuario, name='deshabilitar_usuario'),
     
-    # Vehículos (RF_06-14)
+    # Vehículos
     path('vehiculos/registrar/', views.registrar_vehiculo, name='registrar_vehiculo'),
     path('vehiculos/listar/', views.listar_flota, name='listar_flota'),
     path('vehiculos/disponibilidad/', views.disponibilidad_flota, name='disponibilidad_flota'),
@@ -28,7 +28,7 @@ urlpatterns = [
     path('vehiculos/modificar/<str:patente>/', views.modificar_vehiculo, name='modificar_vehiculo'),
     path('vehiculos/estado/<str:patente>/', views.actualizar_estado_vehiculo, name='actualizar_estado_vehiculo'),
     
-    # Bitácoras y viajes (RF_15-17)
+    # Bitácoras y viajes
     path('bitacora/acceso-inteligente/', views.acceso_bitacora, name='bitacora_inteligente'),
     path('bitacora/cerrar/<int:id>/', views.cerrar_hoja_ruta, name='cerrar_hoja_ruta'),
     path('bitacoras/registrar/', views.registrar_bitacora, name='registrar_bitacora'),
@@ -43,7 +43,7 @@ urlpatterns = [
     path('historial/', views.historial_conductor, name='historial_conductor'),
     path('bitacora/reabrir/<int:id>/', views.reabrir_bitacora, name='reabrir_bitacora'),
     
-    # Mantenimiento (RF_18-23): registro unificado desde calendario (preventivo y correctivo)
+    # Mantenimiento: registro unificado desde calendario (preventivo y correctivo)
     path('mantenimientos/programar/', views.programar_mantenimiento, name='programar_mantenimiento'),
     path('mantenimientos/listar/', views.listar_mantenimientos, name='listar_mantenimientos'),
     path('mantenimientos/calendario/', views.calendario_mantenciones, name='calendario_mantenciones'),
@@ -56,19 +56,19 @@ urlpatterns = [
     # Panel de control
     path('panel-control/', views.panel_control, name='panel_control'),
     
-    # Presupuesto (RF_21-22)
+    # Presupuesto
     path('presupuestos/registrar/', views.registrar_presupuesto, name='registrar_presupuesto'),
     path('presupuestos/listar/', views.listar_presupuestos, name='listar_presupuestos'),
     # Con parámetro
     path('presupuestos/modificar/<int:id>/', views.modificar_presupuesto, name='modificar_presupuesto'),
     path('presupuestos/deshabilitar/<int:id>/', views.deshabilitar_presupuesto, name='deshabilitar_presupuesto'),
     
-    # Reportes (RF_24-25, 28) y Panel de control
+    # Reportes y Panel de control
     path('reportes/', views.reportes, name='reportes'),
     path('reportes/disponibilidad/', views.reporte_disponibilidad, name='reporte_disponibilidad'),
     path('reportes/historial/<str:patente>/', views.reporte_historial_unidad, name='reporte_historial_unidad'),
     
-    # Arriendo (RF_26)
+    # Arriendo
     path('arriendos/', views.listar_arriendos, name='listar_arriendos'),
     path('arriendos/registrar/', views.registrar_arriendo, name='registrar_arriendo'),
     path('arriendos/finalizar/<int:id>/', views.finalizar_arriendo, name='finalizar_arriendo'),
@@ -83,7 +83,7 @@ urlpatterns = [
     path('proveedores/habilitar/<int:id>/', views.habilitar_proveedor, name='habilitar_proveedor'),
     path('proveedores/deshabilitar/<int:id>/', views.deshabilitar_proveedor, name='deshabilitar_proveedor'),
     
-    # Órdenes de compra (RF_29-33)
+    # Órdenes de compra
     path('ordenes-compra/importar/', views.importar_orden_compra, name='importar_oc'),
     path('ordenes-compra/registrar/', views.registrar_orden_compra, name='registrar_orden_compra'),
     path('ordenes-compra/listar/', views.listar_ordenes_compra, name='listar_ordenes_compra'),

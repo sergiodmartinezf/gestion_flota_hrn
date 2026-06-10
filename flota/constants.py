@@ -1,4 +1,6 @@
-"""Constantes de dominio y helpers de cuentas presupuestarias (códigos SIGFE)."""
+"""
+Constantes de dominio y helpers de cuentas presupuestarias (códigos SIGFE).
+"""
 
 # Cuentas de mantenimiento (datos/cuenta_presupuestaria.csv)
 CUENTA_PREVENTIVO_CRITICO = '22.06.002.001'
@@ -32,7 +34,9 @@ def ids_cuentas_por_codigos(codigos):
 
 
 def mapa_mantenimiento_cuenta_ids():
-    """Equivalente al antiguo MANTENIMIENTO_CUENTAS_MAP, con IDs resueltos desde BD."""
+    """
+    Equivalente al antiguo MANTENIMIENTO_CUENTAS_MAP, con IDs resueltos desde BD.
+    """
     return {
         clave: ids_cuentas_por_codigos(codigos)
         for clave, codigos in MANTENIMIENTO_CUENTAS_CODIGOS.items()
@@ -40,7 +44,9 @@ def mapa_mantenimiento_cuenta_ids():
 
 
 def ids_cuentas_por_tipo_mantencion(tipo_mantencion):
-    """IDs de cuentas asociadas a un tipo de mantención (o todas si tipo vacío)."""
+    """
+    IDs de cuentas asociadas a un tipo de mantención (o todas si tipo vacío).
+    """
     if not tipo_mantencion:
         return ids_cuentas_por_codigos(ALL_MAINTENANCE_ACCOUNT_CODES)
 

@@ -1,4 +1,6 @@
-"""Validación y consulta de presupuesto (fuente única para forms, API, señales y vistas)."""
+"""
+Validación y consulta de presupuesto (fuente única para forms, API, señales y vistas).
+"""
 
 from decimal import Decimal
 

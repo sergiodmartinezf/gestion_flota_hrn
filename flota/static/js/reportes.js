@@ -477,7 +477,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    // --- Mantener scroll al cambiar de pestaña (opcional) ---
+    // --- Mantener scroll al cambiar de pestaña ---
     const tabs = document.querySelectorAll('[data-bs-toggle="tab"]');
     tabs.forEach(tab => {
         tab.addEventListener('shown.bs.tab', () => {

@@ -35,7 +35,9 @@ class Presupuesto(models.Model):
 
     @property
     def disponible(self):
-        """Monto disponible del presupuesto"""
+        """
+        Monto disponible del presupuesto
+        """
         return self.monto_asignado - self.monto_ejecutado
     
     @property
@@ -45,11 +47,15 @@ class Presupuesto(models.Model):
         return 0
     
     def tiene_saldo_suficiente(self, monto_requerido):
-        """Verifica si el presupuesto tiene saldo suficiente para un monto"""
+        """
+        Verifica si el presupuesto tiene saldo suficiente para un monto
+        """
         return self.disponible >= monto_requerido
     
     def consumir_presupuesto(self, monto):
-        """Consume un monto del presupuesto (incrementa monto_ejecutado)"""
+        """
+        Consume un monto del presupuesto (incrementa monto_ejecutado)
+        """
         if self.disponible >= monto:
             self.monto_ejecutado += monto
             self.save(update_fields=['monto_ejecutado'])
@@ -57,7 +63,9 @@ class Presupuesto(models.Model):
         return False
     
     def liberar_presupuesto(self, monto):
-        """Libera un monto del presupuesto (disminuye monto_ejecutado)"""
+        """
+        Libera un monto del presupuesto (disminuye monto_ejecutado)
+        """
         if self.monto_ejecutado >= monto:
             self.monto_ejecutado -= monto
             self.save(update_fields=['monto_ejecutado'])
