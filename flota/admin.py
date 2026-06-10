@@ -35,7 +35,6 @@ class PacienteViajeAdmin(admin.ModelAdmin):
     search_fields = ('rut',)
     ordering = ('rut',)
 
-
 @admin.register(PacienteTraslado)
 class PacienteTrasladoAdmin(admin.ModelAdmin):
     list_display = ('viaje', 'rut', 'categoria_traslado', 'sentido', 'destino_tipo', 'paciente_viaje')

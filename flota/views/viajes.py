@@ -33,7 +33,9 @@ TIPOS_SERVICIO = [
 
 @login_required
 def acceso_bitacora(request):
-    """Redirige según rol: admin/listado o conductor/hoja activa."""
+    """
+    Redirige según rol: admin/listado o conductor/hoja activa.
+    """
     if request.user.rol in ['Administrador', 'Visualizador']:
         return redirect('listar_bitacoras')
 
@@ -96,7 +98,6 @@ def cerrar_hoja_ruta(request, id):
             
     return redirect('agregar_viaje', id=hoja.id)
 
-# RF_15: Registrar bitácora (Hoja de Ruta)
 @login_required
 @user_passes_test(es_conductor_o_admin)
 def registrar_bitacora(request):
@@ -320,7 +321,6 @@ def detalle_bitacora(request, id):
     })
 
 
-# RF_16: Registrar carga de combustible
 @login_required
 @user_passes_test(es_conductor_o_admin)
 def registrar_carga_combustible(request):
@@ -395,7 +395,6 @@ def listar_cargas_combustible(request):
         'conductor_filtro': conductor_filtro,
     })
 
-# RF_17: Registrar incidente (Falla Reportada)
 @login_required
 @user_passes_test(es_conductor_o_admin)
 def registrar_incidente(request):
@@ -585,7 +584,9 @@ def reabrir_bitacora(request, id):
 
 @login_required
 def exportar_traslados_form(request):
-    """Muestra formulario con filtros (desde, hasta, vehículo, conductor) para exportar Excel."""
+    """
+    Muestra formulario con filtros (desde, hasta, vehículo, conductor) para exportar Excel.
+    """
     vehiculos = Vehiculo.objects.all().order_by('patente')
     conductores = Usuario.objects.filter(rol='Conductor', activo=True).order_by('nombre', 'apellido')
     return render(request, 'flota/exportar_traslados.html', {

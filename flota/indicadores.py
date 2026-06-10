@@ -1,6 +1,5 @@
 """
-Indicadores del Plan Trienal (combustible, disponibilidad).
-Consultas agrupadas por vehículo para evitar N+1 en reportes.
+Indicadores del Plan Trienal (combustible, disponibilidad). Consultas agrupadas por vehículo para evitar N+1 en reportes.
 """
 from calendar import monthrange
 from collections import defaultdict
@@ -21,7 +20,9 @@ from .models import HojaRuta
 
 
 def rango_fechas_reporte(anio, mes=None):
-    """Período inclusivo [fecha_desde, fecha_hasta] según año y opcionalmente mes."""
+    """
+    Período inclusivo [fecha_desde, fecha_hasta] según año y opcionalmente mes.
+    """
     if mes and 1 <= int(mes) <= 12:
         mes = int(mes)
         ultimo = monthrange(anio, mes)[1]
@@ -30,7 +31,9 @@ def rango_fechas_reporte(anio, mes=None):
 
 
 def km_recorridos_desde_hojas(vehiculo_ids, fecha_desde, fecha_hasta):
-    """Suma (km_fin - km_inicio) por vehículo en el período."""
+    """
+    Suma (km_fin - km_inicio) por vehículo en el período.
+    """
     if not vehiculo_ids:
         return {}
     qs = HojaRuta.objects.filter(
@@ -50,7 +53,9 @@ def km_recorridos_desde_hojas(vehiculo_ids, fecha_desde, fecha_hasta):
 
 
 def km_recorridos_fallback_cargas(vehiculo_ids, fecha_desde, fecha_hasta):
-    """max(km carga) - min(km carga) por vehículo si hay cargas en el período."""
+    """
+    max(km carga) - min(km carga) por vehículo si hay cargas en el período.
+    """
     if not vehiculo_ids:
         return {}
     from .models import CargaCombustible
@@ -76,8 +81,7 @@ def km_recorridos_fallback_cargas(vehiculo_ids, fecha_desde, fecha_hasta):
 
 def km_totales_por_vehiculo(vehiculo_ids, fecha_desde, fecha_hasta):
     """
-    Km recorridos en el período: preferir suma de hojas de ruta;
-    si es 0, usar diferencia de odómetro entre cargas de combustible.
+    Km recorridos en el período: preferir suma de hojas de ruta. Si es 0, usar diferencia de odómetro entre cargas de combustible.
     """
     desde_hojas = km_recorridos_desde_hojas(vehiculo_ids, fecha_desde, fecha_hasta)
     fallback = km_recorridos_fallback_cargas(vehiculo_ids, fecha_desde, fecha_hasta)
@@ -91,7 +95,9 @@ def km_totales_por_vehiculo(vehiculo_ids, fecha_desde, fecha_hasta):
 
 
 def agregados_combustible_por_vehiculo(vehiculo_ids, fecha_desde, fecha_hasta):
-    """litros y costo_total de CargaCombustible por vehículo."""
+    """
+    litros y costo_total de CargaCombustible por vehículo.
+    """
     if not vehiculo_ids:
         return {}
     from .models import CargaCombustible
@@ -116,8 +122,7 @@ def agregados_combustible_por_vehiculo(vehiculo_ids, fecha_desde, fecha_hasta):
 
 def indicadores_costos_combustible(vehiculo_ids, fecha_desde, fecha_hasta):
     """
-    Por vehículo: rendimiento (km/l), costo combustible $/km, índice $/l efectivo.
-    Valores None donde no aplica; strings para plantilla: 'Sin datos', 'N/A'.
+    Por vehículo: rendimiento (km/l), costo combustible $/km, índice $/l efectivo. Valores None donde no aplica; strings para plantilla: 'Sin datos', 'N/A'.
     """
     km_map = km_totales_por_vehiculo(vehiculo_ids, fecha_desde, fecha_hasta)
     comb_map = agregados_combustible_por_vehiculo(vehiculo_ids, fecha_desde, fecha_hasta)
@@ -188,7 +193,9 @@ def frecuencia_fallas_por_vehiculo(vehiculo_ids, fecha_desde, fecha_hasta):
 
 
 def promedio_dias_indisponibilidad_por_vehiculo(vehiculo_ids, fecha_desde, fecha_hasta):
-    """Promedio de (fecha_salida - fecha_ingreso).days para mantenimientos finalizados."""
+    """
+    Promedio de (fecha_salida - fecha_ingreso).days para mantenimientos finalizados.
+    """
     from .models import Mantenimiento
 
     if not vehiculo_ids:

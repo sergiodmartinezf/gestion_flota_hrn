@@ -61,8 +61,7 @@ class Mantenimiento(models.Model):
 
     def puede_cerrar_administrativamente(self):
         """
-        Verifica si el mantenimiento cumple las condiciones para cierre administrativo
-        (normativa hospitalaria: estado Finalizado requiere OC y costos reales).
+        Verifica si el mantenimiento cumple las condiciones para cierre administrativo (normativa hospitalaria: estado Finalizado requiere OC y costos reales).
         """
         if self.estado != 'Finalizado':
             return False
@@ -73,7 +72,9 @@ class Mantenimiento(models.Model):
         return True
 
     def _obtener_presupuesto_para_cierre(self):
-        """Obtiene el presupuesto aplicable por cuenta y año. No modifica nada."""
+        """
+        Obtiene el presupuesto aplicable por cuenta y año. No modifica nada.
+        """
         if not self.cuenta_presupuestaria or not self.vehiculo:
             return None
         anio = self.fecha_ingreso.year
@@ -85,9 +86,7 @@ class Mantenimiento(models.Model):
 
     def ejecutar_cierre_presupuestario(self):
         """
-        Único punto de ejecución presupuestaria por mantenimiento.
-        Valida: OC asociada, estado Finalizado, costos reales > 0, cuenta presupuestaria,
-        presupuesto existe y con saldo.
+        Único punto de ejecución presupuestaria por mantenimiento. Valida: OC asociada, estado Finalizado, costos reales > 0, cuenta presupuestaria, presupuesto existe y con saldo.
         """
         if self.estado != 'Finalizado':
             return

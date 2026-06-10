@@ -1,4 +1,6 @@
-"""Validación de RUT chileno (dígito verificador)."""
+"""
+Validación de RUT chileno (dígito verificador).
+"""
 
 
 def _separar_rut(rut):
@@ -48,8 +50,7 @@ def formatear_rut(cuerpo, dv):
 
 def validar_rut_chileno(rut):
     """
-    Valida un RUT chileno según el algoritmo del dígito verificador.
-    Retorna (es_valido, mensaje_error).
+    Valida un RUT chileno según el algoritmo del dígito verificador. Retorna (es_valido, mensaje_error).
     """
     cuerpo, dv = _separar_rut(rut)
     if not cuerpo or not dv:
@@ -63,7 +64,9 @@ def validar_rut_chileno(rut):
 
 
 def normalizar_rut(rut):
-    """Devuelve RUT formateado (12.345.678-9) o None si es inválido."""
+    """
+    Devuelve RUT formateado (12.345.678-9) o None si es inválido.
+    """
     cuerpo, dv = _separar_rut(rut)
     if not cuerpo or not dv:
         return None

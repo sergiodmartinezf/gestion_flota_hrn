@@ -11,9 +11,6 @@
     {% block extra_css %}{% endblock %}
 </head>
 
-
-
-
 <body{% if user.is_authenticated %} data-logout-url="{% url 'logout' %}"{% endif %}>
     {% if user.is_authenticated %}
     <div class="container-fluid">
@@ -30,7 +27,6 @@
                         <li><a href="{% url 'listar_usuarios' %}"><i class="bi bi-people"></i> Usuarios</a></li>
                         {% endif %}
                         <li><a href="{% url 'listar_flota' %}"><i class="bi bi-car-front"></i> Flota</a></li>
-                        <!--<li><a href="{% url 'disponibilidad_flota' %}"><i class="bi bi-check-circle"></i> Disponibilidad</a></li>-->
                         {% endif %}
 
                         <li>

@@ -48,6 +48,5 @@ Thumbs.db
 .env.*
 
 # Datos de prueba
-
 flota/management/commands/datos_prueba.py
 flota/management/commands/datos_prueba/

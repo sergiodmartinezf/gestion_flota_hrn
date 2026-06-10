@@ -51,8 +51,7 @@ class OrdenCompra(models.Model):
     def save(self, *args, **kwargs):
         """
         Al guardar una OC, validar y gestionar presupuesto si corresponde.
-        NOTA: El consumo real del presupuesto se hace a través de signals
-        que recalculan basándose en las OCs activas (no anuladas).
+        NOTA: El consumo real del presupuesto se hace a través de signals que recalculan basándose en las OCs activas (no anuladas).
         """
         is_new = self.pk is None
 

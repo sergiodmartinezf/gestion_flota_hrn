@@ -15,11 +15,12 @@ from ..forms import MantenimientoForm, ProgramarMantenimientoForm, FinalizarMant
 from .utilidades import es_administrador
 from ..utils import exportar_planilla_mantenimientos_excel
 
-# RF_18 y RF_19: Programar/registrar mantenimiento (preventivo o correctivo) desde calendario
 @login_required
 @user_passes_test(es_administrador)
 def programar_mantenimiento(request):
-    """Vista unificada: GET redirige al calendario; POST crea mantenimiento preventivo o correctivo."""
+    """
+    Vista unificada: GET redirige al calendario; POST crea mantenimiento preventivo o correctivo.
+    """
     if request.method != 'POST':
         return redirect('calendario_mantenciones')
 
@@ -76,7 +77,6 @@ def programar_mantenimiento(request):
     return redirect('listar_mantenimientos')
 
 
-# RF_20: Listar mantenimientos
 @login_required
 def listar_mantenimientos(request):
     # Exportar planilla Excel si se solicita
@@ -278,7 +278,6 @@ def eliminar_mantenimiento(request, id):
     return render(request, 'flota/eliminar_mantenimiento.html', {'mantenimiento': mantenimiento})
 
 
-# RF_23: Visualizar calendario de mantenciones
 @login_required
 def calendario_mantenciones(request):
     vehiculos = Vehiculo.objects.all().order_by('patente')

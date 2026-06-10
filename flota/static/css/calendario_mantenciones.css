@@ -19,16 +19,16 @@
 
 /* 2. Aumentar padding entre días verticalmente */
 .fc .fc-daygrid-day {
-    padding: 10px 4px !important; /* Más padding vertical */
+    padding: 10px 4px !important;
     background-color: transparent;
 }
 
 /* 3. Estilo tipo tarjeta para cada día con más margen vertical */
 .fc .fc-daygrid-day-frame {
     background-color: #ffffff;
-    border-radius: 12px; /* ligeramente menor */
-    border: 1px solid #dee2e6; /* borde claro y nítido */
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08); /* sombra más corta */
+    border-radius: 12px;
+    border: 1px solid #dee2e6;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
     padding: 8px 6px;
     margin: 12px 4px !important;
     height: 90% !important;
@@ -44,7 +44,7 @@
 
 /* 4. Espacio extra entre las filas de días */
 .fc .fc-daygrid-body > tr > td {
-    padding-bottom: 10px !important; /* Espacio sustancial entre filas */
+    padding-bottom: 10px !important;
 }
 
 /* 5. Ajustar el contenedor interno del día */

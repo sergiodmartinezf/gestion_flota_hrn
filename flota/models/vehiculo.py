@@ -83,7 +83,9 @@ class Vehiculo(models.Model):
 
     @property
     def kilometraje_para_mantencion(self):
-        """Calcula cuántos kilómetros faltan para el próximo mantenimiento"""
+        """
+        Calcula cuántos kilómetros faltan para el próximo mantenimiento
+        """
         if self.umbral_mantencion > 0:
             resto = self.kilometraje_actual % self.umbral_mantencion
             return max(0, self.umbral_mantencion - resto)
@@ -113,7 +115,9 @@ class Vehiculo(models.Model):
 
     @classmethod
     def queryset_para_hoja_ruta(cls, incluir_pk=None):
-        """Operativos más vehículos con hoja abierta (aunque otro conductor los use)."""
+        """
+        Operativos más vehículos con hoja abierta (aunque otro conductor los use).
+        """
         from .operativa import HojaRuta
 
         qs = cls.objetos_operativos()

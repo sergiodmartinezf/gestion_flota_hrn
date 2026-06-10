@@ -383,8 +383,7 @@ def eliminar_orden_trabajo(request, id):
 @login_required
 def api_orden_trabajo(request, id):
     """
-    Endpoint API para obtener datos de una orden de trabajo.
-    Usado para auto-completar formularios de orden de compra.
+    Endpoint API para obtener datos de una orden de trabajo. Usado para auto-completar formularios de orden de compra.
     """
     try:
         ot = get_object_or_404(OrdenTrabajo, id=id)

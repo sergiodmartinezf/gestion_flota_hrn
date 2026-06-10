@@ -5,7 +5,6 @@ from django.db.models import Sum, F
 from decimal import Decimal
 from ..models import Vehiculo, Mantenimiento, CargaCombustible, Alerta, Presupuesto, Arriendo
 
-# RF_27: Visualizar panel de indicadores (Dashboard)
 @login_required
 def dashboard(request):
     if request.user.rol == 'Conductor':

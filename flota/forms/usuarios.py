@@ -45,8 +45,6 @@ class UsuarioForm(forms.ModelForm):
             self.fields['password'].required = False
             self.fields['password_confirm'].required = False
             self.fields['password'].help_text = 'Dejar en blanco para mantener la contraseña actual'
-            # El RUT NO es readonly porque ya no es PK, pero lo mantenemos readonly visualmente
-            # El valor se preservará mediante initial y clean_rut()
             self.fields['rut'].widget.attrs['readonly'] = True
             # Establecer el valor inicial para que se envíe en POST
             self.fields['rut'].initial = self.instance.rut

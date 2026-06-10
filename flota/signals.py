@@ -8,8 +8,7 @@ from .services.presupuesto import validar_presupuesto_disponible
 @receiver(pre_save, sender=Mantenimiento)
 def validar_cierre_administrativo_mantenimiento(sender, instance, **kwargs):
     """
-    Valida condiciones de cierre administrativo: Finalizado requiere OC y presupuesto suficiente.
-    La ejecución presupuestaria se hace solo vía Mantenimiento.ejecutar_cierre_presupuestario().
+    Valida condiciones de cierre administrativo: Finalizado requiere OC y presupuesto suficiente. La ejecución presupuestaria se hace solo vía Mantenimiento.ejecutar_cierre_presupuestario().
     """
     if instance.estado != 'Finalizado':
         return
@@ -35,8 +34,7 @@ def validar_cierre_administrativo_mantenimiento(sender, instance, **kwargs):
 @receiver(post_delete, sender=Mantenimiento)
 def actualizar_presupuesto_al_borrar_mantenimiento(sender, instance, **kwargs):
     """
-    Al borrar un mantenimiento finalizado, recalcular presupuesto afectado.
-    La ejecución en guardado se hace solo vía Mantenimiento.ejecutar_cierre_presupuestario().
+    Al borrar un mantenimiento finalizado, recalcular presupuesto afectado. La ejecución en guardado se hace solo vía Mantenimiento.ejecutar_cierre_presupuestario().
     """
     if instance.estado != 'Finalizado' or not instance.cuenta_presupuestaria:
         return
@@ -51,8 +49,7 @@ def actualizar_presupuesto_al_borrar_mantenimiento(sender, instance, **kwargs):
 
 def recalcular_monto_ejecutado(presupuesto):
     """
-    Recalcula el total gastado para un presupuesto específico sumando
-    Mantenimientos, Combustible y Arriendos asociados.
+    Recalcula el total gastado para un presupuesto específico sumando Mantenimientos, Combustible y Arriendos asociados.
     """
     anio = presupuesto.anio
     cuenta = presupuesto.cuenta
@@ -106,8 +103,7 @@ def recalcular_monto_ejecutado(presupuesto):
 @receiver(post_delete, sender=OrdenCompra)
 def actualizar_presupuesto_orden_compra(sender, instance, **kwargs):
     """
-    Cuando se guarda/borra una OC, recalcular el presupuesto asociado.
-    Las OCs representan compromisos presupuestarios.
+    Cuando se guarda/borra una OC, recalcular el presupuesto asociado. Las OCs representan compromisos presupuestarios.
     """
     if not instance.cuenta_presupuestaria:
         return

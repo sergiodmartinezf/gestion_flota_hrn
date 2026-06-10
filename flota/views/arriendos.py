@@ -48,7 +48,6 @@ def listar_arriendos(request):
     })
 
 
-# RF_26: Registrar arriendo
 @login_required
 @user_passes_test(es_administrador)
 def registrar_arriendo(request):
