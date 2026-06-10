@@ -113,7 +113,7 @@ class Mantenimiento(models.Model):
                 f"Presupuesto insuficiente. Disponible: ${presupuesto.disponible:.0f}, "
                 f"Requerido: ${self.costo_total_real:.0f}"
             )
-        from .signals import recalcular_monto_ejecutado
+        from flota.signals import recalcular_monto_ejecutado
         recalcular_monto_ejecutado(presupuesto)
 
     def save(self, *args, **kwargs):
