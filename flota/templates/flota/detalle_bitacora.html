@@ -173,7 +173,7 @@
         </a>
         {% endif %}
         
-        {% if request.user.rol == 'Administrador' %}
+        {% if request.user.rol == 'Administrador' or request.user.rol == 'Conductor' %}
             <a href="{% url 'modificar_bitacora' id=hoja.id %}" class="btn btn-outline-warning">
                 <i class="bi bi-pencil"></i> Editar Hoja
             </a>

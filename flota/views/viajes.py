@@ -13,7 +13,7 @@ from ..models import (
     PacienteTraslado, PacienteViaje, DESTINOS_COMUNES,
 )
 from ..forms import HojaRutaForm, CargaCombustibleForm, FallaReportadaForm, ViajeForm, PacienteFormSet
-from .utilidades import es_conductor_o_admin, es_administrador, es_conductor
+from .utilidades import es_conductor_o_admin, es_conductor
 from ..validators import normalizar_rut
 from datetime import datetime, timedelta
 
@@ -281,10 +281,14 @@ def listar_bitacoras(request):
     })
 
 @login_required
-@user_passes_test(es_administrador)
+@user_passes_test(es_conductor_o_admin)
 def modificar_bitacora(request, id):
     hoja = get_object_or_404(HojaRuta, id=id)
-    
+
+    if request.user != hoja.conductor and request.user.rol != 'Administrador':
+        messages.error(request, "No tienes permiso para modificar esta hoja de ruta.")
+        return redirect('detalle_bitacora', id=hoja.id)
+
     if request.method == 'POST':
         form = HojaRutaForm(request.POST, instance=hoja)
         if form.is_valid():
