@@ -274,22 +274,6 @@ function toggleHorasHBO() {
     hboContainers.forEach(container => {
         container.style.display = tieneDestinoHBO ? 'block' : 'none';
     });
-    
-    const horaSalidaHBO = document.querySelector('[name="hora_salida_hbo"]');
-    const horaLlegadaHBO = document.querySelector('[name="hora_llegada_hbo"]');
-    if (tieneDestinoHBO) {
-        if (horaSalidaHBO) horaSalidaHBO.setAttribute('required', 'required');
-        if (horaLlegadaHBO) horaLlegadaHBO.setAttribute('required', 'required');
-    } else {
-        if (horaSalidaHBO) {
-            horaSalidaHBO.removeAttribute('required');
-            if (horaSalidaHBO.value) horaSalidaHBO.value = '';
-        }
-        if (horaLlegadaHBO) {
-            horaLlegadaHBO.removeAttribute('required');
-            if (horaLlegadaHBO.value) horaLlegadaHBO.value = '';
-        }
-    }
 }
 
 // 4. Configurar validación del formulario
@@ -323,9 +307,11 @@ function configurarValidacionFormulario() {
         let formIsValid = true;
         const errorMessages = [];
         
-        // 1. Validar campos requeridos visibles
+        // 1. Validar campos requeridos visibles (horas HBO son opcionales)
+        const camposHboOpcionales = new Set(['hora_salida_hbo', 'hora_llegada_hbo']);
         const requiredFields = form.querySelectorAll('[required]');
         requiredFields.forEach(field => {
+            if (camposHboOpcionales.has(field.name)) return;
             if (field.offsetParent !== null && !field.value.trim()) {
                 field.classList.add('is-invalid');
                 formIsValid = false;

@@ -288,7 +288,7 @@ def listar_bitacoras(request):
 @login_required
 @user_passes_test(es_conductor_o_admin)
 def modificar_bitacora(request, id):
-    hoja = get_object_or_404(HojaRuta, id=id)
+    hoja = get_object_or_404(HojaRuta.objects.select_related('vehiculo'), id=id)
 
     if request.user != hoja.conductor and request.user.rol != 'Administrador':
         messages.error(request, "No tienes permiso para modificar esta hoja de ruta.")

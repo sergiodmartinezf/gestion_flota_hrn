@@ -101,7 +101,6 @@
 <div class="mt-3">
     {% if user.rol == 'Administrador' %}
     <a href="{% url 'modificar_vehiculo' vehiculo.patente %}" class="btn btn-warning"><i class="bi bi-pencil"></i> Modificar</a>
-    <a href="{% url 'actualizar_estado_vehiculo' vehiculo.patente %}" class="btn btn-info"><i class="bi bi-arrow-repeat"></i> Actualizar Estado</a>
     <a href="{% url 'reporte_historial_unidad' vehiculo.patente %}" class="btn btn-primary"><i class="bi bi-file-text"></i> Ver Historial</a>
     {% endif %}
     <a href="{% url 'listar_flota' %}" class="btn btn-secondary">Volver</a>

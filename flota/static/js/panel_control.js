@@ -574,7 +574,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 options: {
                     layout: {
                         padding: {
-                          top: 30 
+                          top: 30,
+                          right: 60
                         } 
                     },
                     indexAxis: 'y',

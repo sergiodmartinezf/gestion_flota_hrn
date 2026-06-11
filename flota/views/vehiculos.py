@@ -120,7 +120,7 @@ def actualizar_estado_vehiculo(request, patente):
             vehiculo.estado = nuevo_estado
             vehiculo.save()
             messages.success(request, f'Estado del vehículo {vehiculo.patente} actualizado a {nuevo_estado}.')
-            return redirect('ficha_vehiculo', patente=vehiculo.patente)
+            return redirect('listar_flota')
     
     return render(request, 'flota/actualizar_estado_vehiculo.html', {'vehiculo': vehiculo})
 
