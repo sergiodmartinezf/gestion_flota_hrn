@@ -6,8 +6,9 @@ from django.utils import timezone
 from django.core.exceptions import ValidationError
 from ..models import (
     Usuario, Vehiculo, Proveedor, OrdenCompra, OrdenTrabajo,
-    Presupuesto, Arriendo, HojaRuta, Viaje, PacienteTraslado, CargaCombustible,
-    Mantenimiento, FallaReportada, CuentaPresupuestaria, TIPOS_SERVICIO,
+    Presupuesto, Arriendo, HojaRuta, Viaje, TripulacionViaje, PacienteTraslado,
+    CargaCombustible, Mantenimiento, FallaReportada, CuentaPresupuestaria,
+    TIPOS_SERVICIO, ROL_TRIPULACION,
 )
 from ..constants import cuenta_valida_para_mantenimiento
 from ..services.presupuesto import validar_presupuesto_disponible
@@ -21,21 +22,12 @@ class HojaRutaForm(forms.ModelForm):
     )
     class Meta:
         model = HojaRuta
-        fields = ['vehiculo', 'fecha', 'turno', 'km_inicio', 'km_fin',
-                  'medico_derivador', 'tens', 
-                  'enfermero', 'no_aplica_enfermero', 
-                  'camillero', 'no_aplica_camillero']
+        fields = ['vehiculo', 'fecha', 'turno', 'km_inicio', 'km_fin']
         widgets = {
             'fecha': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
             'turno': forms.Select(attrs={'class': 'form-select'}),
             'km_inicio': forms.NumberInput(attrs={'class': 'form-control'}),
             'km_fin': forms.NumberInput(attrs={'class': 'form-control'}),
-            'medico_derivador': forms.TextInput(attrs={'class': 'form-control'}),
-            'tens': forms.TextInput(attrs={'class': 'form-control'}),
-            'enfermero': forms.TextInput(attrs={'class': 'form-control'}),
-            'camillero': forms.TextInput(attrs={'class': 'form-control'}),
-            'no_aplica_enfermero': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
-            'no_aplica_camillero': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
         }
     
     def __init__(self, *args, **kwargs):
@@ -59,88 +51,16 @@ class HojaRutaForm(forms.ModelForm):
                 self.fields['fecha'].initial = datetime.now().date()
                 self.fields['fecha'].widget.attrs['value'] = datetime.now().date().strftime('%Y-%m-%d')
 
-        # --- Detectar si es camioneta (POST o instancia) ---
-        es_camioneta = False
-        if self.instance.pk and self.instance.vehiculo:
-            es_camioneta = (self.instance.vehiculo.tipo_carroceria == 'Camioneta')
-        elif self.data.get('vehiculo'):
-            try:
-                v = Vehiculo.objects.get(patente=self.data.get('vehiculo'))
-                es_camioneta = (v.tipo_carroceria == 'Camioneta')
-            except Vehiculo.DoesNotExist:
-                pass
-
-        # --- Ajustar required según tipo de vehículo ---
-        if es_camioneta:
-            self.fields['medico_derivador'].required = False
-            self.fields['tens'].required = False
-            self.fields['enfermero'].required = False
-            self.fields['camillero'].required = False
-            # Forzar "No aplica" y limpiar valores
-            self.fields['no_aplica_enfermero'].initial = True
-            self.fields['no_aplica_camillero'].initial = True
-            self.fields['enfermero'].initial = ''
-            self.fields['camillero'].initial = ''
-        else:
-            self.fields['medico_derivador'].required = True
-            self.fields['tens'].required = True
-            # Enfermero y camillero son condicionales, no se marcan required aquí
-            self.fields['enfermero'].required = False
-            self.fields['camillero'].required = False
-    
     def clean(self):
         cleaned_data = super().clean()
-        
+
         vehiculo = cleaned_data.get('vehiculo')
         turno = cleaned_data.get('turno')
-        medico_derivador = cleaned_data.get('medico_derivador')
-        tens = cleaned_data.get('tens')
-        
-        # Obtener valores de checkboxes y textos
-        no_aplica_enfermero = cleaned_data.get('no_aplica_enfermero', False)
-        enfermero = cleaned_data.get('enfermero')
-        
-        no_aplica_camillero = cleaned_data.get('no_aplica_camillero', False)
-        camillero = cleaned_data.get('camillero')
-        
-        if not vehiculo:
-            return cleaned_data
-        
-        es_camioneta = vehiculo.tipo_carroceria == 'Camioneta'
-        
-        if es_camioneta:
+
+        if vehiculo and vehiculo.tipo_carroceria == 'Camioneta':
             if turno and turno != '08-17':
                 self.add_error('turno', 'Las camionetas solo pueden operar en turno administrativo (08:00 a 17:00).')
-            # Limpieza automática para camionetas
-            cleaned_data['no_aplica_enfermero'] = True
-            cleaned_data['no_aplica_camillero'] = True
-            cleaned_data['enfermero'] = ''
-            cleaned_data['camillero'] = ''
-        
-        else: # Es Ambulancia
-            # 1. Validar Médico y TENS (Siempre obligatorios en ambulancia)
-            if not medico_derivador:
-                self.add_error('medico_derivador', 'El nombre del Médico es obligatorio.')
-            
-            if not tens:
-                self.add_error('tens', 'El nombre del TENS es obligatorio.')
-            
-            # 2. Validar Enfermero
-            if no_aplica_enfermero:
-                # Si marca "No aplica", borramos cualquier texto que haya podido enviar
-                cleaned_data['enfermero'] = ''
-            else:
-                # Si NO marca "No aplica", el texto es OBLIGATORIO
-                if not enfermero:
-                    self.add_error('enfermero', 'Debe ingresar el nombre del Enfermero/Matrón o marcar "No aplica".')
-            
-            # 3. Validar Camillero
-            if no_aplica_camillero:
-                cleaned_data['camillero'] = ''
-            else:
-                if not camillero:
-                    self.add_error('camillero', 'Debe ingresar el nombre del Camillero o marcar "No aplica".')
-        
+
         return cleaned_data
 
     def clean_km_inicio(self):
@@ -156,10 +76,15 @@ class ViajeForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         vehiculo_tipo = kwargs.pop('vehiculo_tipo', None)
         super().__init__(*args, **kwargs)
-        self.vehiculo_tipo = vehiculo_tipo  # Usado por la vista/plantilla (p. ej. camioneta)
-        for name in ('hora_salida_hbo', 'hora_llegada_hbo'):
+        self.vehiculo_tipo = vehiculo_tipo
+        for name in ('hora_salida_hbo', 'hora_llegada_hbo', 'no_aplica_enfermero', 'no_aplica_camillero'):
             self.fields[name].required = False
             self.fields[name].widget.attrs.pop('required', None)
+        self.fields['no_aplica_enfermero'].widget = forms.HiddenInput()
+        self.fields['no_aplica_camillero'].widget = forms.HiddenInput()
+        if not self.instance.pk and not self.data:
+            self.initial['no_aplica_enfermero'] = True
+            self.initial['no_aplica_camillero'] = True
 
     hora_llegada = forms.TimeField(
         widget=forms.TimeInput(attrs={'class': 'form-control', 'type': 'time'}),
@@ -184,16 +109,31 @@ class ViajeForm(forms.ModelForm):
 
     class Meta:
         model = Viaje
-        fields = ['hora_salida', 'hora_llegada', 'km_salida', 'km_llegada',
-                  'hora_salida_hbo', 'hora_llegada_hbo', 'observaciones']
+        fields = [
+            'hora_salida', 'hora_llegada', 'km_salida', 'km_llegada',
+            'hora_salida_hbo', 'hora_llegada_hbo',
+            'no_aplica_enfermero', 'no_aplica_camillero',
+            'observaciones',
+        ]
         widgets = {
             'hora_salida': forms.TimeInput(attrs={'class': 'form-control', 'type': 'time'}),
             'km_salida': forms.NumberInput(attrs={'class': 'form-control'}),
             'observaciones': forms.Textarea(attrs={'class': 'form-control', 'rows': 2}),
+            'no_aplica_enfermero': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'no_aplica_camillero': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
         }
 
     def clean(self):
         cleaned_data = super().clean()
+
+        if self.data:
+            lleva_enfermero = self.data.get('lleva_enfermero') == 'on'
+            lleva_camillero = self.data.get('lleva_camillero') == 'on'
+            cleaned_data['no_aplica_enfermero'] = not lleva_enfermero
+            cleaned_data['no_aplica_camillero'] = not lleva_camillero
+        elif not self.instance.pk:
+            cleaned_data['no_aplica_enfermero'] = True
+            cleaned_data['no_aplica_camillero'] = True
 
         km_salida = cleaned_data.get('km_salida')
         km_llegada = cleaned_data.get('km_llegada')
@@ -277,13 +217,98 @@ class PacienteTrasladoForm(forms.ModelForm):
         return cleaned_data
 
 PacienteFormSet = inlineformset_factory(
-    Viaje, 
-    PacienteTraslado, 
+    Viaje,
+    PacienteTraslado,
     form=PacienteTrasladoForm,
-    extra=0,    # CERO formularios por defecto - el usuario agrega manualmente
+    extra=0,
     can_delete=True,
-    min_num=0,  # Mínimo 0 pacientes
-    validate_min=True
+    min_num=0,
+    validate_min=True,
+)
+
+
+class TripulacionViajeForm(forms.ModelForm):
+    def __init__(self, *args, **kwargs):
+        self.vehiculo_tipo = kwargs.pop('vehiculo_tipo', None)
+        super().__init__(*args, **kwargs)
+        self.fields['rol'].widget = forms.HiddenInput()
+        self.fields['nombre'].widget.attrs.update({
+            'class': 'form-control tripulacion-nombre',
+            'placeholder': 'Nombre',
+            'maxlength': '100',
+        })
+
+    class Meta:
+        model = TripulacionViaje
+        fields = ['nombre', 'rol']
+        widgets = {
+            'rol': forms.HiddenInput(),
+        }
+
+    def clean(self):
+        cleaned_data = super().clean()
+        if cleaned_data.get('DELETE'):
+            return cleaned_data
+        nombre = (cleaned_data.get('nombre') or '').strip()
+        if not nombre and self.instance.pk:
+            nombre = (self.instance.nombre or '').strip()
+        cleaned_data['nombre'] = nombre
+        return cleaned_data
+
+
+def _nombre_efectivo_tripulacion(form):
+    if not hasattr(form, 'cleaned_data') or not form.cleaned_data:
+        return ''
+    if form.cleaned_data.get('DELETE'):
+        return ''
+    return (form.cleaned_data.get('nombre') or '').strip()
+
+
+class BaseTripulacionFormSet(forms.BaseInlineFormSet):
+    def __init__(self, *args, vehiculo_tipo=None, no_aplica_enfermero=False,
+                 no_aplica_camillero=False, **kwargs):
+        self.vehiculo_tipo = vehiculo_tipo
+        self.no_aplica_enfermero = no_aplica_enfermero
+        self.no_aplica_camillero = no_aplica_camillero
+        super().__init__(*args, **kwargs)
+
+    def clean(self):
+        super().clean()
+        if self.vehiculo_tipo == 'Camioneta':
+            return
+
+        conteo = {rol[0]: 0 for rol in ROL_TRIPULACION}
+        for form in self.forms:
+            if not hasattr(form, 'cleaned_data') or not form.cleaned_data:
+                continue
+            if form.cleaned_data.get('DELETE'):
+                continue
+            nombre = _nombre_efectivo_tripulacion(form)
+            if not nombre:
+                continue
+            rol = form.cleaned_data.get('rol')
+            if rol in conteo:
+                conteo[rol] += 1
+
+        if conteo['MEDICO'] < 1:
+            raise ValidationError('Debe ingresar al menos un médico.')
+        if conteo['TENS'] < 1:
+            raise ValidationError('Debe ingresar al menos un TENS.')
+        if not self.no_aplica_enfermero and conteo['ENFERMERO'] < 1:
+            raise ValidationError('Debe ingresar al menos un enfermero/matrón si el viaje lo incluye.')
+        if not self.no_aplica_camillero and conteo['CAMILLERO'] < 1:
+            raise ValidationError('Debe ingresar al menos un camillero si el viaje lo incluye.')
+
+
+TripulacionFormSet = inlineformset_factory(
+    Viaje,
+    TripulacionViaje,
+    form=TripulacionViajeForm,
+    formset=BaseTripulacionFormSet,
+    extra=0,
+    can_delete=True,
+    min_num=0,
+    validate_min=True,
 )
 
 

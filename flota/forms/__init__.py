@@ -8,8 +8,10 @@ from .viajes import (
     HojaRutaForm,
     ViajeForm,
     PacienteTrasladoForm,
+    TripulacionViajeForm,
     CargaCombustibleForm,
     PacienteFormSet,
+    TripulacionFormSet,
 )
 from .mantenimiento import (
     MantenimientoForm,
@@ -29,8 +31,10 @@ __all__ = [
     "HojaRutaForm",
     "ViajeForm",
     "PacienteTrasladoForm",
+    "TripulacionViajeForm",
     "CargaCombustibleForm",
     "PacienteFormSet",
+    "TripulacionFormSet",
     "MantenimientoForm",
     "ProgramarMantenimientoForm",
     "FinalizarMantenimientoForm",

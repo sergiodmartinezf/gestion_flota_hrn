@@ -6,7 +6,7 @@ from django.utils import timezone
 
 from .choices import (
     TIPOS_SERVICIO, TURNOS, TIPO_TRASLADO_CATEGORIA, ORIGEN_ALTA,
-    DESTINOS_COMUNES, CODIGOS_DESTINOS_RED,
+    DESTINOS_COMUNES, CODIGOS_DESTINOS_RED, ROL_TRIPULACION,
 )
 from .usuario import Usuario
 from .vehiculo import Vehiculo
@@ -21,18 +21,6 @@ class HojaRuta(models.Model):
     turno = models.CharField(max_length=50, choices=TURNOS)
     km_inicio = models.IntegerField(validators=[MinValueValidator(0)])
     km_fin = models.PositiveIntegerField(null=True, blank=True)
-    
-    # Tripulación (Reglas: Medico/Tens obligatorios, otros opcionales)
-    medico_derivador = models.CharField(max_length=100, verbose_name="Médico del Turno")
-    tens = models.CharField(max_length=100, verbose_name="TENS")
-    
-    # Opcionales
-    enfermero = models.CharField(max_length=100, blank=True, null=True, verbose_name="Enfermero/Matrón")
-    no_aplica_enfermero = models.BooleanField(default=False, verbose_name="No aplica Enfermero")
-    
-    camillero = models.CharField(max_length=100, blank=True, null=True)
-    no_aplica_camillero = models.BooleanField(default=False, verbose_name="No aplica Camillero")
-    
     abierta = models.BooleanField(default=True)
     creado_en = models.DateTimeField(auto_now_add=True)
     
@@ -58,35 +46,11 @@ class HojaRuta(models.Model):
             # Para camionetas, el resto de la validación no aplica
             return
 
-        # Validaciones para ambulancias (no camionetas)
-        if not self.medico_derivador:
-            raise ValidationError({'medico_derivador': 'El médico derivador es obligatorio para ambulancias.'})
-        if not self.tens:
-            raise ValidationError({'tens': 'El TENS es obligatorio para ambulancias.'})
-        if not self.no_aplica_enfermero and not self.enfermero:
-            raise ValidationError({'enfermero': 'Debe indicar un Enfermero o marcar "No aplica".'})
-        if not self.no_aplica_camillero and not self.camillero:
-            raise ValidationError({'camillero': 'Debe indicar un Camillero o marcar "No aplica".'})
-
     @property
     def km_recorridos(self):
         if self.km_fin is not None and self.km_inicio is not None:
             return max(0, self.km_fin - self.km_inicio)
         return 0
-    
-    @property
-    def tripulacion_str(self):
-        """Devuelve string con la tripulación"""
-        trip = f"Médico: {self.medico_derivador} | TENS: {self.tens}"
-        if self.enfermero:
-            trip += f" | Enfermero: {self.enfermero}"
-        elif self.no_aplica_enfermero:
-            trip += " | Sin enfermero"
-        if self.camillero:
-            trip += f" | Camillero: {self.camillero}"
-        elif self.no_aplica_camillero:
-            trip += " | Sin camillero"
-        return trip
 
 
 class Viaje(models.Model):
@@ -101,7 +65,10 @@ class Viaje(models.Model):
     # Horas específicas para Hospital Base Osorno
     hora_salida_hbo = models.TimeField(null=True, blank=True, verbose_name="Hora Salida HBO")
     hora_llegada_hbo = models.TimeField(null=True, blank=True, verbose_name="Hora Llegada HBO")
-    
+
+    no_aplica_enfermero = models.BooleanField(default=True, verbose_name="No aplica Enfermero")
+    no_aplica_camillero = models.BooleanField(default=True, verbose_name="No aplica Camillero")
+
     observaciones = models.TextField(blank=True, null=True)
     
     creado_en = models.DateTimeField(auto_now_add=True)
@@ -138,6 +105,63 @@ class Viaje(models.Model):
     def tiene_destino_red_hospital(self):
         """Verifica si algún paciente tiene destino en la red hospitalaria"""
         return self.pacientes.filter(destino_tipo__in=CODIGOS_DESTINOS_RED).exists()
+
+    def tripulacion_por_rol(self, rol):
+        return self.tripulacion.filter(rol=rol).order_by('id')
+
+    @property
+    def tripulacion_str(self):
+        partes = []
+        for rol, etiqueta in ROL_TRIPULACION:
+            nombres = list(self.tripulacion.filter(rol=rol).values_list('nombre', flat=True))
+            if nombres:
+                partes.append(f"{etiqueta}: {', '.join(nombres)}")
+            elif rol == 'ENFERMERO' and self.no_aplica_enfermero:
+                partes.append('Sin enfermero')
+            elif rol == 'CAMILLERO' and self.no_aplica_camillero:
+                partes.append('Sin camillero')
+        return ' | '.join(partes) if partes else 'Sin tripulación registrada'
+
+
+class PersonaTripulacion(models.Model):
+    """Catálogo de personal de tripulación ingresado en viajes anteriores."""
+    id = models.AutoField(primary_key=True)
+    nombre = models.CharField(max_length=100)
+    rol = models.CharField(max_length=20, choices=ROL_TRIPULACION)
+    creado_en = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'persona_tripulacion'
+        verbose_name = 'Persona de tripulación'
+        verbose_name_plural = 'Personas de tripulación'
+        ordering = ['rol', 'nombre']
+        constraints = [
+            models.UniqueConstraint(fields=['nombre', 'rol'], name='uniq_persona_tripulacion_nombre_rol'),
+        ]
+
+    def __str__(self):
+        return f"{self.get_rol_display()}: {self.nombre}"
+
+
+class TripulacionViaje(models.Model):
+    """Miembros de tripulación asociados a un viaje (0 a N por rol)."""
+    id = models.AutoField(primary_key=True)
+    viaje = models.ForeignKey(Viaje, on_delete=models.CASCADE, related_name='tripulacion')
+    persona_tripulacion = models.ForeignKey(
+        PersonaTripulacion, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='asignaciones', verbose_name="Persona (de listado anterior)",
+    )
+    nombre = models.CharField(max_length=100)
+    rol = models.CharField(max_length=20, choices=ROL_TRIPULACION)
+
+    class Meta:
+        db_table = 'tripulacion_viaje'
+        verbose_name = 'Tripulación de viaje'
+        verbose_name_plural = 'Tripulación de viajes'
+        ordering = ['rol', 'id']
+
+    def __str__(self):
+        return f"{self.get_rol_display()}: {self.nombre}"
 
 
 class PacienteViaje(models.Model):

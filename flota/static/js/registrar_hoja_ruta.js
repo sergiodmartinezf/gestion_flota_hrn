@@ -75,61 +75,24 @@ class BitacoraPasos {
         }
     }
 
-    // ------------------------------------------------------------
-    // 3. Lógica de personal y checkboxes "No aplica"
-    // ------------------------------------------------------------
-    configurarCamposCondicionales() {
-        // Configurar checkboxes "No aplica" para Enfermero y Camillero
-        this.manejarCheckboxCondicional('id_no_aplica_enfermero', 'id_enfermero');
-        this.manejarCheckboxCondicional('id_no_aplica_camillero', 'id_camillero');
-    }
-
-    manejarCheckboxCondicional(checkboxId, campoId) {
-        const check = document.getElementById(checkboxId);
-        const field = document.getElementById(campoId);
-        if (!check || !field) return;
-
-        const actualizarEstado = () => {
-            field.required = !check.checked;
-            field.disabled = check.checked;
-            if (check.checked) field.value = '';
-        };
-
-        // Estado inicial
-        actualizarEstado();
-
-        // Evento change
-        check.addEventListener('change', actualizarEstado);
-    }
+    configurarCamposCondicionales() {}
 
     actualizarPersonalSegunVehiculo(selectElement) {
         const selectedOption = selectElement.options[selectElement.selectedIndex];
         if (!selectedOption || !selectedOption.value) return;
 
-        const esCamioneta = selectedOption.text.includes('Camioneta') || 
+        const esCamioneta = selectedOption.text.includes('Camioneta') ||
                             (selectedOption.getAttribute('data-tipo') === 'Camioneta');
-        
-        const turnoSelect = document.getElementById('id_turno');
-        const medicoContainer = document.getElementById('personal-medico-container');
-        const adminContainer = document.getElementById('personal-administrativo-container');
-        
-        // Campos específicos
-        const medicoField = document.getElementById('id_medico_derivador');
-        const tensField = document.getElementById('id_tens');
-        const enfermeroField = document.getElementById('id_enfermero');
-        const camilleroField = document.getElementById('id_camillero');
-        const noAplicaEnfermero = document.getElementById('id_no_aplica_enfermero');
-        const noAplicaCamillero = document.getElementById('id_no_aplica_camillero');
 
-        // --- Opciones de turno ---
+        const turnoSelect = document.getElementById('id_turno');
+        if (!turnoSelect) return;
+
         turnoSelect.innerHTML = '';
         if (esCamioneta) {
-            // Solo turno administrativo
             const opt = new Option('Turno 08:00 a 17:00 (Horario Administrativo)', '08-17');
             turnoSelect.appendChild(opt);
             turnoSelect.value = '08-17';
         } else {
-            // Turnos para ambulancia
             const opciones = [
                 {value: '08-20', text: 'Turno 08:00 a 20:00'},
                 {value: '20-08', text: 'Turno 20:00 a 08:00'},
@@ -137,65 +100,13 @@ class BitacoraPasos {
                 {value: '20-09', text: 'Turno 20:00 a 09:00 (fin de semana/feriado)'}
             ];
             opciones.forEach(o => turnoSelect.appendChild(new Option(o.text, o.value)));
-            
-            // Seleccionar turno según fecha
+
             const fechaInput = document.querySelector('input[name="fecha"]');
             if (fechaInput && fechaInput.value) {
                 const dia = new Date(fechaInput.value + 'T12:00:00').getDay();
                 turnoSelect.value = (dia === 0 || dia === 6) ? '09-20' : '08-20';
             } else {
                 turnoSelect.value = '08-20';
-            }
-        }
-
-        // --- Visibilidad de los bloques de personal ---
-        if (esCamioneta) {
-            // Ocultar personal médico, mostrar mensaje administrativo
-            if (medicoContainer) medicoContainer.style.display = 'none';
-            if (adminContainer) adminContainer.style.display = 'block';
-
-            // Deshabilitar TODOS los campos de personal médico y quitar required
-            [medicoField, tensField, enfermeroField, camilleroField].forEach(f => {
-                if (f) {
-                    f.disabled = true;
-                    f.required = false;
-                    f.value = '';
-                }
-            });
-            // Forzar checkboxes "No aplica" y actualizar estado
-            if (noAplicaEnfermero) {
-                noAplicaEnfermero.checked = true;
-                noAplicaEnfermero.dispatchEvent(new Event('change'));
-            }
-            if (noAplicaCamillero) {
-                noAplicaCamillero.checked = true;
-                noAplicaCamillero.dispatchEvent(new Event('change'));
-            }
-        } else {
-            // Mostrar personal médico
-            if (medicoContainer) medicoContainer.style.display = 'block';
-            if (adminContainer) adminContainer.style.display = 'none';
-
-            // Habilitar campos y restaurar required
-            if (medicoField) {
-                medicoField.disabled = false;
-                medicoField.required = true;
-            }
-            if (tensField) {
-                tensField.disabled = false;
-                tensField.required = true;
-            }
-            if (enfermeroField) enfermeroField.disabled = false;
-            if (camilleroField) camilleroField.disabled = false;
-
-            // Restablecer checkboxes a false (no marcados) y disparar evento
-            if (noAplicaEnfermero) {
-                noAplicaEnfermero.checked = false;
-                noAplicaEnfermero.dispatchEvent(new Event('change'));
-            }
-            if (noAplicaCamillero) {
-                noAplicaCamillero.checked = false;
-                noAplicaCamillero.dispatchEvent(new Event('change'));
             }
         }
     }
@@ -316,23 +227,6 @@ class BitacoraPasos {
                 esValido = false;
             }
 
-            // Validar reglas de enfermero y camillero (solo si es ambulancia)
-            const esCamioneta = this.vehiculoEsCamioneta();
-            if (!esCamioneta) {
-                const noAplicaEnfermero = document.getElementById('id_no_aplica_enfermero');
-                const enfermero = document.getElementById('id_enfermero');
-                if (noAplicaEnfermero && !noAplicaEnfermero.checked && (!enfermero || !enfermero.value.trim())) {
-                    this.mostrarError(enfermero, 'Debe ingresar el nombre del Enfermero o marcar "No aplica"');
-                    esValido = false;
-                }
-
-                const noAplicaCamillero = document.getElementById('id_no_aplica_camillero');
-                const camillero = document.getElementById('id_camillero');
-                if (noAplicaCamillero && !noAplicaCamillero.checked && (!camillero || !camillero.value.trim())) {
-                    this.mostrarError(camillero, 'Debe ingresar el nombre del Camillero o marcar "No aplica"');
-                    esValido = false;
-                }
-            }
         }
 
         // Validación paso 2: KM inicial y confirmación

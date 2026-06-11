@@ -103,6 +103,7 @@
                             <tr>
                                 <th>Hora Salida</th>
                                 <th>Hora Llegada</th>
+                                <th>Tripulación</th>
                                 <th>Destino(s)</th>
                                 <th>RUT paciente(s)</th>
                                 <th>Categoría / Sentido</th>
@@ -119,6 +120,13 @@
                                 <tr>
                                     <td>{{ viaje.hora_salida|time:"H:i" }}</td>
                                     <td>{{ viaje.hora_llegada|time:"H:i"|default:"-" }}</td>
+                                    <td class="small">
+                                        {% if hoja.vehiculo.tipo_carroceria == 'Camioneta' %}
+                                            -
+                                        {% else %}
+                                            {{ viaje.tripulacion_str }}
+                                        {% endif %}
+                                    </td>
                                     <td>
                                         {% for p in viaje.pacientes.all %}
                                             <span class="d-block">{{ p.get_destino_tipo_display }}{% if p.direccion_especifica %}: {{ p.direccion_especifica|truncatechars:25 }}{% endif %}</span>
@@ -155,7 +163,7 @@
                         </tbody>
                         <tfoot>
                             <tr class="table-active">
-                                <td colspan="7" class="text-end"><strong>Total KM Recorridos:</strong></td>
+                                <td colspan="8" class="text-end"><strong>Total KM Recorridos:</strong></td>
                                 <td><strong class="text-success">{{ total_km_viajes|km }} km</strong></td>
                                 {% if puede_gestionar %}
                                 <td></td>
