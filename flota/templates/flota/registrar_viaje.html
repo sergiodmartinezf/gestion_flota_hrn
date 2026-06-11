@@ -73,7 +73,11 @@
                             <div class="col-md-6">
                                 <label>KM Salida *</label>
                                 {{ form.km_salida }}
-                                <small class="text-muted">KM actual en sistema: {{ km_sugerido|default:hoja.km_inicio }}</small>
+                                {% if tiene_viajes_en_hoja %}
+                                <small class="text-muted">KM último viaje registrado: {{ km_referencia }}</small>
+                                {% else %}
+                                <small class="text-muted">KM inicio de hoja de ruta: {{ km_referencia }}</small>
+                                {% endif %}
                             </div>
                             <div class="col-md-6">
                                 <label>KM Llegada</label>
