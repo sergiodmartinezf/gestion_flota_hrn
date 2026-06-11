@@ -143,9 +143,17 @@ def agregar_viaje(request, id):
         return redirect('listar_bitacoras')
 
     vehiculo_tipo = hoja.vehiculo.tipo_carroceria
-    
-    ultimo_viaje = hoja.viajes.order_by('-km_llegada').first()
-    km_sugerido = ultimo_viaje.km_llegada if ultimo_viaje and ultimo_viaje.km_llegada else hoja.km_inicio
+
+    ultimo_viaje = hoja.viajes.order_by('-id').first()
+    if ultimo_viaje:
+        km_referencia = (
+            ultimo_viaje.km_llegada
+            if ultimo_viaje.km_llegada is not None
+            else ultimo_viaje.km_salida
+        )
+    else:
+        km_referencia = hoja.km_inicio
+    km_sugerido = km_referencia
 
     if request.method == 'POST':
         form = ViajeForm(request.POST, vehiculo_tipo=vehiculo_tipo)
@@ -160,13 +168,9 @@ def agregar_viaje(request, id):
             viaje.hoja_ruta = hoja
             
             # Validaciones que dependen del objeto viaje
-            km_actual_vehiculo = hoja.vehiculo.kilometraje_actual
             errores = False
             
-            if viaje.km_salida < km_actual_vehiculo:
-                form.add_error('km_salida', f'El KM de salida ({viaje.km_salida}) no puede ser menor al kilometraje actual del vehículo ({km_actual_vehiculo}).')
-                errores = True
-            elif viaje.km_salida < km_sugerido:
+            if viaje.km_salida < km_sugerido:
                 form.add_error('km_salida', f'Error: KM salida ({viaje.km_salida}) es menor al anterior ({km_sugerido}).')
                 errores = True
             
@@ -203,7 +207,6 @@ def agregar_viaje(request, id):
             pass
 
     else:
-        km_sugerido = ultimo_viaje.km_llegada if ultimo_viaje and ultimo_viaje.km_llegada else hoja.km_inicio
         initial_data = {
             'km_salida': km_sugerido,
             'km_llegada': km_sugerido if km_sugerido is not None else None,
@@ -226,6 +229,8 @@ def agregar_viaje(request, id):
         'ultimos_viajes': hoja.viajes.all().order_by('-id')[:5],
         'pacientes_anteriores': pacientes_anteriores,
         'km_actual_vehiculo': km_actual_vehiculo,
+        'km_referencia': km_referencia,
+        'tiene_viajes_en_hoja': ultimo_viaje is not None,
         'destinos_choices': DESTINOS_COMUNES,
     }
     return render(request, 'flota/registrar_viaje.html', context)
