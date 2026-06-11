@@ -128,16 +128,6 @@
                             {{ vehiculo_form.modelo.errors }}
                         </div>
                         <div class="mb-3">
-                            <label for="{{ vehiculo_form.vin.id_for_label }}" class="form-label">VIN</label>
-                            {{ vehiculo_form.vin }}
-                            {{ vehiculo_form.vin.errors }}
-                        </div>
-                        <div class="mb-3">
-                            <label for="{{ vehiculo_form.nro_motor.id_for_label }}" class="form-label">N° Motor</label>
-                            {{ vehiculo_form.nro_motor }}
-                            {{ vehiculo_form.nro_motor.errors }}
-                        </div>
-                        <div class="mb-3">
                             <label for="{{ vehiculo_form.anio_adquisicion.id_for_label }}" class="form-label">Año Adquisición *</label>
                             {{ vehiculo_form.anio_adquisicion }}
                             {{ vehiculo_form.anio_adquisicion.errors }}
@@ -243,8 +233,13 @@ document.addEventListener('DOMContentLoaded', function() {
         if (campoVehiculoExistente) {
             campoVehiculoExistente.required = usarExistente;
         }
+        const camposOpcionales = new Set(['{{ vehiculo_form.vida_util.id_for_label }}', '{{ vehiculo_form.clase_ambulancia.id_for_label }}']);
         camposNuevos.forEach(campo => {
-            campo.required = !usarExistente;
+            if (campo.type === 'checkbox' || camposOpcionales.has(campo.id)) {
+                campo.required = false;
+            } else {
+                campo.required = !usarExistente;
+            }
         });
     }
 

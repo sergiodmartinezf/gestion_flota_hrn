@@ -130,3 +130,12 @@ class VehiculoForm(forms.ModelForm):
         return establecimiento.strip()
 
 
+class VehiculoArriendoForm(VehiculoForm):
+    """Formulario de vehículo para registro de arriendo (sin VIN ni N° motor)."""
+
+    class Meta(VehiculoForm.Meta):
+        fields = [
+            f for f in VehiculoForm.Meta.fields
+            if f not in ('vin', 'nro_motor')
+        ]
+
