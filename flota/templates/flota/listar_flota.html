@@ -116,8 +116,11 @@
                                     <i class="bi bi-eye"></i>
                                 </a>
                                 {% if user.rol == 'Administrador' %}
-                                <a href="{% url 'modificar_vehiculo' vehiculo.patente %}" class="btn btn-sm btn-warning" title="Editar">
+                                <a href="{% url 'modificar_vehiculo' vehiculo.patente %}" class="btn btn-sm btn-warning me-1" title="Editar">
                                     <i class="bi bi-pencil"></i>
+                                </a>
+                                <a href="{% url 'actualizar_estado_vehiculo' vehiculo.patente %}" class="btn btn-sm btn-info" title="Actualizar Estado">
+                                    <i class="bi bi-arrow-repeat"></i>
                                 </a>
                                 {% endif %}
                             </td>

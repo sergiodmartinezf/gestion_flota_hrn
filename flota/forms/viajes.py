@@ -44,9 +44,20 @@ class HojaRutaForm(forms.ModelForm):
         incluir_pk = self.instance.vehiculo_id if self.instance.pk else None
         self.fields['vehiculo'].queryset = Vehiculo.queryset_para_hoja_ruta(incluir_pk=incluir_pk)
 
-        if not self.data and not self.instance.pk:
-            self.fields['fecha'].initial = datetime.now().date()
-            self.fields['fecha'].widget.attrs['value'] = datetime.now().date().strftime('%Y-%m-%d')
+        self.fields['fecha'].input_formats = ['%Y-%m-%d']
+        self.fields['fecha'].widget.format = '%Y-%m-%d'
+
+        if not self.data:
+            if self.instance.pk:
+                if self.instance.fecha:
+                    fecha_str = self.instance.fecha.strftime('%Y-%m-%d')
+                    self.fields['fecha'].widget.attrs['value'] = fecha_str
+                if self.instance.vehiculo_id:
+                    # to_field_name='patente': el valor del select es la patente, no el pk
+                    self.initial['vehiculo'] = self.instance.vehiculo.patente
+            else:
+                self.fields['fecha'].initial = datetime.now().date()
+                self.fields['fecha'].widget.attrs['value'] = datetime.now().date().strftime('%Y-%m-%d')
 
         # --- Detectar si es camioneta (POST o instancia) ---
         es_camioneta = False
@@ -146,6 +157,9 @@ class ViajeForm(forms.ModelForm):
         vehiculo_tipo = kwargs.pop('vehiculo_tipo', None)
         super().__init__(*args, **kwargs)
         self.vehiculo_tipo = vehiculo_tipo  # Usado por la vista/plantilla (p. ej. camioneta)
+        for name in ('hora_salida_hbo', 'hora_llegada_hbo'):
+            self.fields[name].required = False
+            self.fields[name].widget.attrs.pop('required', None)
 
     hora_llegada = forms.TimeField(
         widget=forms.TimeInput(attrs={'class': 'form-control', 'type': 'time'}),
