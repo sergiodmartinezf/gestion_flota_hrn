@@ -9,11 +9,11 @@
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h2><i class="bi bi-clipboard-data"></i> Hoja de Ruta #{{ hoja.id }}</h2>
         {% if user.rol == 'Conductor' %}
-        <a href="{% url 'historial_conductor' %}" class="btn btn-outline-secondary">
+        <a href="{% url 'historial_conductor' %}" class="btn btn-secondary">
             <i class="bi bi-list"></i> Volver a Historial
         </a>
         {% else %}
-        <a href="{% url 'listar_bitacoras' %}" class="btn btn-outline-secondary">
+        <a href="{% url 'listar_bitacoras' %}" class="btn btn-secondary">
             <i class="bi bi-list"></i> Volver a Lista
         </a>
         {% endif %}
@@ -145,7 +145,7 @@
                                     <td><strong class="text-success">{{ viaje.km_recorridos_calculados|km }} km</strong></td>
                                     {% if puede_gestionar %}
                                     <td>
-                                        <a href="{% url 'modificar_viaje' viaje.id %}" class="btn btn-sm btn-outline-warning" title="Editar viaje">
+                                        <a href="{% url 'modificar_viaje' viaje.id %}" class="btn btn-sm btn-warning" title="Editar viaje">
                                             <i class="bi bi-pencil"></i>
                                         </a>
                                     </td>
@@ -177,11 +177,11 @@
     <!-- Acciones adicionales -->
     <div class="mt-3 d-flex justify-content-between">
         {% if user.rol == 'Conductor' %}
-        <a href="{% url 'historial_conductor' %}" class="btn btn-outline-secondary">
+        <a href="{% url 'historial_conductor' %}" class="btn btn-secondary">
             <i class="bi bi-list"></i> Volver a Historial
         </a>
         {% else %}
-        <a href="{% url 'listar_bitacoras' %}" class="btn btn-outline-secondary">
+        <a href="{% url 'listar_bitacoras' %}" class="btn btn-secondary">
             <i class="bi bi-list"></i> Volver a Lista
         </a>
         {% endif %}
@@ -193,7 +193,7 @@
                 <i class="bi bi-lock"></i> Cerrar Hoja
             </button>
             {% endif %}
-            <a href="{% url 'modificar_bitacora' id=hoja.id %}" class="btn btn-outline-warning">
+            <a href="{% url 'modificar_bitacora' id=hoja.id %}" class="btn btn-warning">
                 <i class="bi bi-pencil"></i> Editar Hoja
             </a>
         </div>
