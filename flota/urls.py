@@ -23,6 +23,8 @@ urlpatterns = [
     path('vehiculos/costo-km/', views.costo_por_kilometro, name='costo_por_kilometro'),
     path('vehiculos/gastos-mantenimientos/', views.gastos_mantenimientos, name='gastos_mantenimientos'),
     path('alertas/', views.alertas, name='alertas'),
+    path('alertas/eliminar/<int:id>/', views.eliminar_alerta, name='eliminar_alerta'),
+    path('alertas/presupuesto/eliminar/<int:id>/', views.eliminar_alerta_presupuesto, name='eliminar_alerta_presupuesto'),
     # Con parámetros
     path('vehiculos/<str:patente>/', views.ficha_vehiculo, name='ficha_vehiculo'),
     path('vehiculos/modificar/<str:patente>/', views.modificar_vehiculo, name='modificar_vehiculo'),

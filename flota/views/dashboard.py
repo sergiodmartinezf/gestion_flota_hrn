@@ -1,9 +1,11 @@
 from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
 from django.utils import timezone
-from django.db.models import Sum, F
+from django.db.models import Sum
 from decimal import Decimal
-from ..models import Vehiculo, Mantenimiento, CargaCombustible, Alerta, Presupuesto, Arriendo
+from ..models import Vehiculo, Mantenimiento, CargaCombustible, Arriendo
+from ..services.alertas import alertas_mantenimiento_vigentes, presupuestos_con_alerta
+from .utilidades import puede_escribir
 
 @login_required
 def dashboard(request):
@@ -60,24 +62,14 @@ def dashboard(request):
         estado='Programado'
     ).order_by('fecha_ingreso')[:5]
 
-    ids_pausadas = set()
-    for a in Alerta.objects.filter(vigente=True).select_related('vehiculo')[:50]:
-        if a.vehiculo.estado == 'En mantenimiento' and Mantenimiento.objects.filter(
-            vehiculo=a.vehiculo, estado__in=['En taller', 'Esperando repuestos'], fecha_salida__isnull=True
-        ).exists():
-            ids_pausadas.add(a.id)
-    alertas_operativas = Alerta.objects.filter(vigente=True).exclude(
-        id__in=ids_pausadas
-    ).order_by('-generado_en')
-
-    presupuestos_en_riesgo = [
-        p for p in Presupuesto.objects.filter(activo=True).exclude(monto_asignado=0)
-        if p.porcentaje_ejecutado >= 80
-    ]
+    alertas_operativas = alertas_mantenimiento_vigentes()
+    presupuestos_en_riesgo = presupuestos_con_alerta()
 
     alertas_activas = []
     for alerta in alertas_operativas:
         alertas_activas.append({
+            'id': alerta.id,
+            'tipo_alerta': 'mantenimiento',
             'tipo': 'Mantenimiento',
             'fecha': alerta.generado_en,
             'titulo': alerta.vehiculo.patente,
@@ -90,6 +82,8 @@ def dashboard(request):
     ahora = timezone.now()
     for presupuesto in presupuestos_en_riesgo:
         alertas_activas.append({
+            'id': presupuesto.id,
+            'tipo_alerta': 'presupuesto',
             'tipo': 'Presupuesto',
             'fecha': ahora,
             'titulo': f"{presupuesto.cuenta.codigo} ({presupuesto.anio})",
@@ -123,5 +117,5 @@ def dashboard(request):
         'alertas_operativas_vigentes': alertas_operativas_vigentes,
         'presupuestos_alerta': presupuestos_alerta,
         'arriendos_activos': arriendos_activos,
+        'puede_eliminar_alertas': puede_escribir(request.user),
     })
-

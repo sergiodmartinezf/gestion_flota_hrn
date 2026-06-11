@@ -6,7 +6,13 @@ from django.utils import timezone
 from decimal import Decimal
 from ..models import Vehiculo, Mantenimiento, CargaCombustible, Presupuesto, Alerta, CuentaPresupuestaria
 from ..forms import VehiculoForm
-from .utilidades import es_administrador, rechazar_escritura_visualizador
+from ..services.alertas import (
+    alertas_mantenimiento_vigentes,
+    ignorar_alerta_presupuesto,
+    presupuestos_con_alerta,
+    resolver_alerta_mantenimiento,
+)
+from .utilidades import es_administrador, puede_escribir, rechazar_escritura_visualizador
 
 @login_required
 @user_passes_test(es_administrador)
@@ -188,17 +194,33 @@ def gastos_mantenimientos(request):
     return render(request, 'flota/gastos_mantenimientos.html', {'gastos': gastos})
 
 
-def _alertas_no_pausadas():
-    """
-    Alertas vigentes excluyendo las pausadas (vehículo en taller con mantenimiento activo).
-    """
-    ids_pausadas = set()
-    for a in Alerta.objects.filter(vigente=True):
-        if a.vehiculo.estado == 'En mantenimiento' and Mantenimiento.objects.filter(
-            vehiculo=a.vehiculo, estado__in=['En taller', 'Esperando repuestos'], fecha_salida__isnull=True
-        ).exists():
-            ids_pausadas.add(a.id)
-    return Alerta.objects.filter(vigente=True).exclude(id__in=ids_pausadas).order_by('-generado_en')
+def _redirigir_tras_eliminar_alerta(request):
+    next_url = request.POST.get('next') or request.META.get('HTTP_REFERER')
+    if next_url:
+        return redirect(next_url)
+    return redirect('alertas')
+
+
+@login_required
+@rechazar_escritura_visualizador
+def eliminar_alerta(request, id):
+    alerta = get_object_or_404(Alerta, id=id)
+    if request.method == 'POST':
+        resolver_alerta_mantenimiento(alerta)
+        messages.success(request, 'Alerta de mantenimiento eliminada correctamente.')
+        return _redirigir_tras_eliminar_alerta(request)
+    return redirect('alertas')
+
+
+@login_required
+@rechazar_escritura_visualizador
+def eliminar_alerta_presupuesto(request, id):
+    presupuesto = get_object_or_404(Presupuesto, id=id)
+    if request.method == 'POST':
+        ignorar_alerta_presupuesto(presupuesto)
+        messages.success(request, 'Alerta de presupuesto eliminada correctamente.')
+        return _redirigir_tras_eliminar_alerta(request)
+    return redirect('alertas')
 
 
 @login_required
@@ -228,22 +250,21 @@ def alertas(request):
         messages.success(request, 'Todas las alertas han sido marcadas como revisadas.')
         return redirect('alertas')
 
-    alertas = _alertas_no_pausadas()
+    alertas_lista = alertas_mantenimiento_vigentes()
 
-    # Alertas de presupuesto (presupuestos con ≥80% ejecutado)
-    alertas_presupuesto = []
-    for presupuesto in Presupuesto.objects.filter(activo=True).exclude(monto_asignado=0).select_related('cuenta'):
-        porcentaje = presupuesto.porcentaje_ejecutado
-        if porcentaje >= 80:
-            alertas_presupuesto.append({
-                'presupuesto': presupuesto,
-                'porcentaje': porcentaje,
-                'monto_restante': presupuesto.monto_asignado - presupuesto.monto_ejecutado,
-            })
+    alertas_presupuesto = [
+        {
+            'presupuesto': presupuesto,
+            'porcentaje': presupuesto.porcentaje_ejecutado,
+            'monto_restante': presupuesto.monto_asignado - presupuesto.monto_ejecutado,
+        }
+        for presupuesto in presupuestos_con_alerta()
+    ]
 
     return render(request, 'flota/alertas.html', {
-        'alertas': alertas,
+        'alertas': alertas_lista,
         'alertas_presupuesto': alertas_presupuesto,
+        'puede_eliminar_alertas': puede_escribir(request.user),
     })
 
 

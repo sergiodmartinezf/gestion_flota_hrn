@@ -23,6 +23,10 @@ class Presupuesto(models.Model):
     
     # Campo para deshabilitar en vez de eliminar
     activo = models.BooleanField(default=True, verbose_name="Activo")
+    alerta_presupuesto_ignorada = models.BooleanField(
+        default=False,
+        verbose_name="Alerta de ejecución descartada",
+    )
     
     class Meta:
         db_table = 'presupuesto'
@@ -76,5 +80,7 @@ class Presupuesto(models.Model):
         # Si se supera el presupuesto asignado, se deshabilita automáticamente.
         if self.monto_asignado > 0 and self.monto_ejecutado >= self.monto_asignado:
             self.activo = False
+        if self.monto_asignado > 0 and self.porcentaje_ejecutado < 80:
+            self.alerta_presupuesto_ignorada = False
         super().save(*args, **kwargs)
 
