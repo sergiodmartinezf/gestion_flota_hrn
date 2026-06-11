@@ -54,13 +54,47 @@ def acceso_bitacora(request):
     return redirect('listar_bitacoras')
 
 
+def _redirect_cerrar_hoja(request, hoja):
+    if request.POST.get('next') == 'detalle':
+        return redirect('detalle_bitacora', id=hoja.id)
+    return redirect('agregar_viaje', id=hoja.id)
+
+
+def _km_referencia_para_viaje(hoja, viaje):
+    viajes_anteriores = hoja.viajes.filter(id__lt=viaje.id).order_by('-id')
+    ultimo_anterior = viajes_anteriores.first()
+    if ultimo_anterior:
+        return (
+            ultimo_anterior.km_llegada
+            if ultimo_anterior.km_llegada is not None
+            else ultimo_anterior.km_salida
+        )
+    return hoja.km_inicio
+
+
+def _guardar_pacientes_formset(paciente_formset, viaje):
+    pacientes = paciente_formset.save(commit=False)
+    for paciente in pacientes:
+        paciente.viaje = viaje
+        if paciente.rut:
+            rut_norm = normalizar_rut(paciente.rut) or paciente.rut.strip()
+            paciente.rut = rut_norm
+            pv, _ = PacienteViaje.objects.get_or_create(rut=rut_norm)
+            paciente.paciente_viaje = pv
+        paciente.save()
+
+    for form_del in paciente_formset.deleted_forms:
+        if form_del.instance.pk:
+            form_del.instance.delete()
+
+
 @login_required
 def cerrar_hoja_ruta(request, id):
     hoja = get_object_or_404(HojaRuta, id=id)
 
     if request.user != hoja.conductor and request.user.rol != 'Administrador':
         messages.error(request, "No tienes permiso para cerrar esta hoja de ruta.")
-        return redirect('agregar_viaje', id=hoja.id)
+        return _redirect_cerrar_hoja(request, hoja)
 
     if request.method == 'POST':
         try:
@@ -68,13 +102,13 @@ def cerrar_hoja_ruta(request, id):
             
             if not km_final_input:
                 messages.error(request, "Debe ingresar el kilometraje final.")
-                return redirect('agregar_viaje', id=hoja.id)
+                return _redirect_cerrar_hoja(request, hoja)
                 
             km_final = int(km_final_input)
 
             if km_final < hoja.km_inicio:
                 messages.error(request, f"El KM final ({km_final}) no puede ser menor al inicial ({hoja.km_inicio}).")
-                return redirect('agregar_viaje', id=hoja.id)
+                return _redirect_cerrar_hoja(request, hoja)
 
             ultimo_viaje = hoja.viajes.order_by('-km_llegada').first()
             if ultimo_viaje and ultimo_viaje.km_llegada and km_final < ultimo_viaje.km_llegada:
@@ -90,13 +124,15 @@ def cerrar_hoja_ruta(request, id):
                 vehiculo.save()
 
             messages.success(request, f"Turno cerrado correctamente. KM Final: {km_final}. Total recorrido: {hoja.km_recorridos} km.")
+            if request.POST.get('next') == 'detalle':
+                return redirect('detalle_bitacora', id=hoja.id)
             return redirect('listar_bitacoras')
             
         except ValueError:
             messages.error(request, "El kilometraje debe ser un número válido.")
-            return redirect('agregar_viaje', id=hoja.id)
+            return _redirect_cerrar_hoja(request, hoja)
             
-    return redirect('agregar_viaje', id=hoja.id)
+    return _redirect_cerrar_hoja(request, hoja)
 
 @login_required
 @user_passes_test(es_conductor_o_admin)
@@ -176,27 +212,13 @@ def agregar_viaje(request, id):
             
             if not errores and paciente_formset.is_valid():
                 viaje.save()
-                
-                # Actualizar kilometraje del vehículo
+
                 if viaje.km_llegada and viaje.km_llegada > hoja.vehiculo.kilometraje_actual:
                     hoja.vehiculo.kilometraje_actual = viaje.km_llegada
                     hoja.vehiculo.save()
-                
-                # Guardar pacientes
-                pacientes = paciente_formset.save(commit=False)
-                for paciente in pacientes:
-                    paciente.viaje = viaje
-                    if paciente.rut:
-                        rut_norm = normalizar_rut(paciente.rut) or paciente.rut.strip()
-                        paciente.rut = rut_norm
-                        pv, _ = PacienteViaje.objects.get_or_create(rut=rut_norm)
-                        paciente.paciente_viaje = pv
-                    paciente.save()
-                
-                for form_del in paciente_formset.deleted_forms:
-                    if form_del.instance.pk:
-                        form_del.instance.delete()
-                
+
+                _guardar_pacientes_formset(paciente_formset, viaje)
+
                 messages.success(request, 'Viaje registrado correctamente.')
                 return redirect('agregar_viaje', id=hoja.id)
             else:
@@ -232,8 +254,89 @@ def agregar_viaje(request, id):
         'km_referencia': km_referencia,
         'tiene_viajes_en_hoja': ultimo_viaje is not None,
         'destinos_choices': DESTINOS_COMUNES,
+        'modo_edicion': False,
+        'tiene_pacientes_en_viaje': False,
     }
     return render(request, 'flota/registrar_viaje.html', context)
+
+
+@login_required
+@user_passes_test(es_conductor_o_admin)
+def modificar_viaje(request, id):
+    viaje = get_object_or_404(
+        Viaje.objects.select_related('hoja_ruta', 'hoja_ruta__vehiculo', 'hoja_ruta__conductor'),
+        id=id,
+    )
+    hoja = viaje.hoja_ruta
+
+    if request.user != hoja.conductor and request.user.rol != 'Administrador':
+        messages.error(request, 'No tienes permiso para modificar este viaje.')
+        return redirect('detalle_bitacora', id=hoja.id)
+
+    vehiculo_tipo = hoja.vehiculo.tipo_carroceria
+    km_referencia = _km_referencia_para_viaje(hoja, viaje)
+    tiene_pacientes_en_viaje = viaje.pacientes.exists()
+
+    if request.method == 'POST':
+        form = ViajeForm(request.POST, instance=viaje, vehiculo_tipo=vehiculo_tipo)
+        paciente_formset = PacienteFormSet(
+            request.POST,
+            request.FILES,
+            instance=viaje,
+            form_kwargs={'vehiculo_tipo': vehiculo_tipo},
+        )
+
+        if form.is_valid():
+            viaje_editado = form.save(commit=False)
+            errores = False
+
+            if viaje_editado.km_salida < km_referencia:
+                form.add_error(
+                    'km_salida',
+                    f'Error: KM salida ({viaje_editado.km_salida}) es menor al anterior ({km_referencia}).',
+                )
+                errores = True
+
+            if not errores and paciente_formset.is_valid():
+                viaje_editado.save()
+
+                if viaje_editado.km_llegada and viaje_editado.km_llegada > hoja.vehiculo.kilometraje_actual:
+                    hoja.vehiculo.kilometraje_actual = viaje_editado.km_llegada
+                    hoja.vehiculo.save()
+
+                _guardar_pacientes_formset(paciente_formset, viaje_editado)
+
+                messages.success(request, 'Viaje actualizado correctamente.')
+                return redirect('detalle_bitacora', id=hoja.id)
+
+            if not errores:
+                messages.error(request, 'Error en los datos de los pacientes.')
+    else:
+        form = ViajeForm(instance=viaje, vehiculo_tipo=vehiculo_tipo)
+        paciente_formset = PacienteFormSet(
+            instance=viaje,
+            form_kwargs={'vehiculo_tipo': vehiculo_tipo},
+        )
+
+    pacientes_anteriores = PacienteViaje.objects.all().order_by('rut')[:300]
+    km_actual_vehiculo = hoja.vehiculo.kilometraje_actual
+    if km_actual_vehiculo < hoja.km_inicio:
+        km_actual_vehiculo = hoja.km_inicio
+
+    return render(request, 'flota/registrar_viaje.html', {
+        'hoja': hoja,
+        'form': form,
+        'paciente_formset': paciente_formset,
+        'ultimos_viajes': hoja.viajes.exclude(id=viaje.id).order_by('-id')[:5],
+        'pacientes_anteriores': pacientes_anteriores,
+        'km_actual_vehiculo': km_actual_vehiculo,
+        'km_referencia': km_referencia,
+        'tiene_viajes_en_hoja': hoja.viajes.exclude(id=viaje.id).exists(),
+        'destinos_choices': DESTINOS_COMUNES,
+        'modo_edicion': True,
+        'tiene_pacientes_en_viaje': tiene_pacientes_en_viaje,
+        'viaje': viaje,
+    })
 
 @login_required
 def listar_bitacoras(request):
@@ -311,7 +414,7 @@ def modificar_bitacora(request, id):
 
 @login_required
 def detalle_bitacora(request, id):
-    hoja = get_object_or_404(HojaRuta, id=id)
+    hoja = get_object_or_404(HojaRuta.objects.select_related('vehiculo', 'conductor'), id=id)
     viajes = hoja.viajes.prefetch_related('pacientes').all()
 
     total_km_viajes = sum(v.km_recorridos_calculados for v in viajes)
@@ -322,11 +425,26 @@ def detalle_bitacora(request, id):
     else:
         km_fin_hoja = hoja.km_fin or hoja.km_inicio
 
+    km_actual_vehiculo = hoja.vehiculo.kilometraje_actual
+    if km_actual_vehiculo < hoja.km_inicio:
+        km_actual_vehiculo = hoja.km_inicio
+    if viajes.exists():
+        km_llegadas = [v.km_llegada for v in viajes if v.km_llegada is not None]
+        if km_llegadas:
+            km_actual_vehiculo = max(km_actual_vehiculo, max(km_llegadas))
+
+    puede_gestionar = (
+        request.user.rol == 'Administrador'
+        or request.user == hoja.conductor
+    )
+
     return render(request, 'flota/detalle_bitacora.html', {
         'hoja': hoja,
         'viajes': viajes,
         'total_km_viajes': total_km_viajes,
         'km_fin_hoja': km_fin_hoja,
+        'km_actual_vehiculo': km_actual_vehiculo,
+        'puede_gestionar': puede_gestionar,
     })
 
 

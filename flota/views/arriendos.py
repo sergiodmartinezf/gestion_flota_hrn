@@ -2,10 +2,21 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib import messages
 from django.utils import timezone
+from django.urls import reverse
+from django.views.decorators.http import require_POST
 from ..models import Arriendo, Mantenimiento, Vehiculo, Proveedor
 from ..forms import ArriendoForm
+from ..forms.arriendos import ArriendoFechaFinForm
 from ..forms.vehiculos import VehiculoArriendoForm
 from .utilidades import es_administrador
+
+
+def _redirect_listar_arriendos(request):
+    query_string = request.POST.get('query_string', '').strip()
+    url = reverse('listar_arriendos')
+    if query_string:
+        url = f'{url}?{query_string}'
+    return redirect(url)
 
 
 @login_required
@@ -57,7 +68,9 @@ def registrar_arriendo(request):
     
     if request.method == 'POST':
         modo = request.POST.get('modo_vehiculo_arriendo')
-        arriendo_form = ArriendoForm(request.POST)
+        if modo != 'existente':
+            modo = 'nuevo'
+        arriendo_form = ArriendoForm(request.POST, modo=modo)
         
         if modo == 'existente':
             if arriendo_form.is_valid():
@@ -67,7 +80,8 @@ def registrar_arriendo(request):
             else:
                 vehiculo_form = VehiculoArriendoForm()
                 modo_inicial = 'existente'
-        else:  # nuevo
+                messages.error(request, 'No se pudo registrar el arriendo. Revise los errores indicados en el formulario.')
+        else:
             vehiculo_form = VehiculoArriendoForm(request.POST)
             if arriendo_form.is_valid() and vehiculo_form.is_valid():
                 nuevo_vehiculo = vehiculo_form.save(commit=False)
@@ -82,8 +96,9 @@ def registrar_arriendo(request):
                 return redirect('listar_arriendos')
             else:
                 modo_inicial = 'nuevo'
+                messages.error(request, 'No se pudo registrar el arriendo. Revise los errores indicados en el formulario.')
     else:
-        arriendo_form = ArriendoForm()
+        arriendo_form = ArriendoForm(modo=modo_inicial)
         vehiculo_form = VehiculoArriendoForm(initial={
             'tipo_propiedad': 'Arrendado',
             'estado': 'Disponible',
@@ -100,6 +115,31 @@ def registrar_arriendo(request):
         'existen_arrendados': existen_arrendados,
         'modo_inicial': modo_inicial,
     })
+
+
+@login_required
+@user_passes_test(es_administrador)
+@require_POST
+def actualizar_fecha_fin_arriendo(request, id):
+    arriendo = get_object_or_404(Arriendo, id=id)
+    form = ArriendoFechaFinForm(request.POST, arriendo=arriendo)
+
+    if form.is_valid():
+        arriendo.fecha_fin = form.cleaned_data.get('fecha_fin')
+        arriendo.save()
+        patente = arriendo.vehiculo_arrendado.patente
+        if arriendo.fecha_fin:
+            messages.success(
+                request,
+                f'Fecha de término actualizada para {patente}: {arriendo.fecha_fin.strftime("%d/%m/%Y")}.',
+            )
+        else:
+            messages.success(request, f'Fecha de término eliminada para {patente}.')
+    else:
+        for error in form.errors.get('fecha_fin', []):
+            messages.error(request, error)
+
+    return _redirect_listar_arriendos(request)
 
 
 @login_required
