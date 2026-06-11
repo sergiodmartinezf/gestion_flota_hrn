@@ -1,4 +1,13 @@
 document.addEventListener('DOMContentLoaded', function() {
+    const formViaje = document.getElementById('form-viaje');
+    if (formViaje) {
+        formViaje.addEventListener('submit', function() {
+            sincronizarNoAplicaTripulacion();
+            sincronizarNombresTripulacionDesdeSelect();
+        }, true);
+    }
+
+    initFormsetTripulacion();
     initLlevaPacientes();
     initFormsetPacientes();
     restriccionesCamionetaFilas();
@@ -55,6 +64,198 @@ document.addEventListener('DOMContentLoaded', function() {
         
     }
 });
+
+function poblarSelectTripulacion(select, rol) {
+    if (!select || !window.catalogoTripulacion) return;
+    const actuales = select.value;
+    select.innerHTML = '<option value="">-- Seleccionar o ingresar nuevo --</option>';
+    (window.catalogoTripulacion[rol] || []).forEach(function(persona) {
+        const opt = document.createElement('option');
+        opt.value = persona.id;
+        opt.textContent = persona.nombre;
+        opt.setAttribute('data-nombre', persona.nombre);
+        select.appendChild(opt);
+    });
+    if (actuales) select.value = actuales;
+}
+
+function actualizarTotalFormsTripulacion() {
+    const totalFormsInput = document.getElementById('id_tripulacion-TOTAL_FORMS');
+    if (totalFormsInput) {
+        totalFormsInput.value = String(document.querySelectorAll('.tripulacion-row').length);
+    }
+}
+
+function sincronizarNoAplicaTripulacion() {
+    const llevaEnfermero = document.getElementById('lleva-enfermero');
+    const noAplicaEnfermero = document.getElementById('id_no_aplica_enfermero');
+    if (llevaEnfermero && noAplicaEnfermero) {
+        noAplicaEnfermero.checked = !llevaEnfermero.checked;
+    }
+    const llevaCamillero = document.getElementById('lleva-camillero');
+    const noAplicaCamillero = document.getElementById('id_no_aplica_camillero');
+    if (llevaCamillero && noAplicaCamillero) {
+        noAplicaCamillero.checked = !llevaCamillero.checked;
+    }
+}
+
+function sincronizarNombresTripulacionDesdeSelect() {
+    document.querySelectorAll('.tripulacion-row').forEach(function(row) {
+        const deleteCheckbox = row.querySelector('input[name*="-DELETE"]');
+        if (deleteCheckbox && deleteCheckbox.checked) return;
+
+        const nombreInput = row.querySelector('.tripulacion-nombre') || row.querySelector('input[name*="-nombre"]');
+        const select = row.querySelector('.tripulacion-anterior-select');
+        if (!nombreInput || nombreInput.value.trim()) return;
+        if (!select || !select.value) return;
+
+        const opt = select.options[select.selectedIndex];
+        const nombre = opt ? (opt.getAttribute('data-nombre') || opt.textContent || '').trim() : '';
+        if (nombre) {
+            nombreInput.value = nombre;
+        }
+    });
+}
+
+function obtenerNombreTripulacionFila(row) {
+    const nombreInput = row.querySelector('.tripulacion-nombre') || row.querySelector('input[name*="-nombre"]');
+    const select = row.querySelector('.tripulacion-anterior-select');
+    const nombre = nombreInput ? nombreInput.value.trim() : '';
+    if (nombre) return nombre;
+    if (select && select.value) {
+        const opt = select.options[select.selectedIndex];
+        return opt ? (opt.getAttribute('data-nombre') || opt.textContent).trim() : '';
+    }
+    return '';
+}
+
+function initFilaTripulacion(row) {
+    if (!row) return;
+    const rol = row.getAttribute('data-rol');
+    const esExistente = row.getAttribute('data-existente') === 'true';
+    const select = row.querySelector('.tripulacion-anterior-select');
+    const nombreInput = row.querySelector('.tripulacion-nombre') || row.querySelector('input[name*="-nombre"]');
+    const nombreGuardado = nombreInput ? nombreInput.value.trim() : '';
+
+    if (select) {
+        poblarSelectTripulacion(select, rol);
+        if (nombreGuardado) {
+            let encontrado = false;
+            Array.from(select.options).forEach(function(opt) {
+                if ((opt.getAttribute('data-nombre') || opt.textContent) === nombreGuardado) {
+                    select.value = opt.value;
+                    encontrado = true;
+                }
+            });
+            if (!encontrado) {
+                const opt = document.createElement('option');
+                opt.value = 'actual';
+                opt.textContent = nombreGuardado;
+                opt.setAttribute('data-nombre', nombreGuardado);
+                opt.selected = true;
+                select.appendChild(opt);
+            }
+            if (window.modoEdicion && esExistente && nombreInput) {
+                nombreInput.value = '';
+            }
+        }
+        select.addEventListener('change', function() {
+            const opt = this.options[this.selectedIndex];
+            if (!opt || !opt.value || !nombreInput) return;
+            if (!(window.modoEdicion && esExistente)) {
+                nombreInput.value = opt.getAttribute('data-nombre') || opt.textContent;
+            }
+        });
+    }
+
+    const removeBtn = row.querySelector('.remove-tripulacion');
+    if (removeBtn) {
+        removeBtn.addEventListener('click', function() {
+            row.remove();
+            actualizarTotalFormsTripulacion();
+        });
+    }
+    if (nombreInput && (rol === 'MEDICO' || rol === 'TENS')) {
+        nombreInput.setAttribute('required', 'required');
+    }
+}
+
+function initLlevaTripulacionOpcional(rol) {
+    const checkboxId = rol === 'ENFERMERO' ? 'lleva-enfermero' : 'lleva-camillero';
+    const checkbox = document.getElementById(checkboxId);
+    const seccion = document.getElementById('seccion-tripulacion-' + rol);
+    const addButton = document.querySelector('.add-tripulacion[data-rol="' + rol + '"]');
+    const rowsContainer = document.querySelector('.tripulacion-rol-rows[data-rol="' + rol + '"]');
+    if (!checkbox || !seccion) return;
+
+    const incluyeInicial = rol === 'ENFERMERO' ? window.viajeIncluyeEnfermero : window.viajeIncluyeCamillero;
+    if (incluyeInicial) {
+        checkbox.checked = true;
+    }
+
+    function aplicarEstado() {
+        const activo = checkbox.checked;
+        seccion.style.display = activo ? 'block' : 'none';
+        if (addButton) addButton.disabled = !activo;
+        if (!activo && rowsContainer) {
+            rowsContainer.querySelectorAll('.tripulacion-row').forEach(function(row) {
+                row.remove();
+            });
+            actualizarTotalFormsTripulacion();
+        }
+        sincronizarNoAplicaTripulacion();
+    }
+
+    checkbox.addEventListener('change', aplicarEstado);
+    aplicarEstado();
+}
+
+function initFormsetTripulacion() {
+    if (window.tipoVehiculo === 'Camioneta') return;
+
+    document.querySelectorAll('.tripulacion-row').forEach(initFilaTripulacion);
+
+    document.querySelectorAll('.add-tripulacion').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            const rol = btn.getAttribute('data-rol');
+            const container = document.querySelector('.tripulacion-rol-rows[data-rol="' + rol + '"]');
+            const totalFormsInput = document.getElementById('id_tripulacion-TOTAL_FORMS');
+            const template = document.getElementById('empty-tripulacion-template');
+            if (!container || !totalFormsInput || !template) return;
+
+            let formIdx = parseInt(totalFormsInput.value, 10);
+            if (Number.isNaN(formIdx) || formIdx < 0) {
+                formIdx = document.querySelectorAll('.tripulacion-row').length;
+            }
+
+            const clone = template.content.cloneNode(true);
+            const newRow = clone.querySelector('.tripulacion-row');
+            if (!newRow) return;
+
+            newRow.setAttribute('data-rol', rol);
+            newRow.innerHTML = newRow.innerHTML.replace(/__prefix__/g, formIdx).replace(/__ROL__/g, rol);
+            container.appendChild(newRow);
+            totalFormsInput.value = String(formIdx + 1);
+            initFilaTripulacion(newRow);
+        });
+    });
+
+    initLlevaTripulacionOpcional('ENFERMERO');
+    initLlevaTripulacionOpcional('CAMILLERO');
+
+    if (!window.modoEdicion) {
+        ['MEDICO', 'TENS'].forEach(function(rol) {
+            const container = document.querySelector('.tripulacion-rol-rows[data-rol="' + rol + '"]');
+            if (!container || container.querySelectorAll('.tripulacion-row').length > 0) {
+                return;
+            }
+            const btn = document.querySelector('.add-tripulacion[data-rol="' + rol + '"]');
+            if (btn) btn.click();
+        });
+    }
+
+    actualizarTotalFormsTripulacion();
+}
 
 /** Checkbox: el viaje incluye pacientes/pasajeros antes de poder agregar filas. */
 function initLlevaPacientes() {
@@ -340,6 +541,49 @@ function configurarValidacionFormulario() {
             }
         }
         
+        if (window.tipoVehiculo !== 'Camioneta') {
+            ['ENFERMERO', 'CAMILLERO'].forEach(function(rol) {
+                const checkboxId = rol === 'ENFERMERO' ? 'lleva-enfermero' : 'lleva-camillero';
+                const checkbox = document.getElementById(checkboxId);
+                if (checkbox && !checkbox.checked) {
+                    document.querySelectorAll('.tripulacion-row[data-rol="' + rol + '"]').forEach(function(row) {
+                        row.remove();
+                    });
+                }
+            });
+            actualizarTotalFormsTripulacion();
+            sincronizarNoAplicaTripulacion();
+            sincronizarNombresTripulacionDesdeSelect();
+
+            const conteoRoles = { MEDICO: 0, TENS: 0, ENFERMERO: 0, CAMILLERO: 0 };
+            document.querySelectorAll('.tripulacion-row').forEach(function(row) {
+                const deleteCheckbox = row.querySelector('input[name*="-DELETE"]');
+                if (deleteCheckbox && deleteCheckbox.checked) return;
+                const rol = row.getAttribute('data-rol');
+                if (rol in conteoRoles && obtenerNombreTripulacionFila(row)) {
+                    conteoRoles[rol] += 1;
+                }
+            });
+            if (conteoRoles.MEDICO < 1) {
+                formIsValid = false;
+                errorMessages.push('Debe ingresar al menos un médico.');
+            }
+            if (conteoRoles.TENS < 1) {
+                formIsValid = false;
+                errorMessages.push('Debe ingresar al menos un TENS.');
+            }
+            const llevaEnfermero = document.querySelector('[name="lleva_enfermero"]');
+            if (llevaEnfermero && llevaEnfermero.checked && conteoRoles.ENFERMERO < 1) {
+                formIsValid = false;
+                errorMessages.push('Debe ingresar al menos un enfermero/matrón si el viaje lo incluye.');
+            }
+            const llevaCamillero = document.querySelector('[name="lleva_camillero"]');
+            if (llevaCamillero && llevaCamillero.checked && conteoRoles.CAMILLERO < 1) {
+                formIsValid = false;
+                errorMessages.push('Debe ingresar al menos un camillero si el viaje lo incluye.');
+            }
+        }
+
         const llevaPacientes = document.getElementById('lleva-pacientes');
         if (llevaPacientes && !llevaPacientes.checked) {
             const totalFormsInput = document.getElementById('id_pacientes-TOTAL_FORMS');

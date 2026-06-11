@@ -11,6 +11,13 @@ TIPOS_SERVICIO = [
     ('Otro', 'Otro'),
 ]
 
+ROL_TRIPULACION = [
+    ('MEDICO', 'Médico'),
+    ('TENS', 'TENS'),
+    ('ENFERMERO', 'Enfermero/Matrón'),
+    ('CAMILLERO', 'Camillero'),
+]
+
 TURNOS = [
     ('08-20', 'Turno 08:00 a 20:00'),
     ('20-08', 'Turno 20:00 a 08:00'),

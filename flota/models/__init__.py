@@ -12,6 +12,8 @@ from .arriendo import Arriendo
 from .operativa import (
     HojaRuta,
     Viaje,
+    PersonaTripulacion,
+    TripulacionViaje,
     PacienteViaje,
     PacienteTraslado,
     CargaCombustible,
@@ -41,6 +43,8 @@ __all__ = [
     "Arriendo",
     "HojaRuta",
     "Viaje",
+    "PersonaTripulacion",
+    "TripulacionViaje",
     "PacienteViaje",
     "PacienteTraslado",
     "CargaCombustible",

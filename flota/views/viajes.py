@@ -10,12 +10,17 @@ from openpyxl import Workbook
 from openpyxl.styles import Font
 from ..models import (
     HojaRuta, CargaCombustible, FallaReportada, Alerta, Viaje, Vehiculo, Usuario,
-    PacienteTraslado, PacienteViaje, DESTINOS_COMUNES,
+    PacienteTraslado, PacienteViaje, PersonaTripulacion, TripulacionViaje,
+    DESTINOS_COMUNES, ROL_TRIPULACION,
 )
-from ..forms import HojaRutaForm, CargaCombustibleForm, FallaReportadaForm, ViajeForm, PacienteFormSet
+from ..forms import (
+    HojaRutaForm, CargaCombustibleForm, FallaReportadaForm, ViajeForm,
+    PacienteFormSet, TripulacionFormSet,
+)
 from .utilidades import es_conductor_o_admin, es_conductor
 from ..validators import normalizar_rut
 from datetime import datetime, timedelta
+import json
 
 
 TIPOS_SERVICIO = [
@@ -86,6 +91,108 @@ def _guardar_pacientes_formset(paciente_formset, viaje):
     for form_del in paciente_formset.deleted_forms:
         if form_del.instance.pk:
             form_del.instance.delete()
+
+
+def _guardar_tripulacion_formset(tripulacion_formset, viaje):
+    for form_del in tripulacion_formset.deleted_forms:
+        if form_del.instance.pk:
+            form_del.instance.delete()
+
+    miembros = tripulacion_formset.save(commit=False)
+    for miembro in miembros:
+        nombre = (miembro.nombre or '').strip()
+        if not nombre:
+            continue
+        miembro.viaje = viaje
+        miembro.nombre = nombre
+        persona = PersonaTripulacion.objects.filter(
+            nombre__iexact=nombre,
+            rol=miembro.rol,
+        ).first()
+        if not persona:
+            persona = PersonaTripulacion.objects.create(nombre=nombre, rol=miembro.rol)
+        miembro.persona_tripulacion = persona
+        miembro.save()
+
+
+def _no_aplica_tripulacion_desde_request(request, form=None):
+    if form is not None and form.is_valid():
+        return (
+            form.cleaned_data.get('no_aplica_enfermero', True),
+            form.cleaned_data.get('no_aplica_camillero', True),
+        )
+    incluye_enfermero = request.POST.get('lleva_enfermero') == 'on'
+    incluye_camillero = request.POST.get('lleva_camillero') == 'on'
+    return (not incluye_enfermero, not incluye_camillero)
+
+
+def _catalogo_tripulacion():
+    catalogo = {rol[0]: [] for rol in ROL_TRIPULACION}
+    for persona in PersonaTripulacion.objects.all().order_by('nombre')[:500]:
+        catalogo[persona.rol].append({'id': persona.id, 'nombre': persona.nombre})
+    return catalogo
+
+
+def _contexto_formularios_viaje(hoja, vehiculo_tipo, modo_edicion=False, viaje=None):
+    pacientes_anteriores = PacienteViaje.objects.all().order_by('rut')[:300]
+    catalogo_tripulacion = _catalogo_tripulacion()
+    ultimo_viaje = None
+    km_referencia = hoja.km_inicio
+    tiene_viajes_en_hoja = False
+    tiene_pacientes_en_viaje = False
+    tiene_tripulacion_en_viaje = False
+    incluye_enfermero = False
+    incluye_camillero = False
+
+    if viaje:
+        ultimo_viaje = hoja.viajes.exclude(id=viaje.id).order_by('-id').first()
+        km_referencia = _km_referencia_para_viaje(hoja, viaje)
+        tiene_viajes_en_hoja = hoja.viajes.exclude(id=viaje.id).exists()
+        tiene_pacientes_en_viaje = viaje.pacientes.exists()
+        tiene_tripulacion_en_viaje = viaje.tripulacion.exists()
+        incluye_enfermero = (
+            viaje.tripulacion.filter(rol='ENFERMERO').exists()
+            or not viaje.no_aplica_enfermero
+        )
+        incluye_camillero = (
+            viaje.tripulacion.filter(rol='CAMILLERO').exists()
+            or not viaje.no_aplica_camillero
+        )
+    else:
+        ultimo_viaje = hoja.viajes.order_by('-id').first()
+        if ultimo_viaje:
+            km_referencia = (
+                ultimo_viaje.km_llegada
+                if ultimo_viaje.km_llegada is not None
+                else ultimo_viaje.km_salida
+            )
+        tiene_viajes_en_hoja = ultimo_viaje is not None
+
+    km_actual_vehiculo = hoja.vehiculo.kilometraje_actual
+    if km_actual_vehiculo < hoja.km_inicio:
+        km_actual_vehiculo = hoja.km_inicio
+
+    return {
+        'hoja': hoja,
+        'ultimos_viajes': (
+            hoja.viajes.exclude(id=viaje.id).order_by('-id')[:5]
+            if viaje else hoja.viajes.all().order_by('-id')[:5]
+        ),
+        'pacientes_anteriores': pacientes_anteriores,
+        'catalogo_tripulacion': catalogo_tripulacion,
+        'catalogo_tripulacion_json': json.dumps(catalogo_tripulacion),
+        'roles_tripulacion': ROL_TRIPULACION,
+        'km_actual_vehiculo': km_actual_vehiculo,
+        'km_referencia': km_referencia,
+        'tiene_viajes_en_hoja': tiene_viajes_en_hoja,
+        'destinos_choices': DESTINOS_COMUNES,
+        'modo_edicion': modo_edicion,
+        'tiene_pacientes_en_viaje': tiene_pacientes_en_viaje,
+        'tiene_tripulacion_en_viaje': tiene_tripulacion_en_viaje,
+        'incluye_enfermero': incluye_enfermero,
+        'incluye_camillero': incluye_camillero,
+        'viaje': viaje,
+    }
 
 
 @login_required
@@ -198,35 +305,64 @@ def agregar_viaje(request, id):
             request.FILES,
             form_kwargs={'vehiculo_tipo': vehiculo_tipo},
         )
+        tripulacion_formset = None
 
         if form.is_valid():
             viaje = form.save(commit=False)
             viaje.hoja_ruta = hoja
-            
-            # Validaciones que dependen del objeto viaje
+
             errores = False
-            
+
             if viaje.km_salida < km_sugerido:
                 form.add_error('km_salida', f'Error: KM salida ({viaje.km_salida}) es menor al anterior ({km_sugerido}).')
                 errores = True
-            
-            if not errores and paciente_formset.is_valid():
+
+            if vehiculo_tipo != 'Camioneta':
+                tripulacion_formset = TripulacionFormSet(
+                    request.POST,
+                    form_kwargs={'vehiculo_tipo': vehiculo_tipo},
+                    vehiculo_tipo=vehiculo_tipo,
+                    no_aplica_enfermero=form.cleaned_data.get('no_aplica_enfermero', False),
+                    no_aplica_camillero=form.cleaned_data.get('no_aplica_camillero', False),
+                )
+            else:
+                tripulacion_formset = TripulacionFormSet(
+                    request.POST,
+                    form_kwargs={'vehiculo_tipo': vehiculo_tipo},
+                    vehiculo_tipo=vehiculo_tipo,
+                )
+
+            pacientes_ok = paciente_formset.is_valid()
+            tripulacion_ok = tripulacion_formset.is_valid() if vehiculo_tipo != 'Camioneta' else True
+
+            if not errores and pacientes_ok and tripulacion_ok:
                 viaje.save()
 
                 if viaje.km_llegada and viaje.km_llegada > hoja.vehiculo.kilometraje_actual:
                     hoja.vehiculo.kilometraje_actual = viaje.km_llegada
                     hoja.vehiculo.save()
 
+                if vehiculo_tipo != 'Camioneta':
+                    _guardar_tripulacion_formset(tripulacion_formset, viaje)
                 _guardar_pacientes_formset(paciente_formset, viaje)
 
                 messages.success(request, 'Viaje registrado correctamente.')
                 return redirect('agregar_viaje', id=hoja.id)
-            else:
-                if not errores:
+            if not errores:
+                if not pacientes_ok:
                     messages.error(request, 'Error en los datos de los pacientes.')
-        else:
-            # Si el formulario principal no es válido, se mostrarán los errores en el template
-            pass
+                elif not tripulacion_ok:
+                    messages.error(request, 'Error en los datos de la tripulación.')
+
+        if tripulacion_formset is None:
+            no_aplica_enfermero, no_aplica_camillero = _no_aplica_tripulacion_desde_request(request, form)
+            tripulacion_formset = TripulacionFormSet(
+                request.POST,
+                form_kwargs={'vehiculo_tipo': vehiculo_tipo},
+                vehiculo_tipo=vehiculo_tipo,
+                no_aplica_enfermero=no_aplica_enfermero,
+                no_aplica_camillero=no_aplica_camillero,
+            )
 
     else:
         initial_data = {
@@ -238,25 +374,21 @@ def agregar_viaje(request, id):
             queryset=PacienteTraslado.objects.none(),
             form_kwargs={'vehiculo_tipo': vehiculo_tipo},
         )
+        tripulacion_formset = TripulacionFormSet(
+            queryset=TripulacionViaje.objects.none(),
+            form_kwargs={'vehiculo_tipo': vehiculo_tipo},
+            vehiculo_tipo=vehiculo_tipo,
+        )
 
-    pacientes_anteriores = PacienteViaje.objects.all().order_by('rut')[:300]
-    km_actual_vehiculo = hoja.vehiculo.kilometraje_actual
-    if km_actual_vehiculo < hoja.km_inicio:
-        km_actual_vehiculo = hoja.km_inicio
-    
-    context = {
-        'hoja': hoja,
+    context = _contexto_formularios_viaje(hoja, vehiculo_tipo, modo_edicion=False)
+    if request.method == 'POST':
+        context['incluye_enfermero'] = request.POST.get('lleva_enfermero') == 'on'
+        context['incluye_camillero'] = request.POST.get('lleva_camillero') == 'on'
+    context.update({
         'form': form,
         'paciente_formset': paciente_formset,
-        'ultimos_viajes': hoja.viajes.all().order_by('-id')[:5],
-        'pacientes_anteriores': pacientes_anteriores,
-        'km_actual_vehiculo': km_actual_vehiculo,
-        'km_referencia': km_referencia,
-        'tiene_viajes_en_hoja': ultimo_viaje is not None,
-        'destinos_choices': DESTINOS_COMUNES,
-        'modo_edicion': False,
-        'tiene_pacientes_en_viaje': False,
-    }
+        'tripulacion_formset': tripulacion_formset,
+    })
     return render(request, 'flota/registrar_viaje.html', context)
 
 
@@ -275,7 +407,6 @@ def modificar_viaje(request, id):
 
     vehiculo_tipo = hoja.vehiculo.tipo_carroceria
     km_referencia = _km_referencia_para_viaje(hoja, viaje)
-    tiene_pacientes_en_viaje = viaje.pacientes.exists()
 
     if request.method == 'POST':
         form = ViajeForm(request.POST, instance=viaje, vehiculo_tipo=vehiculo_tipo)
@@ -285,6 +416,7 @@ def modificar_viaje(request, id):
             instance=viaje,
             form_kwargs={'vehiculo_tipo': vehiculo_tipo},
         )
+        tripulacion_formset = None
 
         if form.is_valid():
             viaje_editado = form.save(commit=False)
@@ -297,46 +429,80 @@ def modificar_viaje(request, id):
                 )
                 errores = True
 
-            if not errores and paciente_formset.is_valid():
+            if vehiculo_tipo != 'Camioneta':
+                tripulacion_formset = TripulacionFormSet(
+                    request.POST,
+                    instance=viaje,
+                    form_kwargs={'vehiculo_tipo': vehiculo_tipo},
+                    vehiculo_tipo=vehiculo_tipo,
+                    no_aplica_enfermero=form.cleaned_data.get('no_aplica_enfermero', False),
+                    no_aplica_camillero=form.cleaned_data.get('no_aplica_camillero', False),
+                )
+            else:
+                tripulacion_formset = TripulacionFormSet(
+                    request.POST,
+                    instance=viaje,
+                    form_kwargs={'vehiculo_tipo': vehiculo_tipo},
+                    vehiculo_tipo=vehiculo_tipo,
+                )
+
+            pacientes_ok = paciente_formset.is_valid()
+            tripulacion_ok = tripulacion_formset.is_valid() if vehiculo_tipo != 'Camioneta' else True
+
+            if not errores and pacientes_ok and tripulacion_ok:
                 viaje_editado.save()
 
                 if viaje_editado.km_llegada and viaje_editado.km_llegada > hoja.vehiculo.kilometraje_actual:
                     hoja.vehiculo.kilometraje_actual = viaje_editado.km_llegada
                     hoja.vehiculo.save()
 
+                if vehiculo_tipo != 'Camioneta':
+                    _guardar_tripulacion_formset(tripulacion_formset, viaje_editado)
                 _guardar_pacientes_formset(paciente_formset, viaje_editado)
 
                 messages.success(request, 'Viaje actualizado correctamente.')
                 return redirect('detalle_bitacora', id=hoja.id)
 
             if not errores:
-                messages.error(request, 'Error en los datos de los pacientes.')
+                if not pacientes_ok:
+                    messages.error(request, 'Error en los datos de los pacientes.')
+                elif not tripulacion_ok:
+                    messages.error(request, 'Error en los datos de la tripulación.')
+
+        if tripulacion_formset is None:
+            no_aplica_enfermero, no_aplica_camillero = _no_aplica_tripulacion_desde_request(request, form)
+            tripulacion_formset = TripulacionFormSet(
+                request.POST,
+                instance=viaje,
+                form_kwargs={'vehiculo_tipo': vehiculo_tipo},
+                vehiculo_tipo=vehiculo_tipo,
+                no_aplica_enfermero=no_aplica_enfermero,
+                no_aplica_camillero=no_aplica_camillero,
+            )
     else:
         form = ViajeForm(instance=viaje, vehiculo_tipo=vehiculo_tipo)
         paciente_formset = PacienteFormSet(
             instance=viaje,
             form_kwargs={'vehiculo_tipo': vehiculo_tipo},
         )
+        tripulacion_formset = TripulacionFormSet(
+            instance=viaje,
+            form_kwargs={'vehiculo_tipo': vehiculo_tipo},
+            vehiculo_tipo=vehiculo_tipo,
+            no_aplica_enfermero=viaje.no_aplica_enfermero,
+            no_aplica_camillero=viaje.no_aplica_camillero,
+        )
 
-    pacientes_anteriores = PacienteViaje.objects.all().order_by('rut')[:300]
-    km_actual_vehiculo = hoja.vehiculo.kilometraje_actual
-    if km_actual_vehiculo < hoja.km_inicio:
-        km_actual_vehiculo = hoja.km_inicio
-
-    return render(request, 'flota/registrar_viaje.html', {
-        'hoja': hoja,
+    context = _contexto_formularios_viaje(hoja, vehiculo_tipo, modo_edicion=True, viaje=viaje)
+    if request.method == 'POST':
+        context['incluye_enfermero'] = request.POST.get('lleva_enfermero') == 'on'
+        context['incluye_camillero'] = request.POST.get('lleva_camillero') == 'on'
+    context.update({
         'form': form,
         'paciente_formset': paciente_formset,
-        'ultimos_viajes': hoja.viajes.exclude(id=viaje.id).order_by('-id')[:5],
-        'pacientes_anteriores': pacientes_anteriores,
-        'km_actual_vehiculo': km_actual_vehiculo,
-        'km_referencia': km_referencia,
-        'tiene_viajes_en_hoja': hoja.viajes.exclude(id=viaje.id).exists(),
-        'destinos_choices': DESTINOS_COMUNES,
-        'modo_edicion': True,
-        'tiene_pacientes_en_viaje': tiene_pacientes_en_viaje,
-        'viaje': viaje,
+        'tripulacion_formset': tripulacion_formset,
     })
+    return render(request, 'flota/registrar_viaje.html', context)
 
 @login_required
 def listar_bitacoras(request):
@@ -415,7 +581,7 @@ def modificar_bitacora(request, id):
 @login_required
 def detalle_bitacora(request, id):
     hoja = get_object_or_404(HojaRuta.objects.select_related('vehiculo', 'conductor'), id=id)
-    viajes = hoja.viajes.prefetch_related('pacientes').all()
+    viajes = hoja.viajes.prefetch_related('pacientes', 'tripulacion').all()
 
     total_km_viajes = sum(v.km_recorridos_calculados for v in viajes)
 

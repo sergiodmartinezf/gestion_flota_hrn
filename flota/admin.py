@@ -6,6 +6,11 @@ class ViajePacienteInline(admin.TabularInline):
     model = PacienteTraslado
     extra = 1
 
+
+class ViajeTripulacionInline(admin.TabularInline):
+    model = TripulacionViaje
+    extra = 0
+
 @admin.register(Usuario)
 class UsuarioAdmin(admin.ModelAdmin):
     list_display = ('rut', 'nombre', 'apellido', 'rol', 'activo')
@@ -27,7 +32,21 @@ class HojaRutaAdmin(admin.ModelAdmin):
 class ViajeAdmin(admin.ModelAdmin):
     list_display = ('id', 'hoja_ruta', 'hora_salida')
     list_filter = ('hoja_ruta__fecha',)
-    inlines = [ViajePacienteInline]
+    inlines = [ViajeTripulacionInline, ViajePacienteInline]
+
+
+@admin.register(PersonaTripulacion)
+class PersonaTripulacionAdmin(admin.ModelAdmin):
+    list_display = ('nombre', 'rol', 'creado_en')
+    list_filter = ('rol',)
+    search_fields = ('nombre',)
+
+
+@admin.register(TripulacionViaje)
+class TripulacionViajeAdmin(admin.ModelAdmin):
+    list_display = ('viaje', 'nombre', 'rol')
+    list_filter = ('rol',)
+    search_fields = ('nombre',)
 
 @admin.register(PacienteViaje)
 class PacienteViajeAdmin(admin.ModelAdmin):

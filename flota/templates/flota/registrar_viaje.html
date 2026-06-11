@@ -7,6 +7,10 @@
     window.tipoVehiculo = "{{ hoja.vehiculo.tipo_carroceria }}";
     window.modoEdicion = {{ modo_edicion|yesno:"true,false" }};
     window.viajeTienePacientes = {{ tiene_pacientes_en_viaje|yesno:"true,false" }};
+    window.viajeTieneTripulacion = {{ tiene_tripulacion_en_viaje|yesno:"true,false" }};
+    window.viajeIncluyeEnfermero = {{ incluye_enfermero|yesno:"true,false" }};
+    window.viajeIncluyeCamillero = {{ incluye_camillero|yesno:"true,false" }};
+    window.catalogoTripulacion = {{ catalogo_tripulacion_json|safe }};
 </script>
 
 <div class="container py-4">
@@ -17,15 +21,6 @@
                 {{ hoja.vehiculo.tipo_carroceria }} | {{ hoja.vehiculo.patente }}
             </div>
 
-            {% if hoja.vehiculo.tipo_carroceria != 'Camioneta' %}
-            <div class="small text-muted mt-1">
-                Tripulación: 
-                Dr. {{ hoja.medico_derivador }} | 
-                TENS {{ hoja.tens }} |
-                {% if hoja.enfermero %}Enf. {{ hoja.enfermero }}{% else %}(Sin enfermero){% endif %} |
-                {% if hoja.camillero %}Cam. {{ hoja.camillero }}{% else %}(Sin camillero){% endif %}
-            </div>
-            {% endif %}
             <div class="small text-muted">
                 Turno: {{ hoja.get_turno_display }} | Conductor: {{ hoja.conductor.nombre_completo }}
             </div>
@@ -96,6 +91,10 @@
                                 <label>Observaciones generales</label>
                                 {{ form.observaciones }}
                             </div>
+                            <div class="d-none" aria-hidden="true">
+                                {{ form.no_aplica_enfermero }}
+                                {{ form.no_aplica_camillero }}
+                            </div>
                         </div>
 
                         <!-- Se mostrará solo si algún paciente tiene destino HBO -->
@@ -115,9 +114,113 @@
                             </div>
                         </div>
 
+                        {% if hoja.vehiculo.tipo_carroceria != 'Camioneta' %}
+                        <h5 class="border-bottom pb-2 mb-3 mt-4">2. Tripulación</h5>
+
+                        {{ tripulacion_formset.management_form }}
+                        {% if tripulacion_formset.non_form_errors %}
+                        <div class="alert alert-danger">
+                            {% for error in tripulacion_formset.non_form_errors %}
+                                <div>{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+
+                        {% for rol_codigo, rol_etiqueta in roles_tripulacion %}
+                        <div class="tripulacion-rol-section mb-4" data-rol="{{ rol_codigo }}">
+                            <h6 class="border-bottom pb-2 mb-2">
+                                {{ rol_etiqueta }}
+                                {% if rol_codigo == 'MEDICO' or rol_codigo == 'TENS' %}<span class="text-danger">*</span>{% endif %}
+                            </h6>
+
+                            {% if rol_codigo == 'ENFERMERO' or rol_codigo == 'CAMILLERO' %}
+                            <div class="form-check mb-3">
+                                <input class="form-check-input lleva-tripulacion-opcional" type="checkbox"
+                                       id="lleva-{{ rol_codigo|lower }}"
+                                       name="lleva_{{ rol_codigo|lower }}"
+                                       data-rol="{{ rol_codigo }}"
+                                       {% if rol_codigo == 'ENFERMERO' and incluye_enfermero %}checked{% endif %}
+                                       {% if rol_codigo == 'CAMILLERO' and incluye_camillero %}checked{% endif %}>
+                                <label class="form-check-label" for="lleva-{{ rol_codigo|lower }}">
+                                    {% if rol_codigo == 'ENFERMERO' %}
+                                        Este viaje incluye enfermero/matrón
+                                    {% else %}
+                                        Este viaje incluye camillero
+                                    {% endif %}
+                                </label>
+                            </div>
+                            {% endif %}
+
+                            <div class="seccion-tripulacion-rol" id="seccion-tripulacion-{{ rol_codigo }}"
+                                 {% if rol_codigo == 'ENFERMERO' or rol_codigo == 'CAMILLERO' %}style="display: none;"{% endif %}>
+                                <div class="tripulacion-rol-rows" data-rol="{{ rol_codigo }}">
+                                    {% for form_trip in tripulacion_formset %}
+                                    {% if form_trip.rol.value == rol_codigo %}
+                                    <div class="tripulacion-row card mb-2 bg-light border-0" data-rol="{{ rol_codigo }}"
+                                         {% if form_trip.instance.pk %}data-existente="true"{% endif %}>
+                                        <div class="card-body position-relative py-2">
+                                            {% if tripulacion_formset.can_delete %}
+                                            <div class="delete-checkbox position-absolute top-0 end-0 p-2">
+                                                {{ form_trip.DELETE }} <label class="small">Eliminar</label>
+                                            </div>
+                                            {% endif %}
+                                            {{ form_trip.id }}
+                                            {{ form_trip.rol }}
+                                            <div class="row g-2 align-items-end">
+                                                <div class="col-md-5">
+                                                    <label class="small text-muted">De viajes anteriores</label>
+                                                    <select class="form-select tripulacion-anterior-select" data-rol="{{ rol_codigo }}">
+                                                        <option value="">-- Seleccionar o ingresar nuevo --</option>
+                                                    </select>
+                                                </div>
+                                                <div class="col-md-5">
+                                                    <label class="small">Nombre{% if rol_codigo == 'MEDICO' or rol_codigo == 'TENS' %} *{% endif %}</label>
+                                                    {{ form_trip.nombre }}
+                                                </div>
+                                            </div>
+                                            {% if not form_trip.instance.pk %}
+                                            <button type="button" class="btn btn-sm btn-outline-danger mt-2 remove-tripulacion">Quitar</button>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                    {% endif %}
+                                    {% endfor %}
+                                </div>
+
+                                <button type="button" class="btn btn-sm btn-success add-tripulacion" data-rol="{{ rol_codigo }}"
+                                        {% if rol_codigo == 'ENFERMERO' or rol_codigo == 'CAMILLERO' %}disabled{% endif %}>
+                                    <i class="bi bi-person-plus"></i> Agregar {{ rol_etiqueta }}
+                                </button>
+                            </div>
+                        </div>
+                        {% endfor %}
+
+                        <template id="empty-tripulacion-template">
+                            <div class="tripulacion-row card mb-2 bg-light border-0" data-rol="__ROL__">
+                                <div class="card-body py-2">
+                                    <div class="row g-2 align-items-end">
+                                        <div class="col-md-5">
+                                            <label class="small text-muted">De viajes anteriores</label>
+                                            <select class="form-select tripulacion-anterior-select" data-rol="__ROL__">
+                                                <option value="">-- Seleccionar o ingresar nuevo --</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-md-5">
+                                            <label class="small">Nombre</label>
+                                            <input type="text" name="tripulacion-__prefix__-nombre"
+                                                   class="form-control tripulacion-nombre" maxlength="100" placeholder="Nombre">
+                                        </div>
+                                        <input type="hidden" name="tripulacion-__prefix__-rol" value="__ROL__">
+                                    </div>
+                                    <button type="button" class="btn btn-sm btn-outline-danger mt-2 remove-tripulacion">Quitar</button>
+                                </div>
+                            </div>
+                        </template>
+                        {% endif %}
+
                         <h5 class="border-bottom pb-2 mb-3 mt-4">
                             <span id="paciente-label">
-                                {% if hoja.vehiculo.tipo_carroceria == 'Camioneta' %}2. Pasajeros{% else %}2. Pacientes{% endif %}
+                                {% if hoja.vehiculo.tipo_carroceria == 'Camioneta' %}2. Pasajeros{% else %}3. Pacientes{% endif %}
                             </span>
                         </h5>
 
