@@ -109,6 +109,9 @@
                                 <th>KM Salida</th>
                                 <th>KM Llegada</th>
                                 <th>KM Recorridos</th>
+                                {% if puede_gestionar %}
+                                <th>Acciones</th>
+                                {% endif %}
                             </tr>
                         </thead>
                         <tbody>
@@ -140,13 +143,23 @@
                                     <td>{{ viaje.km_salida|km }} km</td>
                                     <td>{{ viaje.km_llegada|km|default:"-" }} km</td>
                                     <td><strong class="text-success">{{ viaje.km_recorridos_calculados|km }} km</strong></td>
+                                    {% if puede_gestionar %}
+                                    <td>
+                                        <a href="{% url 'modificar_viaje' viaje.id %}" class="btn btn-sm btn-outline-warning" title="Editar viaje">
+                                            <i class="bi bi-pencil"></i>
+                                        </a>
+                                    </td>
+                                    {% endif %}
                                 </tr>
                             {% endfor %}
                         </tbody>
                         <tfoot>
                             <tr class="table-active">
-                                <td colspan="8" class="text-end"><strong>Total KM Recorridos:</strong></td>
+                                <td colspan="7" class="text-end"><strong>Total KM Recorridos:</strong></td>
                                 <td><strong class="text-success">{{ total_km_viajes|km }} km</strong></td>
+                                {% if puede_gestionar %}
+                                <td></td>
+                                {% endif %}
                             </tr>
                         </tfoot>
                     </table>
@@ -173,11 +186,45 @@
         </a>
         {% endif %}
         
-        {% if request.user.rol == 'Administrador' or request.user.rol == 'Conductor' %}
+        {% if puede_gestionar %}
+        <div class="d-flex gap-2">
+            {% if hoja.abierta %}
+            <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#modalCerrarHoja">
+                <i class="bi bi-lock"></i> Cerrar Hoja
+            </button>
+            {% endif %}
             <a href="{% url 'modificar_bitacora' id=hoja.id %}" class="btn btn-outline-warning">
                 <i class="bi bi-pencil"></i> Editar Hoja
             </a>
+        </div>
         {% endif %}
     </div>
 </div>
+
+{% if puede_gestionar and hoja.abierta %}
+<div class="modal fade" id="modalCerrarHoja" tabindex="-1" aria-labelledby="modalCerrarHojaLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="modalCerrarHojaLabel">Cerrar Hoja de Ruta #{{ hoja.id }}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+            </div>
+            <form method="post" action="{% url 'cerrar_hoja_ruta' hoja.id %}">
+                {% csrf_token %}
+                <input type="hidden" name="next" value="detalle">
+                <div class="modal-body">
+                    <p>Ingrese el kilometraje final del turno:</p>
+                    <input type="number" name="km_cierre" class="form-control"
+                           required min="{{ hoja.km_inicio }}"
+                           value="{{ km_actual_vehiculo|stringformat:'s' }}" step="1">
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-danger">Cerrar Hoja</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
 {% endblock %}

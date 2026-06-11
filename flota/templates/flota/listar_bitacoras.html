@@ -120,11 +120,6 @@
                                 <a href="{% url 'detalle_bitacora' bitacora.id %}" class="btn btn-sm btn-info me-1" title="Ver detalles">
                                     <i class="bi bi-eye"></i>
                                 </a>
-                                {% if user.rol == 'Administrador' %}
-                                <a href="{% url 'modificar_bitacora' bitacora.id %}" class="btn btn-sm btn-warning" title="Modificar">
-                                    <i class="bi bi-pencil"></i>
-                                </a>
-                                {% endif %}
                             </td>
                         </tr>
                         {% endfor %}

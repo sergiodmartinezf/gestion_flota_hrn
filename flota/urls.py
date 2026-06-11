@@ -42,6 +42,7 @@ urlpatterns = [
     path('incidentes/registrar/', views.registrar_incidente, name='registrar_incidente'),
     path('incidentes/listar/', views.listar_incidentes, name='listar_incidentes'),
     path('bitacoras/<int:id>/agregar-viaje/', views.agregar_viaje, name='agregar_viaje'),
+    path('viajes/modificar/<int:id>/', views.modificar_viaje, name='modificar_viaje'),
     path('historial/', views.historial_conductor, name='historial_conductor'),
     path('bitacora/reabrir/<int:id>/', views.reabrir_bitacora, name='reabrir_bitacora'),
     
@@ -73,6 +74,7 @@ urlpatterns = [
     # Arriendo
     path('arriendos/', views.listar_arriendos, name='listar_arriendos'),
     path('arriendos/registrar/', views.registrar_arriendo, name='registrar_arriendo'),
+    path('arriendos/<int:id>/fecha-fin/', views.actualizar_fecha_fin_arriendo, name='actualizar_fecha_fin_arriendo'),
     path('arriendos/finalizar/<int:id>/', views.finalizar_arriendo, name='finalizar_arriendo'),
     path('arriendos/deshabilitar/<int:id>/', views.deshabilitar_arriendo, name='deshabilitar_arriendo'),
     path('arriendos/habilitar/<int:id>/', views.habilitar_arriendo, name='habilitar_arriendo'),

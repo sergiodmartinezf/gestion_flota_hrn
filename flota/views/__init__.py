@@ -43,6 +43,7 @@ from .viajes import (
     exportar_consolidado_viajes,
     exportar_traslados_form,
     agregar_viaje,
+    modificar_viaje,
     acceso_bitacora,
     cerrar_hoja_ruta,
 )
@@ -71,6 +72,7 @@ from .reportes import (
 from .arriendos import (
     listar_arriendos,
     registrar_arriendo,
+    actualizar_fecha_fin_arriendo,
     finalizar_arriendo,
     deshabilitar_arriendo,
     habilitar_arriendo,
@@ -141,6 +143,7 @@ __all__ = [
     'exportar_consolidado_viajes',
     'exportar_traslados_form',
     'agregar_viaje',
+    'modificar_viaje',
     'acceso_bitacora',
     'cerrar_hoja_ruta',
     'programar_mantenimiento',
@@ -161,6 +164,7 @@ __all__ = [
     'reporte_historial_unidad',
     'registrar_arriendo',
     'listar_arriendos',
+    'actualizar_fecha_fin_arriendo',
     'finalizar_arriendo',
     'deshabilitar_arriendo',
     'habilitar_arriendo',

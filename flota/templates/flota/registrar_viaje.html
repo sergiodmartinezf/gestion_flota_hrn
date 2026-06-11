@@ -2,15 +2,17 @@
 {% load static %}
 
 {% block content %}
-<!-- Variable global para el tipo de vehículo -->
+<!-- Variables globales para el formulario de viaje -->
 <script>
     window.tipoVehiculo = "{{ hoja.vehiculo.tipo_carroceria }}";
+    window.modoEdicion = {{ modo_edicion|yesno:"true,false" }};
+    window.viajeTienePacientes = {{ tiene_pacientes_en_viaje|yesno:"true,false" }};
 </script>
 
 <div class="container py-4">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
-            <h2>Registrar Viaje</h2>
+            <h2>{% if modo_edicion %}Modificar Viaje{% else %}Registrar Viaje{% endif %}</h2>
             <div class="badge bg-info text-dark">
                 {{ hoja.vehiculo.tipo_carroceria }} | {{ hoja.vehiculo.patente }}
             </div>
@@ -28,7 +30,13 @@
                 Turno: {{ hoja.get_turno_display }} | Conductor: {{ hoja.conductor.nombre_completo }}
             </div>
         </div>
+        {% if modo_edicion %}
+        <a href="{% url 'detalle_bitacora' hoja.id %}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i> Volver al detalle
+        </a>
+        {% else %}
         <button class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#modalCerrar">Cerrar Hoja</button>
+        {% endif %}
     </div>
 
     <div class="row">
@@ -266,7 +274,9 @@
                         </div>
 
                         <div class="d-grid mt-4">
-                            <button type="submit" class="btn btn-primary btn-lg">Guardar Registro</button>
+                            <button type="submit" class="btn btn-primary btn-lg">
+                                {% if modo_edicion %}Guardar Cambios{% else %}Guardar Registro{% endif %}
+                            </button>
                         </div>
                     </form>
                 </div>
@@ -293,6 +303,7 @@
     </div>
 </div>
 
+{% if not modo_edicion %}
 <!-- Modal para confirmar cierre de hoja -->
 <div class="modal fade" id="modalCerrar" tabindex="-1" aria-labelledby="modalCerrarLabel" aria-hidden="true">
     <div class="modal-dialog">
@@ -317,6 +328,7 @@
         </div>
     </div>
 </div>
+{% endif %}
 {% endblock %}
 
 {% block extra_js %}

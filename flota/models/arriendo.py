@@ -1,5 +1,6 @@
 from django.db import models
 from django.core.validators import MinValueValidator
+from django.core.exceptions import ValidationError
 
 from .vehiculo import Vehiculo
 from .proveedor import Proveedor, CuentaPresupuestaria
@@ -76,7 +77,7 @@ class Arriendo(models.Model):
         
         # Calcular costo total estimado
         if self.costo_diario and self.dias_arriendo > 0:
-            self.costo_total = self.costo_diario * Decimal(self.dias_arriendo)
+            self.costo_total = self.costo_diario * self.dias_arriendo
         
         # Al activar el arriendo, cambiamos el estado del vehículo arrendado a 'Disponible'
         if self.estado == 'Activo' and self.vehiculo_arrendado:

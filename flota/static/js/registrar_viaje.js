@@ -20,9 +20,9 @@ document.addEventListener('DOMContentLoaded', function() {
     // 5. Verificar horas HBO inicialmente
     setTimeout(toggleHorasHBO, 100);
 
-    // 6. Establecer hora actual en el campo hora_llegada
+    // 6. Establecer hora actual solo al registrar un viaje nuevo
     const horaLlegadaInput = document.querySelector('[name="hora_llegada"]');
-    if (horaLlegadaInput) {
+    if (horaLlegadaInput && !window.modoEdicion && !horaLlegadaInput.value) {
         const ahora = new Date();
         const horas = ahora.getHours().toString().padStart(2, '0');
         const minutos = ahora.getMinutes().toString().padStart(2, '0');
@@ -73,6 +73,10 @@ function initLlevaPacientes() {
             const totalFormsInput = document.getElementById('id_pacientes-TOTAL_FORMS');
             if (totalFormsInput) totalFormsInput.value = '0';
         }
+    }
+
+    if (window.viajeTienePacientes) {
+        checkbox.checked = true;
     }
 
     checkbox.addEventListener('change', aplicarEstado);

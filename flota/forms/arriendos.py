@@ -44,7 +44,7 @@ class ArriendoForm(forms.ModelForm):
             'costo_diario': forms.NumberInput(attrs={'class': 'form-control', 'min': 1}),
         }
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, modo=None, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields['motivo'].required = True
         self.fields['costo_diario'].required = True
@@ -62,9 +62,9 @@ class ArriendoForm(forms.ModelForm):
             if self.instance.fecha_fin:
                 self.fields['fecha_fin'].widget.attrs['value'] = self.instance.fecha_fin.strftime('%Y-%m-%d')
 
-        # Hacer vehiculo_arrendado opcional si es modo nuevo
-        modo = self.data.get('modo_vehiculo_arriendo') if self.data else None
-        if modo == 'nuevo':
+        if self.data:
+            modo = self.data.get('modo_vehiculo_arriendo', modo)
+        if modo != 'existente':
             self.fields['vehiculo_arrendado'].required = False
 
     def clean(self):
@@ -92,5 +92,24 @@ class ArriendoForm(forms.ModelForm):
         if motivo is None or motivo.strip() == '':
             raise forms.ValidationError('El motivo es obligatorio y no puede estar vacío.')
         return motivo.strip()
-        
+
+
+class ArriendoFechaFinForm(forms.Form):
+    fecha_fin = forms.DateField(
+        required=False,
+        label='Fecha fin',
+        widget=forms.DateInput(attrs={'type': 'date', 'class': 'form-control form-control-sm'}),
+    )
+
+    def __init__(self, *args, arriendo=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.arriendo = arriendo
+        if arriendo and arriendo.fecha_fin:
+            self.fields['fecha_fin'].widget.attrs['value'] = arriendo.fecha_fin.strftime('%Y-%m-%d')
+
+    def clean_fecha_fin(self):
+        fecha_fin = self.cleaned_data.get('fecha_fin')
+        if fecha_fin and self.arriendo and self.arriendo.fecha_inicio and fecha_fin < self.arriendo.fecha_inicio:
+            raise forms.ValidationError('La fecha de fin no puede ser anterior a la fecha de inicio.')
+        return fecha_fin
 

@@ -88,7 +88,24 @@
                             </td>
                             <td>{{ arriendo.proveedor.nombre_fantasia }}</td>
                             <td>{{ arriendo.fecha_inicio|date:"d/m/Y" }}</td>
-                            <td>{{ arriendo.fecha_fin|date:"d/m/Y"|default:"-" }}</td>
+                            <td>
+                                {% if user.rol == 'Administrador' %}
+                                <form method="post" action="{% url 'actualizar_fecha_fin_arriendo' arriendo.id %}" class="d-flex align-items-center gap-1">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="query_string" value="{{ request.GET.urlencode }}">
+                                    <input type="date"
+                                           name="fecha_fin"
+                                           class="form-control form-control-sm"
+                                           value="{% if arriendo.fecha_fin %}{{ arriendo.fecha_fin|date:'Y-m-d' }}{% endif %}"
+                                           title="Fecha de término del arriendo">
+                                    <button type="submit" class="btn btn-sm btn-outline-primary" title="Guardar fecha de término">
+                                        <i class="bi bi-check-lg"></i>
+                                    </button>
+                                </form>
+                                {% else %}
+                                {{ arriendo.fecha_fin|date:"d/m/Y"|default:"-" }}
+                                {% endif %}
+                            </td>
                             <td>
                                 {% if arriendo.costo_total %}
                                     ${{ arriendo.costo_total|clp }}

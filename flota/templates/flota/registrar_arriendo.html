@@ -3,12 +3,6 @@
 {% block content %}
 <h2 class="mb-4"><i class="bi bi-truck"></i> Registrar Arriendo de Vehículo</h2>
 
-<div class="alert alert-info">
-    <i class="bi bi-info-circle"></i>
-    1) Elige si usar un vehículo arrendado existente o registrar uno nuevo.
-    2) Indica qué vehículo propio está siendo reemplazado.
-</div>
-
 <form method="post" id="arriendoForm">
     {% csrf_token %}
 
@@ -229,16 +223,19 @@ document.addEventListener('DOMContentLoaded', function() {
         bloqueExistente.style.display = usarExistente ? 'block' : 'none';
         bloqueNuevo.style.display = usarExistente ? 'none' : 'block';
 
-        // Requerido: solo el campo correspondiente al modo activo
         if (campoVehiculoExistente) {
             campoVehiculoExistente.required = usarExistente;
+            campoVehiculoExistente.disabled = !usarExistente;
         }
         const camposOpcionales = new Set(['{{ vehiculo_form.vida_util.id_for_label }}', '{{ vehiculo_form.clase_ambulancia.id_for_label }}']);
         camposNuevos.forEach(campo => {
-            if (campo.type === 'checkbox' || camposOpcionales.has(campo.id)) {
+            const esOpcional = campo.type === 'checkbox' || camposOpcionales.has(campo.id);
+            if (usarExistente) {
                 campo.required = false;
+                campo.disabled = true;
             } else {
-                campo.required = !usarExistente;
+                campo.disabled = false;
+                campo.required = !esOpcional;
             }
         });
     }
@@ -369,6 +366,15 @@ document.addEventListener('DOMContentLoaded', function() {
         if (errores.length > 0) {
             event.preventDefault();
             mostrarErroresEnFormulario(errores);
+            return;
+        }
+
+        // Asegurar que los campos del modo activo se envíen en el POST
+        const modoNuevoActivo = document.getElementById('modo_nuevo').checked;
+        if (modoNuevoActivo) {
+            camposNuevos.forEach(campo => { campo.disabled = false; });
+        } else if (campoVehiculoExistente) {
+            campoVehiculoExistente.disabled = false;
         }
     });
 });
