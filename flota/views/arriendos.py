@@ -3,7 +3,8 @@ from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib import messages
 from django.utils import timezone
 from ..models import Arriendo, Mantenimiento, Vehiculo, Proveedor
-from ..forms import ArriendoForm, VehiculoForm
+from ..forms import ArriendoForm
+from ..forms.vehiculos import VehiculoArriendoForm
 from .utilidades import es_administrador
 
 
@@ -64,10 +65,10 @@ def registrar_arriendo(request):
                 messages.success(request, 'Arriendo registrado exitosamente.')
                 return redirect('listar_arriendos')
             else:
-                vehiculo_form = VehiculoForm()
+                vehiculo_form = VehiculoArriendoForm()
                 modo_inicial = 'existente'
         else:  # nuevo
-            vehiculo_form = VehiculoForm(request.POST)
+            vehiculo_form = VehiculoArriendoForm(request.POST)
             if arriendo_form.is_valid() and vehiculo_form.is_valid():
                 nuevo_vehiculo = vehiculo_form.save(commit=False)
                 nuevo_vehiculo.tipo_propiedad = 'Arrendado'
@@ -83,7 +84,7 @@ def registrar_arriendo(request):
                 modo_inicial = 'nuevo'
     else:
         arriendo_form = ArriendoForm()
-        vehiculo_form = VehiculoForm(initial={
+        vehiculo_form = VehiculoArriendoForm(initial={
             'tipo_propiedad': 'Arrendado',
             'estado': 'Disponible',
             'establecimiento': 'Hospital Río Negro',
