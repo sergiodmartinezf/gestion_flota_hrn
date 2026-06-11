@@ -20,6 +20,7 @@
                     <th>Descripción</th>
                     <th>Valor Umbral</th>
                     <th>Fecha Generación</th>
+                    {% if puede_eliminar_alertas %}<th class="text-end">Acciones</th>{% endif %}
                 </tr>
             </thead>
             <tbody>
@@ -29,6 +30,18 @@
                     <td>{{ alerta.descripcion }}</td>
                     <td>{{ alerta.valor_umbral }} km</td>
                     <td>{{ alerta.generado_en|date:"d/m/Y H:i" }}</td>
+                    {% if puede_eliminar_alertas %}
+                    <td class="text-end">
+                        <form method="post" action="{% url 'eliminar_alerta' alerta.id %}" class="d-inline"
+                              onsubmit="return confirm('¿Eliminar esta alerta de mantenimiento?');">
+                            {% csrf_token %}
+                            <input type="hidden" name="next" value="{{ request.path }}">
+                            <button type="submit" class="btn btn-sm btn-outline-danger" title="Eliminar alerta">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </form>
+                    </td>
+                    {% endif %}
                 </tr>
                 {% endfor %}
             </tbody>
@@ -49,31 +62,36 @@
         <table class="table table-striped">
             <thead>
                 <tr>
-                    <th>Vehículo</th>
-                    <th>Año</th>
                     <th>Cuenta SIGFE</th>
+                    <th>Año</th>
                     <th>% Ejecutado</th>
                     <th>Monto Restante</th>
+                    {% if puede_eliminar_alertas %}<th class="text-end">Acciones</th>{% endif %}
                 </tr>
             </thead>
             <tbody>
                 {% for item in alertas_presupuesto %}
                 <tr>
                     <td>
-                        {% if item.presupuesto.vehiculo %}
-                            <strong>{{ item.presupuesto.vehiculo.patente }}</strong>
-                        {% else %}
-                            <span class="text-muted">Flota General</span>
-                        {% endif %}
-                    </td>
-                    <td>{{ item.presupuesto.anio|unlocalize }}</td>
-                    <td>
                         {{ item.presupuesto.cuenta.codigo }}
                         <br>
                         <small class="text-muted">{{ item.presupuesto.cuenta.nombre|truncatechars:40 }}</small>
                     </td>
+                    <td>{{ item.presupuesto.anio|unlocalize }}</td>
                     <td><span class="badge bg-danger">{{ item.porcentaje|floatformat:1 }}%</span></td>
                     <td>${{ item.monto_restante|clp }}</td>
+                    {% if puede_eliminar_alertas %}
+                    <td class="text-end">
+                        <form method="post" action="{% url 'eliminar_alerta_presupuesto' item.presupuesto.id %}" class="d-inline"
+                              onsubmit="return confirm('¿Eliminar esta alerta de presupuesto?');">
+                            {% csrf_token %}
+                            <input type="hidden" name="next" value="{{ request.path }}">
+                            <button type="submit" class="btn btn-sm btn-outline-danger" title="Eliminar alerta">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </form>
+                    </td>
+                    {% endif %}
                 </tr>
                 {% endfor %}
             </tbody>

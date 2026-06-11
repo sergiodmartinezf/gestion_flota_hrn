@@ -62,13 +62,27 @@
                 <div class="list-group mb-3">
                     {% for alerta in alertas_activas %}
                     <div class="list-group-item {{ alerta.clase_item }}">
-                        <div class="d-flex w-100 justify-content-between">
-                            <h6 class="mb-1">
-                                <i class="bi {{ alerta.icono }}"></i> {{ alerta.titulo }}
-                            </h6>
-                            <small>{{ alerta.tipo }}{% if alerta.fecha %} - {{ alerta.fecha|date:"d/m H:i" }}{% endif %}</small>
+                        <div class="d-flex w-100 justify-content-between align-items-start">
+                            <div class="me-2">
+                                <h6 class="mb-1">
+                                    <i class="bi {{ alerta.icono }}"></i> {{ alerta.titulo }}
+                                </h6>
+                                <small class="text-muted">{{ alerta.tipo }}{% if alerta.fecha %} - {{ alerta.fecha|date:"d/m H:i" }}{% endif %}</small>
+                            </div>
+                            {% if puede_eliminar_alertas %}
+                            <form method="post"
+                                  action="{% if alerta.tipo_alerta == 'presupuesto' %}{% url 'eliminar_alerta_presupuesto' alerta.id %}{% else %}{% url 'eliminar_alerta' alerta.id %}{% endif %}"
+                                  class="ms-2"
+                                  onsubmit="return confirm('¿Eliminar esta alerta?');">
+                                {% csrf_token %}
+                                <input type="hidden" name="next" value="{{ request.path }}">
+                                <button type="submit" class="btn btn-sm btn-outline-danger" title="Eliminar alerta">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </form>
+                            {% endif %}
                         </div>
-                        <p class="mb-1">{{ alerta.descripcion }}</p>
+                        <p class="mb-1 mt-2">{{ alerta.descripcion }}</p>
                         <small class="text-muted">{{ alerta.detalle }}</small>
                     </div>
                     {% endfor %}

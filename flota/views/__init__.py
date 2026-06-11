@@ -26,6 +26,8 @@ from .vehiculos import (
     costo_por_kilometro,
     gastos_mantenimientos,
     alertas,
+    eliminar_alerta,
+    eliminar_alerta_presupuesto,
 )
 from .viajes import (
     registrar_bitacora,
@@ -124,6 +126,8 @@ __all__ = [
     'costo_por_kilometro',
     'gastos_mantenimientos',
     'alertas',
+    'eliminar_alerta',
+    'eliminar_alerta_presupuesto',
     'registrar_bitacora',
     'listar_bitacoras',
     'modificar_bitacora',

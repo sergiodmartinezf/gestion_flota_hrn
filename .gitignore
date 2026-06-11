@@ -50,3 +50,6 @@ Thumbs.db
 # Datos de prueba
 flota/management/commands/datos_prueba.py
 flota/management/commands/datos_prueba/
+
+# Otros
+errores.txt
