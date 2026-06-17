@@ -1,7 +1,9 @@
+from datetime import date
+
 from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
 from django.utils import timezone
-from django.db.models import Sum
+from django.db.models import Q, Sum
 from decimal import Decimal
 from ..models import Vehiculo, Mantenimiento, CargaCombustible, Arriendo
 from ..services.alertas import alertas_mantenimiento_vigentes, presupuestos_con_alerta
@@ -37,22 +39,28 @@ def dashboard(request):
     
     costo_mensual_total = costo_mantenimientos_mes + costo_combustible_mes
 
+    hoy = timezone.now().date()
+    inicio_mes = date(anio_actual, mes_actual, 1)
+
     vehiculos = Vehiculo.objects.all()
     vehiculos_con_disponibilidad = []
-    
+
     for vehiculo in vehiculos:
         mantenimientos_vehiculo = Mantenimiento.objects.filter(
             vehiculo=vehiculo,
-            fecha_ingreso__month=mes_actual,
-            fecha_ingreso__year=anio_actual
-        )
-        
+            fecha_ingreso__lte=hoy,
+        ).filter(
+            Q(fecha_salida__isnull=True) | Q(fecha_salida__gte=inicio_mes)
+        ).exclude(estado='Cancelado')
+
         dias_fuera = 0
         for m in mantenimientos_vehiculo:
-            if m.fecha_salida:
-                delta = (m.fecha_salida - m.fecha_ingreso).days
-                dias_fuera += max(0, delta)
-            
+            inicio = max(m.fecha_ingreso, inicio_mes)
+            fecha_fin = m.fecha_salida if m.fecha_salida else hoy
+            fin = min(fecha_fin, hoy)
+            if fin >= inicio:
+                dias_fuera += max(0, (fin - inicio).days)
+
         vehiculos_con_disponibilidad.append({
             'vehiculo': vehiculo,
             'dias_fuera': dias_fuera,
