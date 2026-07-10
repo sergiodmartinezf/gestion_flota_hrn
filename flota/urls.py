@@ -36,6 +36,7 @@ urlpatterns = [
     path('bitacoras/registrar/', views.registrar_bitacora, name='registrar_bitacora'),
     path('bitacoras/listar/', views.listar_bitacoras, name='listar_bitacoras'),
     path('bitacoras/modificar/<int:id>/', views.modificar_bitacora, name='modificar_bitacora'),
+    path('bitacoras/eliminar/<int:id>/', views.eliminar_bitacora, name='eliminar_bitacora'),
     path('bitacoras/detalle/<int:id>/', views.detalle_bitacora, name='detalle_bitacora'),
     path('combustible/registrar/', views.registrar_carga_combustible, name='registrar_carga_combustible'),
     path('combustible/listar/', views.listar_cargas_combustible, name='listar_cargas_combustible'),
@@ -43,6 +44,7 @@ urlpatterns = [
     path('incidentes/listar/', views.listar_incidentes, name='listar_incidentes'),
     path('bitacoras/<int:id>/agregar-viaje/', views.agregar_viaje, name='agregar_viaje'),
     path('viajes/modificar/<int:id>/', views.modificar_viaje, name='modificar_viaje'),
+    path('viajes/eliminar/<int:id>/', views.eliminar_viaje, name='eliminar_viaje'),
     path('historial/', views.historial_conductor, name='historial_conductor'),
     path('bitacora/reabrir/<int:id>/', views.reabrir_bitacora, name='reabrir_bitacora'),
     

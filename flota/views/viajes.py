@@ -17,7 +17,7 @@ from ..forms import (
     HojaRutaForm, CargaCombustibleForm, FallaReportadaForm, ViajeForm,
     PacienteFormSet, TripulacionFormSet,
 )
-from .utilidades import es_conductor_o_admin, es_conductor
+from .utilidades import es_conductor_o_admin, es_conductor, es_administrador
 from ..validators import normalizar_rut
 from datetime import datetime, timedelta
 import json
@@ -612,6 +612,39 @@ def detalle_bitacora(request, id):
         'km_actual_vehiculo': km_actual_vehiculo,
         'puede_gestionar': puede_gestionar,
     })
+
+
+@login_required
+@user_passes_test(es_administrador)
+def eliminar_bitacora(request, id):
+    hoja = get_object_or_404(
+        HojaRuta.objects.select_related('vehiculo', 'conductor'),
+        id=id,
+    )
+    if request.method == 'POST':
+        hoja_id = hoja.id
+        hoja.delete()
+        messages.success(request, f'Hoja de ruta #{hoja_id} eliminada exitosamente.')
+        return redirect('listar_bitacoras')
+
+    return render(request, 'flota/eliminar_bitacora.html', {'hoja': hoja})
+
+
+@login_required
+@user_passes_test(es_administrador)
+def eliminar_viaje(request, id):
+    viaje = get_object_or_404(
+        Viaje.objects.select_related('hoja_ruta', 'hoja_ruta__conductor'),
+        id=id,
+    )
+    hoja = viaje.hoja_ruta
+
+    if request.method == 'POST':
+        viaje.delete()
+        messages.success(request, 'Viaje eliminado exitosamente.')
+        return redirect('detalle_bitacora', id=hoja.id)
+
+    return render(request, 'flota/eliminar_viaje.html', {'viaje': viaje, 'hoja': hoja})
 
 
 @login_required

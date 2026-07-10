@@ -1,0 +1,39 @@
+{% extends 'base.html' %}
+
+{% block title %}Eliminar Hoja de Ruta{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <div class="card border-danger shadow">
+            <div class="card-header bg-danger text-white">
+                <h4 class="mb-0"><i class="bi bi-exclamation-triangle-fill"></i> Confirmar Eliminación</h4>
+            </div>
+            <div class="card-body">
+                <p class="lead">¿Está seguro que desea eliminar la siguiente hoja de ruta?</p>
+
+                <div class="alert alert-light border">
+                    <p><strong>ID:</strong> #{{ hoja.id }}</p>
+                    <p><strong>Fecha:</strong> {{ hoja.fecha|date:"d/m/Y" }}</p>
+                    <p><strong>Vehículo:</strong> {{ hoja.vehiculo.patente }} - {{ hoja.vehiculo.marca }} {{ hoja.vehiculo.modelo }}</p>
+                    <p><strong>Conductor:</strong> {{ hoja.conductor.nombre_completo }}</p>
+                    <p><strong>Turno:</strong> {{ hoja.get_turno_display }}</p>
+                    <p><strong>Viajes registrados:</strong> {{ hoja.viajes.count }}</p>
+                </div>
+
+                <p class="text-danger small">
+                    <i class="bi bi-info-circle"></i> Esta acción eliminará también todos los viajes asociados y no se puede deshacer.
+                </p>
+
+                <form method="post">
+                    {% csrf_token %}
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <a href="{% url 'detalle_bitacora' hoja.id %}" class="btn btn-secondary me-md-2">Cancelar</a>
+                        <button type="submit" class="btn btn-danger">Sí, Eliminar</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
