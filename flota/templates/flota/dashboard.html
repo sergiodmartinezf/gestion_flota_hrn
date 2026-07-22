@@ -70,9 +70,34 @@
                                 <small class="text-muted">{{ alerta.tipo }}{% if alerta.fecha %} - {{ alerta.fecha|date:"d/m H:i" }}{% endif %}</small>
                             </div>
                             {% if puede_eliminar_alertas %}
+                            <div class="ms-2 text-nowrap">
+                            {% if alerta.tipo_alerta == 'presupuesto' %}
                             <form method="post"
-                                  action="{% if alerta.tipo_alerta == 'presupuesto' %}{% url 'eliminar_alerta_presupuesto' alerta.id %}{% else %}{% url 'eliminar_alerta' alerta.id %}{% endif %}"
-                                  class="ms-2"
+                                  action="{% url 'eliminar_alerta_presupuesto' alerta.id %}"
+                                  class="d-inline"
+                                  onsubmit="return confirm('¿Eliminar esta alerta?');">
+                                {% csrf_token %}
+                                <input type="hidden" name="next" value="{{ request.path }}">
+                                <button type="submit" class="btn btn-sm btn-outline-danger" title="Eliminar alerta">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </form>
+                            {% else %}
+                            <button type="button"
+                                    class="btn btn-sm btn-outline-primary btn-registrar-accion-alerta"
+                                    title="{% if alerta.se_realizo_accion %}Editar acción{% else %}Registrar acción{% endif %}"
+                                    data-bs-toggle="modal"
+                                    data-bs-target="#modalRegistrarAccionAlerta"
+                                    data-alerta-url="{% url 'registrar_accion_alerta' alerta.id %}"
+                                    data-alerta-patente="{{ alerta.titulo }}"
+                                    data-alerta-desc="{{ alerta.descripcion }}"
+                                    data-alerta-solucion="{{ alerta.solucion }}"
+                                    data-alerta-next="{{ request.path }}">
+                                <i class="bi bi-pencil-square"></i>
+                            </button>
+                            <form method="post"
+                                  action="{% url 'eliminar_alerta' alerta.id %}"
+                                  class="d-inline"
                                   onsubmit="return confirm('¿Eliminar esta alerta?');">
                                 {% csrf_token %}
                                 <input type="hidden" name="next" value="{{ request.path }}">
@@ -81,9 +106,17 @@
                                 </button>
                             </form>
                             {% endif %}
+                            </div>
+                            {% endif %}
                         </div>
                         <p class="mb-1 mt-2">{{ alerta.descripcion }}</p>
                         <small class="text-muted">{{ alerta.detalle }}</small>
+                        {% if alerta.tipo_alerta == 'mantenimiento' and alerta.se_realizo_accion %}
+                        <div class="mt-2 small">
+                            <span class="badge bg-success">Acción registrada</span>
+                            {{ alerta.solucion }}
+                        </div>
+                        {% endif %}
                     </div>
                     {% endfor %}
                 </div>
@@ -199,8 +232,15 @@
     </div>
 </div>
 
+{% if puede_eliminar_alertas %}
+{% include 'flota/includes/modal_resolver_alerta.html' %}
+{% endif %}
+
 {% endblock %}
 
 {% block extra_js %}
 <script src="{% static 'js/dashboard.js' %}"></script>
+{% if puede_eliminar_alertas %}
+<script src="{% static 'js/resolver_alerta.js' %}"></script>
+{% endif %}
 {% endblock %}

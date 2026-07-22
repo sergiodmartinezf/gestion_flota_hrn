@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load static %}
 {% load moneda_clp %}
 {% load l10n %}
 
@@ -18,6 +19,7 @@
                 <tr>
                     <th>Vehículo</th>
                     <th>Descripción</th>
+                    <th>Acción registrada</th>
                     <th>Valor Umbral</th>
                     <th>Fecha Generación</th>
                     {% if puede_eliminar_alertas %}<th class="text-end">Acciones</th>{% endif %}
@@ -28,10 +30,30 @@
                 <tr>
                     <td><strong>{{ alerta.vehiculo.patente }}</strong></td>
                     <td>{{ alerta.descripcion }}</td>
+                    <td>
+                        {% if alerta.se_realizo_accion %}
+                        <span class="badge bg-success mb-1">Acción registrada</span>
+                        <div class="small">{{ alerta.solucion }}</div>
+                        {% else %}
+                        <span class="text-muted small">Sin acción</span>
+                        {% endif %}
+                    </td>
                     <td>{{ alerta.valor_umbral }} km</td>
                     <td>{{ alerta.generado_en|date:"d/m/Y H:i" }}</td>
                     {% if puede_eliminar_alertas %}
-                    <td class="text-end">
+                    <td class="text-end text-nowrap">
+                        <button type="button"
+                                class="btn btn-sm btn-outline-primary btn-registrar-accion-alerta"
+                                title="{% if alerta.se_realizo_accion %}Editar acción{% else %}Registrar acción{% endif %}"
+                                data-bs-toggle="modal"
+                                data-bs-target="#modalRegistrarAccionAlerta"
+                                data-alerta-url="{% url 'registrar_accion_alerta' alerta.id %}"
+                                data-alerta-patente="{{ alerta.vehiculo.patente }}"
+                                data-alerta-desc="{{ alerta.descripcion }}"
+                                data-alerta-solucion="{{ alerta.solucion }}"
+                                data-alerta-next="{{ request.path }}">
+                            <i class="bi bi-pencil-square"></i>
+                        </button>
                         <form method="post" action="{% url 'eliminar_alerta' alerta.id %}" class="d-inline"
                               onsubmit="return confirm('¿Eliminar esta alerta de mantenimiento?');">
                             {% csrf_token %}
@@ -102,4 +124,14 @@
         </div>
     {% endif %}
 </div>
+
+{% if puede_eliminar_alertas %}
+{% include 'flota/includes/modal_resolver_alerta.html' %}
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+{% if puede_eliminar_alertas %}
+<script src="{% static 'js/resolver_alerta.js' %}"></script>
+{% endif %}
 {% endblock %}

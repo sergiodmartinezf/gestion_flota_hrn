@@ -54,11 +54,17 @@ class PacienteViajeAdmin(admin.ModelAdmin):
     search_fields = ('rut',)
     ordering = ('rut',)
 
+@admin.register(DireccionDestino)
+class DireccionDestinoAdmin(admin.ModelAdmin):
+    list_display = ('texto', 'creado_en')
+    search_fields = ('texto',)
+    ordering = ('texto',)
+
 @admin.register(PacienteTraslado)
 class PacienteTrasladoAdmin(admin.ModelAdmin):
     list_display = ('viaje', 'rut', 'categoria_traslado', 'sentido', 'destino_tipo', 'paciente_viaje')
     list_filter = ('destino_tipo', 'categoria_traslado', 'sentido')
-    search_fields = ('rut',)
+    search_fields = ('rut', 'direccion_especifica')
 
 @admin.register(CargaCombustible)
 class CargaCombustibleAdmin(admin.ModelAdmin):
@@ -74,9 +80,17 @@ class FallaReportadaAdmin(admin.ModelAdmin):
 
 @admin.register(Alerta)
 class AlertaAdmin(admin.ModelAdmin):
-    list_display = ('vehiculo', 'descripcion', 'valor_umbral', 'vigente', 'generado_en')
-    list_filter = ('vigente', 'vehiculo')
+    list_display = (
+        'vehiculo', 'descripcion', 'valor_umbral', 'vigente',
+        'se_realizo_accion', 'generado_en', 'resuelta_en',
+    )
+    list_filter = ('vigente', 'se_realizo_accion', 'vehiculo')
     date_hierarchy = 'generado_en'
+    readonly_fields = ('generado_en', 'resuelta_en', 'se_realizo_accion')
+    fields = (
+        'vehiculo', 'descripcion', 'valor_umbral', 'vigente',
+        'solucion', 'se_realizo_accion', 'generado_en', 'resuelta_en',
+    )
 
 @admin.register(Mantenimiento)
 class MantenimientoAdmin(admin.ModelAdmin):

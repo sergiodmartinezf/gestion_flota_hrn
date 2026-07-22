@@ -10,7 +10,7 @@ from openpyxl import Workbook
 from openpyxl.styles import Font
 from ..models import (
     HojaRuta, CargaCombustible, FallaReportada, Alerta, Viaje, Vehiculo, Usuario,
-    PacienteTraslado, PacienteViaje, PersonaTripulacion, TripulacionViaje,
+    PacienteTraslado, PacienteViaje, DireccionDestino, PersonaTripulacion, TripulacionViaje,
     DESTINOS_COMUNES, ROL_TRIPULACION,
 )
 from ..forms import (
@@ -86,6 +86,19 @@ def _guardar_pacientes_formset(paciente_formset, viaje):
             paciente.rut = rut_norm
             pv, _ = PacienteViaje.objects.get_or_create(rut=rut_norm)
             paciente.paciente_viaje = pv
+
+        dir_txt = (paciente.direccion_especifica or '').strip()
+        if dir_txt and paciente.destino_tipo in ('DOMICILIO', 'OTRO'):
+            dd = DireccionDestino.objects.filter(texto__iexact=dir_txt).first()
+            if not dd:
+                dd = DireccionDestino.objects.create(texto=dir_txt[:200])
+            paciente.direccion_destino = dd
+            paciente.direccion_especifica = dd.texto
+        else:
+            paciente.direccion_destino = None
+            if paciente.destino_tipo not in ('DOMICILIO', 'OTRO'):
+                paciente.direccion_especifica = ''
+
         paciente.save()
 
     for form_del in paciente_formset.deleted_forms:
@@ -135,6 +148,7 @@ def _catalogo_tripulacion():
 
 def _contexto_formularios_viaje(hoja, vehiculo_tipo, modo_edicion=False, viaje=None):
     pacientes_anteriores = PacienteViaje.objects.all().order_by('rut')[:300]
+    direcciones_anteriores = DireccionDestino.objects.all().order_by('texto')[:300]
     catalogo_tripulacion = _catalogo_tripulacion()
     ultimo_viaje = None
     km_referencia = hoja.km_inicio
@@ -179,6 +193,7 @@ def _contexto_formularios_viaje(hoja, vehiculo_tipo, modo_edicion=False, viaje=N
             if viaje else hoja.viajes.all().order_by('-id')[:5]
         ),
         'pacientes_anteriores': pacientes_anteriores,
+        'direcciones_anteriores': direcciones_anteriores,
         'catalogo_tripulacion': catalogo_tripulacion,
         'catalogo_tripulacion_json': json.dumps(catalogo_tripulacion),
         'roles_tripulacion': ROL_TRIPULACION,

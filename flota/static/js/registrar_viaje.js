@@ -428,6 +428,16 @@ function initRowListeners(rowElement) {
     const destinoSelect = rowElement.querySelector('.destino-selector');
     const dirContainer = rowElement.querySelector('.container-direccion');
     const dirInput = rowElement.querySelector('.direccion-input');
+    const dirAnteriorSelect = rowElement.querySelector('.direccion-anterior-select');
+
+    if (dirAnteriorSelect) {
+        dirAnteriorSelect.addEventListener('change', function() {
+            const opt = this.options[this.selectedIndex];
+            if (!opt || !opt.value) return;
+            const texto = opt.getAttribute('data-texto') || '';
+            if (dirInput) dirInput.value = texto;
+        });
+    }
 
     if (destinoSelect) {
         const handleDestinoChange = function() {
@@ -440,6 +450,7 @@ function initRowListeners(rowElement) {
                     dirInput.removeAttribute('required');
                     if (dirInput.value) dirInput.value = '';
                 }
+                if (dirAnteriorSelect) dirAnteriorSelect.value = '';
             }
             setTimeout(toggleHorasHBO, 50);
         };

@@ -1,0 +1,35 @@
+{% extends 'base.html' %}
+
+{% block title %}Eliminar Tripulación - Gestión de Flota{% endblock %}
+
+{% block content %}
+<h2 class="mb-4"><i class="bi bi-trash"></i> Eliminar del catálogo</h2>
+
+<div class="alert alert-warning">
+    <i class="bi bi-exclamation-triangle"></i>
+    ¿Está seguro de eliminar a <strong>{{ persona.nombre }}</strong>
+    ({{ persona.get_rol_display }}) del catálogo de tripulación?
+    <br>
+    Dejará de aparecer en la lista desplegable de viajes.
+    {% if usos %}
+    <br><strong>Nota:</strong> aparece en {{ usos }} viaje(s); el historial de esos viajes se conserva.
+    {% endif %}
+</div>
+
+<div class="card mb-4">
+    <div class="card-body">
+        <p class="mb-1"><strong>Nombre:</strong> {{ persona.nombre }}</p>
+        <p class="mb-0"><strong>Rol:</strong> {{ persona.get_rol_display }}</p>
+    </div>
+</div>
+
+<form method="post">
+    {% csrf_token %}
+    <button type="submit" class="btn btn-danger">
+        <i class="bi bi-trash"></i> Eliminar
+    </button>
+    <a href="{% url 'listar_tripulacion' %}" class="btn btn-secondary">
+        <i class="bi bi-arrow-left"></i> Cancelar
+    </a>
+</form>
+{% endblock %}
