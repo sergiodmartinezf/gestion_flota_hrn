@@ -59,6 +59,8 @@
                         <li><a href="{% url 'listar_presupuestos' %}"><i class="bi bi-cash-stack"></i> Presupuestos</a></li>
                         <li><a href="{% url 'listar_arriendos' %}"><i class="bi bi-file-earmark-text"></i> Arriendos</a></li>
                         {% if user.rol == 'Administrador' %}
+                        <li><a href="{% url 'listar_tripulacion' %}"><i class="bi bi-people"></i> Tripulación</a></li>
+                        <li><a href="{% url 'listar_direcciones' %}"><i class="bi bi-geo-alt"></i> Direcciones</a></li>
                         <li><a href="{% url 'listar_proveedores' %}"><i class="bi bi-shop"></i> Proveedores</a></li>
                         {% endif %}
                         <li><a href="{% url 'listar_ordenes_compra' %}"><i class="bi bi-cart-check"></i> Órdenes de Compra</a></li>

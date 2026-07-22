@@ -43,7 +43,15 @@ def contar_alertas_vigentes():
     }
 
 
-def resolver_alerta_mantenimiento(alerta):
+def registrar_accion_alerta(alerta, solucion):
+    """Etapa 2: registra la acción realizada sin eliminar la alerta."""
+    alerta.solucion = solucion or ''
+    # se_realizo_accion se deriva de solucion en Alerta.save()
+    alerta.save(update_fields=['solucion', 'se_realizo_accion'])
+
+
+def eliminar_alerta_mantenimiento(alerta):
+    """Etapa 3: elimina/cierra la alerta manualmente."""
     alerta.vigente = False
     alerta.resuelta_en = timezone.now()
     alerta.save(update_fields=['vigente', 'resuelta_en'])

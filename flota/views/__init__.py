@@ -26,6 +26,7 @@ from .vehiculos import (
     costo_por_kilometro,
     gastos_mantenimientos,
     alertas,
+    registrar_accion_alerta_view,
     eliminar_alerta,
     eliminar_alerta_presupuesto,
 )
@@ -87,6 +88,16 @@ from .proveedores import (
     habilitar_proveedor,
     deshabilitar_proveedor,
 )
+from .tripulacion import (
+    listar_tripulacion,
+    modificar_tripulacion,
+    eliminar_tripulacion,
+)
+from .destinos import (
+    listar_direcciones,
+    modificar_direccion,
+    eliminar_direccion,
+)
 from .ordenes import (
     importar_orden_compra,
     registrar_orden_compra,
@@ -130,6 +141,7 @@ __all__ = [
     'costo_por_kilometro',
     'gastos_mantenimientos',
     'alertas',
+    'registrar_accion_alerta_view',
     'eliminar_alerta',
     'eliminar_alerta_presupuesto',
     'registrar_bitacora',
@@ -178,6 +190,12 @@ __all__ = [
     'modificar_proveedor',
     'habilitar_proveedor',
     'deshabilitar_proveedor',
+    'listar_tripulacion',
+    'modificar_tripulacion',
+    'eliminar_tripulacion',
+    'listar_direcciones',
+    'modificar_direccion',
+    'eliminar_direccion',
     'importar_orden_compra',
     'registrar_orden_compra',
     'listar_ordenes_compra',

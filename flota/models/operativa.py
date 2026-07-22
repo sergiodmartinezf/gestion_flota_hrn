@@ -183,6 +183,22 @@ class PacienteViaje(models.Model):
         return self.rut
 
 
+class DireccionDestino(models.Model):
+    """Catálogo de direcciones/detalles ingresados en destinos DOMICILIO u OTRO."""
+    id = models.AutoField(primary_key=True)
+    texto = models.CharField(max_length=200, unique=True, db_index=True)
+    creado_en = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'direccion_destino'
+        verbose_name = 'Dirección de destino'
+        verbose_name_plural = 'Direcciones de destino'
+        ordering = ['texto']
+
+    def __str__(self):
+        return self.texto
+
+
 class PacienteTraslado(models.Model):
     """Modelo para soportar 0 a N pacientes por viaje"""
     id = models.AutoField(primary_key=True)
@@ -208,6 +224,10 @@ class PacienteTraslado(models.Model):
     
     destino_tipo = models.CharField(max_length=20, choices=DESTINOS_COMUNES)
     direccion_especifica = models.CharField(max_length=200, blank=True, help_text="Dirección si es domicilio u otro")
+    direccion_destino = models.ForeignKey(
+        DireccionDestino, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='traslados', verbose_name="Dirección (de listado anterior)",
+    )
 
     class Meta:
         db_table = 'paciente_traslado'
@@ -269,9 +289,23 @@ class Alerta(models.Model):
     generado_en = models.DateTimeField(auto_now_add=True)
     vigente = models.BooleanField(default=True)
     resuelta_en = models.DateTimeField(null=True, blank=True)
+    se_realizo_accion = models.BooleanField(
+        default=False,
+        verbose_name='Se realizó una acción',
+    )
+    solucion = models.TextField(
+        blank=True,
+        default='',
+        verbose_name='Solución / acción realizada',
+    )
     vehiculo = models.ForeignKey(Vehiculo, on_delete=models.CASCADE, related_name='alertas')
     
     class Meta:
         db_table = 'alerta'
         verbose_name = 'Alerta'
         verbose_name_plural = 'Alertas'
+
+    def save(self, *args, **kwargs):
+        self.solucion = (self.solucion or '').strip()
+        self.se_realizo_accion = bool(self.solucion)
+        super().save(*args, **kwargs)

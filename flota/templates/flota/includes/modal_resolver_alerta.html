@@ -1,0 +1,28 @@
+{% comment %}Modal para registrar la acción realizada sobre una alerta (etapa 2).{% endcomment %}
+<div class="modal fade" id="modalRegistrarAccionAlerta" tabindex="-1" aria-labelledby="modalRegistrarAccionAlertaLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form id="formRegistrarAccionAlerta" method="post" action="">
+                {% csrf_token %}
+                <input type="hidden" name="next" id="registrarAccionAlertaNext" value="">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="modalRegistrarAccionAlertaLabel">Registrar acción</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="mb-1"><strong>Vehículo:</strong> <span id="registrarAccionAlertaPatente"></span></p>
+                    <p class="text-muted small mb-3" id="registrarAccionAlertaDescripcion"></p>
+                    <div class="mb-0">
+                        <label for="registrarAccionAlertaSolucion" class="form-label">Qué se hizo *</label>
+                        <textarea class="form-control" name="solucion" id="registrarAccionAlertaSolucion" rows="3"
+                                  required placeholder="Describe la acción realizada..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Guardar acción</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>

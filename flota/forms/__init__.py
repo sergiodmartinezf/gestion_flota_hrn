@@ -4,6 +4,8 @@ from .auth import LoginForm
 from .usuarios import UsuarioForm
 from .vehiculos import VehiculoForm
 from .proveedores import ProveedorForm
+from .tripulacion import PersonaTripulacionForm
+from .destinos import DireccionDestinoForm
 from .viajes import (
     HojaRutaForm,
     ViajeForm,
@@ -28,6 +30,8 @@ __all__ = [
     "UsuarioForm",
     "VehiculoForm",
     "ProveedorForm",
+    "PersonaTripulacionForm",
+    "DireccionDestinoForm",
     "HojaRutaForm",
     "ViajeForm",
     "PacienteTrasladoForm",

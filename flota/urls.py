@@ -23,6 +23,7 @@ urlpatterns = [
     path('vehiculos/costo-km/', views.costo_por_kilometro, name='costo_por_kilometro'),
     path('vehiculos/gastos-mantenimientos/', views.gastos_mantenimientos, name='gastos_mantenimientos'),
     path('alertas/', views.alertas, name='alertas'),
+    path('alertas/accion/<int:id>/', views.registrar_accion_alerta_view, name='registrar_accion_alerta'),
     path('alertas/eliminar/<int:id>/', views.eliminar_alerta, name='eliminar_alerta'),
     path('alertas/presupuesto/eliminar/<int:id>/', views.eliminar_alerta_presupuesto, name='eliminar_alerta_presupuesto'),
     # Con parámetros
@@ -82,6 +83,12 @@ urlpatterns = [
     path('arriendos/habilitar/<int:id>/', views.habilitar_arriendo, name='habilitar_arriendo'),
     
     # Proveedores
+    path('tripulacion/listar/', views.listar_tripulacion, name='listar_tripulacion'),
+    path('tripulacion/modificar/<int:id>/', views.modificar_tripulacion, name='modificar_tripulacion'),
+    path('tripulacion/eliminar/<int:id>/', views.eliminar_tripulacion, name='eliminar_tripulacion'),
+    path('direcciones/listar/', views.listar_direcciones, name='listar_direcciones'),
+    path('direcciones/modificar/<int:id>/', views.modificar_direccion, name='modificar_direccion'),
+    path('direcciones/eliminar/<int:id>/', views.eliminar_direccion, name='eliminar_direccion'),
     path('proveedores/listar/', views.listar_proveedores, name='listar_proveedores'),
     path('proveedores/registrar/', views.registrar_proveedor, name='registrar_proveedor'),
     # Con parámetros

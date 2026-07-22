@@ -1,0 +1,33 @@
+{% extends 'base.html' %}
+
+{% block title %}Eliminar Dirección - Gestión de Flota{% endblock %}
+
+{% block content %}
+<h2 class="mb-4"><i class="bi bi-trash"></i> Eliminar del catálogo</h2>
+
+<div class="alert alert-warning">
+    <i class="bi bi-exclamation-triangle"></i>
+    ¿Está seguro de eliminar <strong>{{ direccion.texto }}</strong> del catálogo de direcciones?
+    <br>
+    Dejará de aparecer en la lista desplegable de viajes.
+    {% if usos %}
+    <br><strong>Nota:</strong> aparece en {{ usos }} traslado(s); el historial conserva el texto.
+    {% endif %}
+</div>
+
+<div class="card mb-4">
+    <div class="card-body">
+        <p class="mb-0"><strong>Dirección:</strong> {{ direccion.texto }}</p>
+    </div>
+</div>
+
+<form method="post">
+    {% csrf_token %}
+    <button type="submit" class="btn btn-danger">
+        <i class="bi bi-trash"></i> Eliminar
+    </button>
+    <a href="{% url 'listar_direcciones' %}" class="btn btn-secondary">
+        <i class="bi bi-arrow-left"></i> Cancelar
+    </a>
+</form>
+{% endblock %}

@@ -278,6 +278,13 @@
                                         </div>
                                         
                                         <div class="col-md-5 container-direccion" style="display:none;">
+                                            <label class="small text-muted">Dirección de viajes anteriores</label>
+                                            <select class="form-select direccion-anterior-select mb-1">
+                                                <option value="">-- Ingresar nueva o seleccionar --</option>
+                                                {% for d in direcciones_anteriores %}
+                                                <option value="{{ d.id }}" data-texto="{{ d.texto|escapejs }}">{{ d.texto }}</option>
+                                                {% endfor %}
+                                            </select>
                                             <label class="small text-primary">Dirección / Detalle *</label>
                                             {{ form_paciente.direccion_especifica }}
                                         </div>
@@ -338,6 +345,13 @@
                                             </select>
                                         </div>
                                         <div class="col-md-5 container-direccion" style="display:none;">
+                                            <label class="small text-muted">Dirección de viajes anteriores</label>
+                                            <select class="form-select direccion-anterior-select mb-1">
+                                                <option value="">-- Ingresar nueva o seleccionar --</option>
+                                                {% for d in direcciones_anteriores %}
+                                                <option value="{{ d.id }}" data-texto="{{ d.texto|escapejs }}">{{ d.texto }}</option>
+                                                {% endfor %}
+                                            </select>
                                             <label class="small text-primary">Dirección / Detalle</label>
                                             <input type="text" name="pacientes-__prefix__-direccion_especifica" class="form-control direccion-input" maxlength="200">
                                         </div>

@@ -8,9 +8,10 @@ from ..models import Vehiculo, Mantenimiento, CargaCombustible, Presupuesto, Ale
 from ..forms import VehiculoForm
 from ..services.alertas import (
     alertas_mantenimiento_vigentes,
+    eliminar_alerta_mantenimiento,
     ignorar_alerta_presupuesto,
     presupuestos_con_alerta,
-    resolver_alerta_mantenimiento,
+    registrar_accion_alerta,
 )
 from .utilidades import es_administrador, puede_escribir, rechazar_escritura_visualizador
 
@@ -203,10 +204,25 @@ def _redirigir_tras_eliminar_alerta(request):
 
 @login_required
 @rechazar_escritura_visualizador
+def registrar_accion_alerta_view(request, id):
+    alerta = get_object_or_404(Alerta, id=id, vigente=True)
+    if request.method == 'POST':
+        solucion = (request.POST.get('solucion') or '').strip()
+        if not solucion:
+            messages.error(request, 'Debe indicar qué se hizo para registrar la acción.')
+            return _redirigir_tras_eliminar_alerta(request)
+        registrar_accion_alerta(alerta, solucion)
+        messages.success(request, 'Acción registrada en la alerta.')
+        return _redirigir_tras_eliminar_alerta(request)
+    return redirect('alertas')
+
+
+@login_required
+@rechazar_escritura_visualizador
 def eliminar_alerta(request, id):
     alerta = get_object_or_404(Alerta, id=id)
     if request.method == 'POST':
-        resolver_alerta_mantenimiento(alerta)
+        eliminar_alerta_mantenimiento(alerta)
         messages.success(request, 'Alerta de mantenimiento eliminada correctamente.')
         return _redirigir_tras_eliminar_alerta(request)
     return redirect('alertas')

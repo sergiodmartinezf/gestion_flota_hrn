@@ -14,35 +14,41 @@ def dashboard(request):
     if request.user.rol == 'Conductor':
         return redirect('registrar_bitacora')
 
-    total_vehiculos = Vehiculo.objects.count()
-    vehiculos_disponibles = Vehiculo.objetos_operativos().filter(estado='Disponible').count()
-    vehiculos_mantenimiento = Vehiculo.objects.filter(estado='En mantenimiento').count()
+    flota_propia = Vehiculo.objects.filter(tipo_propiedad='Propio')
+
+    total_vehiculos = flota_propia.count()
+    vehiculos_disponibles = Vehiculo.objetos_operativos().filter(
+        tipo_propiedad='Propio', estado='Disponible'
+    ).count()
+    vehiculos_mantenimiento = flota_propia.filter(estado='En mantenimiento').count()
 
     mes_actual = timezone.now().month
     anio_actual = timezone.now().year
-    
+
     mantenimientos_mes = Mantenimiento.objects.filter(
+        vehiculo__tipo_propiedad='Propio',
         fecha_ingreso__month=mes_actual,
         fecha_ingreso__year=anio_actual
     )
     costo_mantenimientos_mes = mantenimientos_mes.aggregate(
         total=Sum('costo_total_real')
     )['total'] or Decimal('0')
-    
+
     cargas_mes = CargaCombustible.objects.filter(
+        patente_vehiculo__tipo_propiedad='Propio',
         fecha__month=mes_actual,
         fecha__year=anio_actual
     )
     costo_combustible_mes = cargas_mes.aggregate(
         total=Sum('costo_total')
     )['total'] or Decimal('0')
-    
+
     costo_mensual_total = costo_mantenimientos_mes + costo_combustible_mes
 
     hoy = timezone.now().date()
     inicio_mes = date(anio_actual, mes_actual, 1)
 
-    vehiculos = Vehiculo.objects.all()
+    vehiculos = flota_propia
     vehiculos_con_disponibilidad = []
 
     for vehiculo in vehiculos:
@@ -85,6 +91,8 @@ def dashboard(request):
             'detalle': f"Umbral: {alerta.valor_umbral} km",
             'clase_item': 'list-group-item-warning',
             'icono': 'bi-car-front',
+            'se_realizo_accion': alerta.se_realizo_accion,
+            'solucion': alerta.solucion,
         })
 
     ahora = timezone.now()
