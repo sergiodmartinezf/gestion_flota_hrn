@@ -75,7 +75,7 @@ class OrdenCompraForm(forms.ModelForm):
     def clean_estado(self):
         """Normalizar el estado usando la función del modelo"""
         estado = self.cleaned_data.get('estado')
-        from .models import normalizar_estado_oc
+        from ..models import normalizar_estado_oc
         return normalizar_estado_oc(estado)
 
     def save(self, commit=True):
