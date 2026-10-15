@@ -36,8 +36,8 @@ class ArriendoForm(forms.ModelForm):
             'motivo',
         ]
         widgets = {
-            'fecha_inicio': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}),
-            'fecha_fin': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}),
+            'fecha_inicio': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}, format='%Y-%m-%d'),
+            'fecha_fin': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}, format='%Y-%m-%d'),
             'motivo': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
             'vehiculo_arrendado': forms.Select(attrs={'class': 'form-select'}),
             'proveedor': forms.Select(attrs={'class': 'form-select'}),
@@ -51,16 +51,38 @@ class ArriendoForm(forms.ModelForm):
         self.fields['vehiculo_arrendado'].queryset = Vehiculo.objects.filter(
             tipo_propiedad='Arrendado'
         ).order_by('patente')
-        self.fields['proveedor'].queryset = Proveedor.objects.filter(
-            es_arrendador=True, activo=True
-        ).order_by('nombre_fantasia')
+        proveedor_qs = Proveedor.objects.filter(es_arrendador=True, activo=True)
+        if self.instance.pk and self.instance.proveedor_id:
+            proveedor_qs = (
+                proveedor_qs | Proveedor.objects.filter(pk=self.instance.proveedor_id)
+            ).distinct()
+        self.fields['proveedor'].queryset = proveedor_qs.order_by('nombre_fantasia')
 
-        # Formatear fechas si es edición
+        reemplazado_qs = Vehiculo.objects.filter(
+            tipo_propiedad='Propio',
+            estado__in=['En mantenimiento', 'Fuera de servicio']
+        )
+        if self.instance.pk and self.instance.vehiculo_reemplazado_id:
+            reemplazado_qs = (
+                reemplazado_qs | Vehiculo.objects.filter(pk=self.instance.vehiculo_reemplazado_id)
+            ).distinct()
+        self.fields['vehiculo_reemplazado'].queryset = reemplazado_qs.order_by('patente')
+
+        self.fields['fecha_inicio'].input_formats = ['%Y-%m-%d']
+        self.fields['fecha_fin'].input_formats = ['%Y-%m-%d']
+
+        # Formatear fechas para input type="date" (YYYY-MM-DD)
         if self.instance.pk:
             if self.instance.fecha_inicio:
-                self.fields['fecha_inicio'].widget.attrs['value'] = self.instance.fecha_inicio.strftime('%Y-%m-%d')
+                fecha_inicio_str = self.instance.fecha_inicio.strftime('%Y-%m-%d')
+                self.fields['fecha_inicio'].initial = fecha_inicio_str
+                self.fields['fecha_inicio'].widget.attrs['value'] = fecha_inicio_str
+                self.fields['fecha_inicio'].widget.attrs['data-initial-value'] = fecha_inicio_str
             if self.instance.fecha_fin:
-                self.fields['fecha_fin'].widget.attrs['value'] = self.instance.fecha_fin.strftime('%Y-%m-%d')
+                fecha_fin_str = self.instance.fecha_fin.strftime('%Y-%m-%d')
+                self.fields['fecha_fin'].initial = fecha_fin_str
+                self.fields['fecha_fin'].widget.attrs['value'] = fecha_fin_str
+                self.fields['fecha_fin'].widget.attrs['data-initial-value'] = fecha_fin_str
 
         if self.data:
             modo = self.data.get('modo_vehiculo_arriendo', modo)

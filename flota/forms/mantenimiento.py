@@ -184,7 +184,6 @@ class FinalizarMantenimientoForm(forms.ModelForm):
             'costo_mano_obra', 
             'costo_repuestos',
             'orden_compra', # Si se generó durante el proceso
-            'nro_factura',
             'archivo_adjunto' # Si quieres subir la factura escaneada
         ]
         widgets = {

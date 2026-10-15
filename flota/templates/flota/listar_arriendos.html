@@ -74,6 +74,9 @@
                             <th>Fecha Fin</th>
                             <th>Costo Total</th>
                             <th>Estado</th>
+                            {% if user.rol == 'Administrador' %}
+                            <th>Acciones</th>
+                            {% endif %}
                         </tr>
                     </thead>
                     <tbody>
@@ -118,6 +121,13 @@
                                     {{ arriendo.get_estado_display }}
                                 </span>
                             </td>
+                            {% if user.rol == 'Administrador' %}
+                            <td>
+                                <a href="{% url 'editar_arriendo' arriendo.id %}" class="btn btn-sm btn-warning" title="Editar">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
+                            </td>
+                            {% endif %}
                         </tr>
                         {% endfor %}
                     </tbody>

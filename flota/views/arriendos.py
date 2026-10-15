@@ -119,6 +119,27 @@ def registrar_arriendo(request):
 
 @login_required
 @user_passes_test(es_administrador)
+def editar_arriendo(request, id):
+    arriendo = get_object_or_404(Arriendo, id=id)
+
+    if request.method == 'POST':
+        form = ArriendoForm(request.POST, instance=arriendo, modo='existente')
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'Arriendo actualizado correctamente.')
+            return redirect('listar_arriendos')
+        messages.error(request, 'No se pudo actualizar el arriendo. Revise los errores indicados en el formulario.')
+    else:
+        form = ArriendoForm(instance=arriendo, modo='existente')
+
+    return render(request, 'flota/editar_arriendo.html', {
+        'form': form,
+        'arriendo': arriendo,
+    })
+
+
+@login_required
+@user_passes_test(es_administrador)
 @require_POST
 def actualizar_fecha_fin_arriendo(request, id):
     arriendo = get_object_or_404(Arriendo, id=id)

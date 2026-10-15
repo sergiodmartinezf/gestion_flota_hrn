@@ -75,6 +75,7 @@ from .reportes import (
 from .arriendos import (
     listar_arriendos,
     registrar_arriendo,
+    editar_arriendo,
     actualizar_fecha_fin_arriendo,
     finalizar_arriendo,
     deshabilitar_arriendo,
@@ -180,6 +181,7 @@ __all__ = [
     'reporte_historial_unidad',
     'registrar_arriendo',
     'listar_arriendos',
+    'editar_arriendo',
     'actualizar_fecha_fin_arriendo',
     'finalizar_arriendo',
     'deshabilitar_arriendo',
