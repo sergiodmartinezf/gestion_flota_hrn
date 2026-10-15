@@ -127,9 +127,12 @@
                                         data-id="{{ mantenimiento.id }}"
                                         style="width: auto; display: inline-block;">
                                     {% for estado_val, estado_label in mantenimiento.ESTADOS %}
-                                    <option value="{{ estado_val }}" {% if mantenimiento.estado == estado_val %}selected{% endif %}>
-                                        {{ estado_label }}
-                                    </option>
+                                        {# Ocultar la opción Finalizado en el desplegable si el mantenimiento NO está finalizado #}
+                                        {% if estado_val != 'Finalizado' or mantenimiento.estado == 'Finalizado' %}
+                                        <option value="{{ estado_val }}" {% if mantenimiento.estado == estado_val %}selected{% endif %}>
+                                            {{ estado_label }}
+                                        </option>
+                                        {% endif %}
                                     {% endfor %}
                                 </select>
                                 {% else %}

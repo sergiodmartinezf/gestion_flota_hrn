@@ -77,6 +77,7 @@ urlpatterns = [
     # Arriendo
     path('arriendos/', views.listar_arriendos, name='listar_arriendos'),
     path('arriendos/registrar/', views.registrar_arriendo, name='registrar_arriendo'),
+    path('arriendos/editar/<int:id>/', views.editar_arriendo, name='editar_arriendo'),
     path('arriendos/<int:id>/fecha-fin/', views.actualizar_fecha_fin_arriendo, name='actualizar_fecha_fin_arriendo'),
     path('arriendos/finalizar/<int:id>/', views.finalizar_arriendo, name='finalizar_arriendo'),
     path('arriendos/deshabilitar/<int:id>/', views.deshabilitar_arriendo, name='deshabilitar_arriendo'),

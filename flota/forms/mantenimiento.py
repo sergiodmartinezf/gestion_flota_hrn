@@ -18,7 +18,7 @@ class MantenimientoForm(forms.ModelForm):
         model = Mantenimiento
         fields = [
             'vehiculo', 'tipo_mantencion', 'fecha_ingreso', 'fecha_salida',
-            'km_al_ingreso', 'descripcion_trabajo', 'estado',
+            'km_al_ingreso', 'descripcion_trabajo',
             'costo_estimado', 'costo_mano_obra', 'costo_repuestos',
             'proveedor', 'orden_trabajo', 'cuenta_presupuestaria'
         ]
@@ -29,7 +29,6 @@ class MantenimientoForm(forms.ModelForm):
             'fecha_salida': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}, format='%Y-%m-%d'),
             'km_al_ingreso': forms.NumberInput(attrs={'class': 'form-control'}),
             'descripcion_trabajo': forms.Textarea(attrs={'class': 'form-control', 'rows': 4}),
-            'estado': forms.Select(attrs={'class': 'form-control'}),
             'costo_estimado': forms.NumberInput(attrs={'class': 'form-control', 'step': '1', 'min': '0'}),
             'costo_mano_obra': forms.NumberInput(attrs={'class': 'form-control', 'step': '1', 'min': '0'}),
             'costo_repuestos': forms.NumberInput(attrs={'class': 'form-control', 'step': '1', 'min': '0'}),
@@ -185,7 +184,6 @@ class FinalizarMantenimientoForm(forms.ModelForm):
             'costo_mano_obra', 
             'costo_repuestos',
             'orden_compra', # Si se generó durante el proceso
-            'nro_factura',
             'archivo_adjunto' # Si quieres subir la factura escaneada
         ]
         widgets = {
