@@ -1,0 +1,48 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="container-fluid">
+    <h2 class="mb-4"><i class="bi bi-trash"></i> Eliminar Arriendo</h2>
+
+    <div class="alert alert-danger">
+        <h5 class="alert-heading">
+            <i class="bi bi-exclamation-triangle"></i> ¿Está seguro que desea eliminar este arriendo?
+        </h5>
+        <hr>
+        <p class="mb-2">
+            <strong>Vehículo arrendado:</strong>
+            {{ arriendo.vehiculo_arrendado.patente }}
+            ({{ arriendo.vehiculo_arrendado.marca }} {{ arriendo.vehiculo_arrendado.modelo }})
+        </p>
+        <p class="mb-2"><strong>Proveedor:</strong> {{ arriendo.proveedor.nombre_fantasia }}</p>
+        <p class="mb-2"><strong>Fecha inicio:</strong> {{ arriendo.fecha_inicio|date:"d/m/Y" }}</p>
+        <p class="mb-2">
+            <strong>Fecha fin:</strong>
+            {{ arriendo.fecha_fin|date:"d/m/Y"|default:"—" }}
+        </p>
+        <p class="mb-2"><strong>Estado:</strong> {{ arriendo.get_estado_display }}</p>
+
+        {% if arriendo.vehiculo_reemplazado %}
+        <hr>
+        <p class="mb-0">
+            <i class="bi bi-info-circle"></i>
+            El vehículo reemplazado
+            <strong>{{ arriendo.vehiculo_reemplazado.patente }}</strong>
+            volverá a estado <em>Disponible</em> (si no está en mantenimiento).
+        </p>
+        {% endif %}
+
+        <hr>
+        <p class="mb-0 fw-bold">Esta acción no se puede deshacer.</p>
+    </div>
+
+    <form method="post">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-danger">
+            <i class="bi bi-trash"></i> Eliminar
+        </button>
+        <a href="{% url 'listar_arriendos' %}" class="btn btn-secondary">
+            <i class="bi bi-x-circle"></i> Cancelar
+        </a>
+    </form>
+</div>
+{% endblock %}

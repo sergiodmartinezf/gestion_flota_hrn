@@ -80,6 +80,7 @@ from .arriendos import (
     finalizar_arriendo,
     deshabilitar_arriendo,
     habilitar_arriendo,
+    eliminar_arriendo,
 )
 from .dashboard import dashboard
 from .proveedores import (

@@ -123,8 +123,13 @@
                             </td>
                             {% if user.rol == 'Administrador' %}
                             <td>
-                                <a href="{% url 'editar_arriendo' arriendo.id %}" class="btn btn-sm btn-warning" title="Editar">
+                                <a href="{% url 'editar_arriendo' arriendo.id %}"
+                                class="btn btn-sm btn-warning me-1" title="Editar">
                                     <i class="bi bi-pencil"></i>
+                                </a>
+                                <a href="{% url 'eliminar_arriendo' arriendo.id %}"
+                                class="btn btn-sm btn-danger" title="Eliminar">
+                                    <i class="bi bi-trash"></i>
                                 </a>
                             </td>
                             {% endif %}

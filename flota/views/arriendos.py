@@ -224,4 +224,30 @@ def habilitar_arriendo(request, id):
         return redirect('listar_arriendos')
     
     return render(request, 'flota/habilitar_arriendo.html', {'arriendo': arriendo})
-    
+
+
+@login_required
+@user_passes_test(es_administrador)
+def eliminar_arriendo(request, id):
+    arriendo = get_object_or_404(Arriendo, id=id)
+
+    if request.method == 'POST':
+        patente = arriendo.vehiculo_arrendado.patente
+        vehiculo_reemplazado = arriendo.vehiculo_reemplazado
+        estado_arriendo = arriendo.estado
+
+        # Restaurar el vehículo propio reemplazado si el arriendo estaba Activo
+        if vehiculo_reemplazado and estado_arriendo == 'Activo':
+            mantenimientos_activos = Mantenimiento.objects.filter(
+                vehiculo=vehiculo_reemplazado,
+                estado__in=['En taller', 'Esperando repuestos']
+            )
+            if not mantenimientos_activos.exists() and vehiculo_reemplazado.estado != 'Baja':
+                vehiculo_reemplazado.estado = 'Disponible'
+                vehiculo_reemplazado.save()
+
+        arriendo.delete()
+        messages.success(request, f'Arriendo {patente} eliminado exitosamente.')
+        return redirect('listar_arriendos')
+
+    return render(request, 'flota/eliminar_arriendo.html', {'arriendo': arriendo})
