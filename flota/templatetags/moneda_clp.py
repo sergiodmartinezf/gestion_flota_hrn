@@ -19,3 +19,12 @@ def clp(value):
     entero = int(round(numero))
     return f"{entero:,}".replace(",", ".")
 
+
+@register.filter
+def clp_bruto(value):
+    """Formatea en pesos chilenos SIN aplicar descuento de IVA."""
+    try:
+        return "{:,.0f}".format(float(value)).replace(",", ".")
+    except (ValueError, TypeError):
+        return "0"
+

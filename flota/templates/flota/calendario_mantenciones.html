@@ -152,7 +152,7 @@ function enviarProgramar() {
     errores.push(...validarFecha(document.getElementById('programar_fecha_ingreso')?.value, 'fecha de ingreso', true));
     errores.push(...validarEnteroPositivo(document.getElementById('programar_km_al_ingreso')?.value, 'kilometraje', 0, 9999999, true));
     errores.push(...validarSeleccion(document.getElementById('programar_proveedor')?.value, 'proveedor', true));
-    errores.push(...validarCampoObligatorio(document.getElementById('programar_descripcion')?.value, 'descripción del trabajo', true));
+    errores.push(...validarEnteroPositivo(document.getElementById('programar_costo')?.value, 'costo estimado', 0, 999999999, false));
     if (errores.length > 0) {
         mostrarErroresValidacion(errores, 'Errores en el Formulario');
         return false;

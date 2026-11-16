@@ -19,7 +19,7 @@ class MantenimientoForm(forms.ModelForm):
         fields = [
             'vehiculo', 'tipo_mantencion', 'fecha_ingreso', 'fecha_salida',
             'km_al_ingreso', 'descripcion_trabajo',
-            'costo_estimado', 'costo_mano_obra', 'costo_repuestos',
+            'costo_estimado', 'costo_mano_obra', 'costo_repuestos', 'costo_materiales',
             'proveedor', 'orden_trabajo', 'cuenta_presupuestaria'
         ]
         widgets = {
@@ -32,6 +32,7 @@ class MantenimientoForm(forms.ModelForm):
             'costo_estimado': forms.NumberInput(attrs={'class': 'form-control', 'step': '1', 'min': '0'}),
             'costo_mano_obra': forms.NumberInput(attrs={'class': 'form-control', 'step': '1', 'min': '0'}),
             'costo_repuestos': forms.NumberInput(attrs={'class': 'form-control', 'step': '1', 'min': '0'}),
+            'costo_materiales': forms.NumberInput(attrs={'class': 'form-control', 'step': '1', 'min': '0'}),
             'proveedor': forms.Select(attrs={'class': 'form-control'}),
             'orden_trabajo': forms.Select(attrs={'class': 'form-control'}),
             'cuenta_presupuestaria': forms.Select(attrs={'class': 'form-control'}),
@@ -135,8 +136,8 @@ class ProgramarMantenimientoForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         self.fields['costo_estimado'].required = False
         self.fields['fecha_programada'].required = False
+        self.fields['descripcion_trabajo'].required = False
         self.fields['fecha_programada'].help_text = "Fecha en que se programó realizar el mantenimiento (para alertas por tiempo)"
-        # Formatear fechas para input type="date"
         if self.instance.pk:
             if self.instance.fecha_ingreso:
                 self.fields['fecha_ingreso'].widget.attrs['value'] = self.instance.fecha_ingreso.strftime('%Y-%m-%d')
@@ -149,18 +150,18 @@ class ProgramarMantenimientoForm(forms.ModelForm):
         vehiculo = cleaned_data.get('vehiculo')
         cuenta_presupuestaria = cleaned_data.get('cuenta_presupuestaria')
         fecha_ingreso = cleaned_data.get('fecha_ingreso')
-        costo_estimado = cleaned_data.get('costo_estimado', 0)
+        costo_estimado = cleaned_data.get('costo_estimado') or 0
 
         # Para filtro dinámico de opciones de cuentas
         if tipo and vehiculo and cuenta_presupuestaria:
-            criticidad = vehiculo.criticidad   # 'Crítico' o 'No crítico'
+            criticidad = vehiculo.criticidad
             if not cuenta_valida_para_mantenimiento(cuenta_presupuestaria, tipo, criticidad):
                 raise forms.ValidationError(
-                    f"La cuenta {cuenta_presupuestaria.codigo} no corresponde a un mantenimiento {tipo} "
-                    f"para un vehículo {criticidad.lower()}."
+                    f"La cuenta {cuenta_presupuestaria.codigo} no corresponde a un "
+                    f"mantenimiento {tipo} para un vehículo {criticidad.lower()}."
                 )
 
-        if vehiculo and cuenta_presupuestaria and fecha_ingreso:
+        if vehiculo and cuenta_presupuestaria and fecha_ingreso and costo_estimado > 0:
             ok, mensaje, _ = validar_presupuesto_disponible(
                 cuenta_presupuestaria, fecha_ingreso.year, costo_estimado
             )
@@ -171,7 +172,9 @@ class ProgramarMantenimientoForm(forms.ModelForm):
 
     def clean_costo_estimado(self):
         costo = self.cleaned_data.get('costo_estimado')
-        if costo is not None and costo < 0:
+        if costo is None:
+            return 0
+        if costo < 0:
             raise forms.ValidationError('El costo estimado no puede ser negativo.')
         return costo
 
@@ -183,22 +186,25 @@ class FinalizarMantenimientoForm(forms.ModelForm):
             'descripcion_trabajo',
             'costo_mano_obra', 
             'costo_repuestos',
-            'orden_compra', # Si se generó durante el proceso
-            'archivo_adjunto' # Si quieres subir la factura escaneada
+            'costo_materiales',
+            'orden_compra',
+            'archivo_adjunto'
         ]
         widgets = {
             'fecha_salida': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
             'descripcion_trabajo': forms.Textarea(attrs={'class': 'form-control', 'rows': 4}),
             'costo_mano_obra': forms.NumberInput(attrs={'class': 'form-control', 'step': '1', 'min': '0'}),
             'costo_repuestos': forms.NumberInput(attrs={'class': 'form-control', 'step': '1', 'min': '0'}),
+            'costo_materiales': forms.NumberInput(attrs={'class': 'form-control', 'step': '1', 'min': '0'}),
             'orden_compra': forms.Select(attrs={'class': 'form-control'}),
         }
     
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        # Orden de Compra obligatoria para cierre administrativo (normativa hospitalaria)
+        # Orden de Compra obligatoria para cierre administrativo
         self.fields['orden_compra'].required = True
         self.fields['orden_compra'].help_text = 'Obligatorio para cerrar el mantenimiento.'
+        self.fields['costo_materiales'].required = False
         # Formatear fecha_salida para input type="date"
         if self.instance.pk and self.instance.fecha_salida:
             self.fields['fecha_salida'].widget.attrs['value'] = self.instance.fecha_salida.strftime('%Y-%m-%d')
@@ -207,9 +213,10 @@ class FinalizarMantenimientoForm(forms.ModelForm):
         cleaned_data = super().clean()
         mano_obra = cleaned_data.get('costo_mano_obra') or 0
         repuestos = cleaned_data.get('costo_repuestos') or 0
+        materiales = cleaned_data.get('costo_materiales') or 0
         orden_compra = cleaned_data.get('orden_compra') or self.instance.orden_compra_id
         
-        if mano_obra + repuestos <= 0:
+        if mano_obra + repuestos + materiales <= 0:
             raise forms.ValidationError("Debe ingresar los costos reales para finalizar el mantenimiento.")
         if not orden_compra:
             raise forms.ValidationError(
