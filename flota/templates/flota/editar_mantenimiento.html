@@ -85,6 +85,13 @@
                         {% endif %}
                     </div>
                     <div class="mb-3">
+                        <label for="{{ form.costo_materiales.id_for_label }}" class="form-label">Costo Materiales</label>
+                        {{ form.costo_materiales }}
+                        {% if form.costo_materiales.errors %}
+                            <div class="text-danger small">{{ form.costo_materiales.errors }}</div>
+                        {% endif %}
+                    </div>
+                    <div class="mb-3">
                         <label for="{{ form.cuenta_presupuestaria.id_for_label }}" class="form-label">Cuenta Presupuestaria</label>
                         {{ form.cuenta_presupuestaria }}
                         {% if form.cuenta_presupuestaria.errors %}

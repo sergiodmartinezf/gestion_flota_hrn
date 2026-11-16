@@ -31,7 +31,7 @@ class Mantenimiento(models.Model):
                                          help_text="Fecha en que se programó realizar el mantenimiento (para alertas por tiempo)")
     km_al_ingreso = models.IntegerField(validators=[MinValueValidator(0)])
     
-    descripcion_trabajo = models.TextField()
+    descripcion_trabajo = models.TextField(blank=True, default='')
     estado = models.CharField(max_length=30, choices=ESTADOS, default='Programado')
 
     nro_factura = models.CharField(max_length=50, blank=True, null=True, verbose_name="Número de Factura")
@@ -40,11 +40,12 @@ class Mantenimiento(models.Model):
     orden_compra = models.ForeignKey(OrdenCompra, on_delete=models.SET_NULL, null=True, blank=True, related_name='mantenimientos_directos')
     
     # --- GESTIÓN DE COSTOS (PLANIFICADO vs REAL) ---
-    costo_estimado = models.IntegerField(default=0, blank=True, help_text="Costo aproximado inicial")
+    costo_estimado = models.IntegerField(default=0, null=False, blank=True, help_text="Costo aproximado inicial")
     
     # Desglose de costos reales
     costo_mano_obra = models.IntegerField(default=0, verbose_name="Costo Mano de Obra")
     costo_repuestos = models.IntegerField(default=0, verbose_name="Costo Repuestos")
+    costo_materiales = models.IntegerField(default=0, verbose_name="Costo Materiales")
     costo_total_real = models.IntegerField(default=0, verbose_name="Costo Final Total")
     
     # Relaciones
@@ -117,9 +118,15 @@ class Mantenimiento(models.Model):
         recalcular_monto_ejecutado(presupuesto)
 
     def save(self, *args, **kwargs):
+        # Normalizar costos: nunca NULL
+        self.costo_estimado    = self.costo_estimado    or 0
+        self.costo_mano_obra   = self.costo_mano_obra   or 0
+        self.costo_repuestos   = self.costo_repuestos   or 0
+        self.costo_materiales  = self.costo_materiales  or 0
+
         # Auto-calcular total real si no se provee
-        if self.costo_mano_obra or self.costo_repuestos:
-            self.costo_total_real = self.costo_mano_obra + self.costo_repuestos
+        if self.costo_mano_obra or self.costo_repuestos or self.costo_materiales:
+            self.costo_total_real = ((self.costo_mano_obra or 0) + (self.costo_repuestos or 0) + (self.costo_materiales or 0))
         # Bloqueos de cierre administrativo (sin atajos desde otras vistas/formularios)
         if self.estado == 'Finalizado':
             if not self.orden_compra_id:

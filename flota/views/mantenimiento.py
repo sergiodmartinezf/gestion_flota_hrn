@@ -220,7 +220,7 @@ def finalizar_mantenimiento(request, id):
         form = FinalizarMantenimientoForm(request.POST, request.FILES, instance=mantenimiento)
         if form.is_valid():
             mant = form.save(commit=False)
-            mant.costo_total_real = (mant.costo_mano_obra or 0) + (mant.costo_repuestos or 0)
+            mant.costo_total_real = ((mant.costo_mano_obra or 0) + (mant.costo_repuestos or 0) + (mant.costo_materiales or 0))
             mant.estado = 'Finalizado'
 
             if not mant.cuenta_presupuestaria and mant.orden_compra:

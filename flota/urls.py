@@ -82,6 +82,7 @@ urlpatterns = [
     path('arriendos/finalizar/<int:id>/', views.finalizar_arriendo, name='finalizar_arriendo'),
     path('arriendos/deshabilitar/<int:id>/', views.deshabilitar_arriendo, name='deshabilitar_arriendo'),
     path('arriendos/habilitar/<int:id>/', views.habilitar_arriendo, name='habilitar_arriendo'),
+    path('arriendos/eliminar/<int:id>/', views.eliminar_arriendo, name='eliminar_arriendo'),
     
     # Proveedores
     path('tripulacion/listar/', views.listar_tripulacion, name='listar_tripulacion'),

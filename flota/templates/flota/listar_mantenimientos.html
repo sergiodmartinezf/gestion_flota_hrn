@@ -146,7 +146,7 @@
                                 </span>
                                 {% endif %}
                             </td>
-                            <td>${{ mantenimiento.costo_total_real|clp|default:"0" }}</td>
+                            <td>${{ mantenimiento.costo_total_real|clp_bruto|default:"0" }}</td>
                             <td>
                                 {% if user.rol == 'Administrador' %}
                                 {% if mantenimiento.estado == 'Programado' or mantenimiento.estado == 'En taller' %}
