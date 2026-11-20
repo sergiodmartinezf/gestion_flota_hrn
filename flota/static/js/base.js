@@ -1,6 +1,6 @@
 document.addEventListener('DOMContentLoaded', function() {
     const alerts = document.querySelectorAll('.alert:not(.alert-permanent)');
-
+    
     // Notificaciones
     alerts.forEach(alert => {
         setTimeout(() => {

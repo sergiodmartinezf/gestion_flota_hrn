@@ -38,7 +38,7 @@
                     {% for proveedor in proveedores %}
                     <tr class="{% if not proveedor.activo %}table-secondary text-muted{% endif %}">
                         <td>
-                            {{ proveedor.nombre_fantasia }}
+                            {{ proveedor.nombre_fantasia|upper }}
                             {% if not proveedor.activo %}
                             <span class="badge bg-danger ms-2">Inactivo</span>
                             {% endif %}

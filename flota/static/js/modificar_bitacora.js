@@ -18,6 +18,14 @@ document.addEventListener('DOMContentLoaded', function() {
             if (kmFin !== null && kmFin < kmInicio) {
                 errores.push('El kilometraje fin debe ser mayor o igual al kilometraje inicio');
             }
+            const margenKm = 300;
+            if (kmFin !== null && kmFin > kmInicio + margenKm) {
+                e.preventDefault();
+                alert(`El KM final (${kmFin.toLocaleString('es-CL')} km) es demasiado elevado para el KM inicial (${kmInicio.toLocaleString('es-CL')} km). El margen permitido es de ${margenKm} km (máximo ${ (kmInicio + margenKm).toLocaleString('es-CL') } km). Corrija el dato antes de guardar.`);
+                document.getElementById('id_km_fin')?.focus();
+                document.getElementById('id_km_fin')?.select();
+                return false;
+            }
 
             if (errores.length > 0) {
                 e.preventDefault();

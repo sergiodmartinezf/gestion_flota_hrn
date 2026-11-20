@@ -61,6 +61,22 @@ class HojaRutaForm(forms.ModelForm):
             if turno and turno != '08-17':
                 self.add_error('turno', 'Las camionetas solo pueden operar en turno administrativo (08:00 a 17:00).')
 
+        km_inicio = cleaned_data.get('km_inicio')
+        km_fin = cleaned_data.get('km_fin')
+        if km_inicio is not None and km_fin is not None:
+            if km_fin < km_inicio:
+                self.add_error(
+                    'km_fin',
+                    f'El KM final ({km_fin}) no puede ser menor al KM inicial ({km_inicio}).'
+                )
+            km_maximo = km_inicio + 300
+            if km_fin > km_maximo:
+                self.add_error(
+                    'km_fin',
+                    f'El kilometraje final supera el margen permitido de 300 km. '
+                    f'Con un KM inicial de {km_inicio}, el máximo es {km_maximo} km.'
+                )
+
         return cleaned_data
 
     def clean_km_inicio(self):
@@ -75,8 +91,14 @@ class HojaRutaForm(forms.ModelForm):
 class ViajeForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         vehiculo_tipo = kwargs.pop('vehiculo_tipo', None)
+        self.hoja_ruta = kwargs.pop('hoja_ruta', None)
         super().__init__(*args, **kwargs)
         self.vehiculo_tipo = vehiculo_tipo
+        if self.hoja_ruta:
+            self.fields['km_llegada'].widget.attrs.update({
+                'data-km-inicio-hoja': self.hoja_ruta.km_inicio,
+                'data-margen-km-hoja': 300,
+            })
         for name in ('hora_salida_hbo', 'hora_llegada_hbo', 'no_aplica_enfermero', 'no_aplica_camillero'):
             self.fields[name].required = False
             self.fields[name].widget.attrs.pop('required', None)
@@ -141,6 +163,15 @@ class ViajeForm(forms.ModelForm):
         if km_llegada is not None and km_salida is not None:
             if km_llegada < km_salida:
                 self.add_error('km_llegada', 'El KM de llegada no puede ser menor que el KM de salida.')
+
+        if km_llegada is not None and self.hoja_ruta:
+            km_maximo = self.hoja_ruta.km_inicio + 300
+            if km_llegada > km_maximo:
+                self.add_error(
+                    'km_llegada',
+                    f'El KM de llegada ({km_llegada}) supera el margen de 300 km respecto '
+                    f'al KM inicial de la hoja ({self.hoja_ruta.km_inicio}). Máximo permitido: {km_maximo} km.'
+                )
 
         return cleaned_data
 

@@ -11,6 +11,11 @@ class Proveedor(models.Model):
     es_arrendador = models.BooleanField(default=False, verbose_name="Es Arrendador de Vehículos")
     es_proveedor_base = models.BooleanField(default=False, verbose_name="Proveedor base (Kaufmann/Arriagada)")
     activo = models.BooleanField(default=True, verbose_name="Activo")
+
+    def save(self, *args, **kwargs):
+        if self.nombre_fantasia:
+            self.nombre_fantasia = self.nombre_fantasia.strip().upper()
+        super().save(*args, **kwargs)
     
     class Meta:
         db_table = 'proveedor'

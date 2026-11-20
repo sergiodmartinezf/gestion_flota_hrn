@@ -22,6 +22,8 @@ from ..validators import normalizar_rut
 from datetime import datetime, timedelta
 import json
 
+MARGEN_KM_CIERRE_HOJA = 300
+
 
 TIPOS_SERVICIO = [
     ('Llamado', 'Llamado'),
@@ -232,6 +234,16 @@ def cerrar_hoja_ruta(request, id):
                 messages.error(request, f"El KM final ({km_final}) no puede ser menor al inicial ({hoja.km_inicio}).")
                 return _redirect_cerrar_hoja(request, hoja)
 
+            km_maximo_esperado = hoja.km_inicio + MARGEN_KM_CIERRE_HOJA
+            if km_final > km_maximo_esperado:
+                messages.error(
+                    request,
+                    f"El KM final ({km_final}) es demasiado elevado para el KM inicial ({hoja.km_inicio}). "
+                    f"Revise el dato: el margen permitido es de {MARGEN_KM_CIERRE_HOJA} km "
+                    f"(máximo esperado: {km_maximo_esperado} km)."
+                )
+                return _redirect_cerrar_hoja(request, hoja)
+
             ultimo_viaje = hoja.viajes.order_by('-km_llegada').first()
             if ultimo_viaje and ultimo_viaje.km_llegada and km_final < ultimo_viaje.km_llegada:
                 messages.warning(request, f"Atención: El KM de cierre es menor al del último viaje registrado ({ultimo_viaje.km_llegada}).")
@@ -314,7 +326,7 @@ def agregar_viaje(request, id):
     km_sugerido = km_referencia
 
     if request.method == 'POST':
-        form = ViajeForm(request.POST, vehiculo_tipo=vehiculo_tipo)
+        form = ViajeForm(request.POST, vehiculo_tipo=vehiculo_tipo, hoja_ruta=hoja)
         paciente_formset = PacienteFormSet(
             request.POST,
             request.FILES,
@@ -362,6 +374,8 @@ def agregar_viaje(request, id):
                 _guardar_pacientes_formset(paciente_formset, viaje)
 
                 messages.success(request, 'Viaje registrado correctamente.')
+                if ultimo_viaje is None:
+                    return redirect('detalle_bitacora', id=hoja.id)
                 return redirect('agregar_viaje', id=hoja.id)
             if not errores:
                 if not pacientes_ok:
@@ -384,7 +398,7 @@ def agregar_viaje(request, id):
             'km_salida': km_sugerido,
             'km_llegada': km_sugerido if km_sugerido is not None else None,
         }
-        form = ViajeForm(initial=initial_data, vehiculo_tipo=vehiculo_tipo)
+        form = ViajeForm(initial=initial_data, vehiculo_tipo=vehiculo_tipo, hoja_ruta=hoja)
         paciente_formset = PacienteFormSet(
             queryset=PacienteTraslado.objects.none(),
             form_kwargs={'vehiculo_tipo': vehiculo_tipo},
@@ -424,7 +438,7 @@ def modificar_viaje(request, id):
     km_referencia = _km_referencia_para_viaje(hoja, viaje)
 
     if request.method == 'POST':
-        form = ViajeForm(request.POST, instance=viaje, vehiculo_tipo=vehiculo_tipo)
+        form = ViajeForm(request.POST, instance=viaje, vehiculo_tipo=vehiculo_tipo, hoja_ruta=hoja)
         paciente_formset = PacienteFormSet(
             request.POST,
             request.FILES,
@@ -495,7 +509,7 @@ def modificar_viaje(request, id):
                 no_aplica_camillero=no_aplica_camillero,
             )
     else:
-        form = ViajeForm(instance=viaje, vehiculo_tipo=vehiculo_tipo)
+        form = ViajeForm(instance=viaje, vehiculo_tipo=vehiculo_tipo, hoja_ruta=hoja)
         paciente_formset = PacienteFormSet(
             instance=viaje,
             form_kwargs={'vehiculo_tipo': vehiculo_tipo},

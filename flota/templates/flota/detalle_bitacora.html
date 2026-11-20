@@ -229,7 +229,9 @@
                     <p>Ingrese el kilometraje final del turno:</p>
                     <input type="number" name="km_cierre" class="form-control"
                            required min="{{ hoja.km_inicio }}"
+                           data-km-inicio="{{ hoja.km_inicio }}" data-margen-km="300"
                            value="{{ km_actual_vehiculo|stringformat:'s' }}" step="1">
+                    <small class="form-text text-muted">Margen esperado: hasta 300 km sobre el kilometraje inicial (máximo {{ hoja.km_inicio|add:300 }} km).</small>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
@@ -240,4 +242,8 @@
     </div>
 </div>
 {% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/validar_km_cierre.js' %}"></script>
 {% endblock %}
