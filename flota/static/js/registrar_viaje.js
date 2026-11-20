@@ -550,6 +550,19 @@ function configurarValidacionFormulario() {
             } else {
                 kmLlegada.classList.remove('is-invalid');
             }
+
+            const kmInicioHoja = Number(kmLlegada.dataset.kmInicioHoja);
+            const margenKmHoja = Number(kmLlegada.dataset.margenKmHoja || 300);
+            const kmMaximoHoja = kmInicioHoja + margenKmHoja;
+            if (Number.isFinite(kmInicioHoja) && llegada > kmMaximoHoja) {
+                event.preventDefault();
+                event.stopPropagation();
+                kmLlegada.classList.add('is-invalid');
+                alert(`El KM de llegada (${llegada.toLocaleString('es-CL')} km) supera el margen permitido de ${margenKmHoja} km respecto al KM inicial de la hoja (${kmInicioHoja.toLocaleString('es-CL')} km). Máximo permitido: ${kmMaximoHoja.toLocaleString('es-CL')} km. Corrija el dato antes de guardar el registro.`);
+                kmLlegada.focus();
+                kmLlegada.select();
+                return false;
+            }
         }
         
         if (window.tipoVehiculo !== 'Camioneta') {

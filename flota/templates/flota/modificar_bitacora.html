@@ -31,7 +31,8 @@
             <div class="mb-3">
                 <label for="{{ form.km_fin.id_for_label }}" class="form-label">Kilometraje Fin</label>
                 {{ form.km_fin }}
-                <small class="form-text text-muted">Opcional. Se actualiza al cerrar la hoja.</small>
+                <small class="form-text text-muted">Si ingresa un KM final, debe estar dentro de un margen de 300 km del KM inicial (máximo {{ hoja.km_inicio|add:300 }} km).</small>
+                {% for error in form.km_fin.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
             </div>
         </div>
     </div>

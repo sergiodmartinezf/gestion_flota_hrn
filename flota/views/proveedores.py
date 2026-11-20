@@ -1,6 +1,7 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib import messages
+from django.db.models.functions import Upper
 from ..models import Proveedor
 from ..forms import ProveedorForm
 from .utilidades import es_administrador
@@ -12,9 +13,9 @@ def listar_proveedores(request):
     mostrar_deshabilitados = request.GET.get('mostrar_deshabilitados', 'false') == 'true'
     
     if mostrar_deshabilitados:
-        proveedores = Proveedor.objects.all().order_by('nombre_fantasia')
+        proveedores = Proveedor.objects.all().order_by(Upper('nombre_fantasia'), 'id')
     else:
-        proveedores = Proveedor.objects.filter(activo=True).order_by('nombre_fantasia')
+        proveedores = Proveedor.objects.filter(activo=True).order_by(Upper('nombre_fantasia'), 'id')
     
     return render(request, 'flota/listar_proveedores.html', {
         'proveedores': proveedores,
