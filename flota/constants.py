@@ -7,6 +7,8 @@ CUENTA_PREVENTIVO_CRITICO = '22.06.002.001'
 CUENTA_CORRECTIVO_CRITICO = '22.06.002.002'
 CUENTA_PREVENTIVO_NO_CRITICO = '22.06.002.003'
 CUENTA_CORRECTIVO_NO_CRITICO = '22.06.002.004'
+CUENTA_COMBUSTIBLE = '22.03.001'
+CUENTA_ARRIENDO = '22.09.003'
 
 PREVENTIVE_ACCOUNT_CODES = [CUENTA_PREVENTIVO_CRITICO, CUENTA_PREVENTIVO_NO_CRITICO]
 CORRECTIVE_ACCOUNT_CODES = [CUENTA_CORRECTIVO_CRITICO, CUENTA_CORRECTIVO_NO_CRITICO]
@@ -60,3 +62,4 @@ def ids_cuentas_por_tipo_mantencion(tipo_mantencion):
 def cuenta_valida_para_mantenimiento(cuenta, tipo_mantencion, criticidad_vehiculo):
     codigos = MANTENIMIENTO_CUENTAS_CODIGOS.get((tipo_mantencion, criticidad_vehiculo), [])
     return cuenta.codigo in codigos
+

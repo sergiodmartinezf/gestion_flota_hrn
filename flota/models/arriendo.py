@@ -5,6 +5,7 @@ from django.core.exceptions import ValidationError
 from .vehiculo import Vehiculo
 from .proveedor import Proveedor, CuentaPresupuestaria
 from .orden_compra import OrdenCompra
+from ..constants import CUENTA_ARRIENDO
 
 class Arriendo(models.Model):
     ESTADOS = [
@@ -69,6 +70,8 @@ class Arriendo(models.Model):
             raise ValidationError("El vehículo arrendado no puede ser el mismo que el reemplazado.")
 
     def save(self, *args, **kwargs):
+
+        self.cuenta_presupuestaria = CuentaPresupuestaria.objects.get(codigo=CUENTA_ARRIENDO)
         # Recalcular días y costo para que cambios o eliminación de fecha_fin
         # no dejen valores presupuestarios obsoletos.
         self.dias_arriendo = 0
@@ -91,5 +94,6 @@ class Arriendo(models.Model):
 
     def __str__(self):
         return f"Arriendo {self.vehiculo_arrendado.patente} ({self.proveedor}) - Reemplaza: {self.vehiculo_reemplazado}"
+
 
 

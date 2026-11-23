@@ -4,6 +4,7 @@ from django.contrib import messages
 from django.db.models import Sum
 from ..models import Presupuesto, Mantenimiento, CargaCombustible, Arriendo, OrdenCompra
 from ..forms import PresupuestoForm
+from ..signals import recalcular_monto_ejecutado
 from .utilidades import es_administrador
 
 
@@ -15,6 +16,7 @@ def registrar_presupuesto(request):
         if form.is_valid():
             try:
                 presupuesto = form.save()
+                recalcular_monto_ejecutado(presupuesto)
                 messages.success(request, 'Presupuesto registrado exitosamente.')
                 return redirect('listar_presupuestos')
             except Exception as e:
@@ -38,6 +40,7 @@ def modificar_presupuesto(request, id):
         if form.is_valid():
             try:
                 presupuesto = form.save()
+                recalcular_monto_ejecutado(presupuesto)
                 messages.success(request, 'Presupuesto modificado exitosamente.')
                 return redirect('listar_presupuestos')
             except Exception as e:
@@ -142,7 +145,7 @@ def desglose_presupuesto(request, id):
             'items': [{
                 'fecha': c.fecha,
                 'referencia': f'{c.patente_vehiculo.patente} · Carga #{c.id}',
-                'detalle': f'{c.litros} litros · Boleta {c.nro_boleta or "Sin número"}',
+                'detalle': f'{c.litros} litros · {c.precio_unitario or 0} CLP/litro',
                 'monto': c.costo_total or 0,
             } for c in combustibles],
         },
@@ -176,4 +179,7 @@ def desglose_presupuesto(request, id):
         'total_desglosado': total_desglosado,
         'diferencia': presupuesto.monto_ejecutado - total_desglosado,
     })
+
+
+
 

@@ -114,7 +114,7 @@
             <div class="table-responsive">
                 <table class="table table-hover table-striped">
                     <thead class="table-dark">
-                        <tr><th>Fecha</th><th>Vehículo</th><th>Kilometraje</th><th>Litros</th><th>Costo</th><th>N° Boleta</th></tr>
+                        <tr><th>Fecha</th><th>Vehículo</th><th>Kilometraje</th><th>Litros</th><th>Costo</th></tr>
                     </thead>
                     <tbody>
                         {% for c in cargas %}
@@ -124,7 +124,7 @@
                             <td>{{ c.kilometraje_al_cargar|km }} km</td>
                             <td>{{ c.litros|floatformat:1 }}</td>
                             <td>${{ c.costo_total|clp }}</td>
-                            <td>{{ c.nro_boleta|default:"-" }}</td>
+                            
                         </tr>
                         {% endfor %}
                     </tbody>
@@ -195,3 +195,4 @@
     </div>
 </div>
 {% endblock %}
+

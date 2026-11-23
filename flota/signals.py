@@ -156,4 +156,38 @@ def actualizar_presupuesto_arriendo(sender, instance, **kwargs):
 @receiver(post_delete, sender=Arriendo)
 def liberar_presupuesto_arriendo(sender, instance, **kwargs):
     recalcular_presupuestos_arriendo(instance)
+@receiver(pre_save, sender=CargaCombustible)
+def guardar_presupuesto_anterior_combustible(sender, instance, **kwargs):
+    """Conserva cuenta y año previos para recalcular si una carga se modifica."""
+    instance._presupuesto_anterior = None
+    if instance.pk:
+        previo = CargaCombustible.objects.filter(pk=instance.pk).values_list(
+            'cuenta_presupuestaria_id', 'fecha'
+        ).first()
+        if previo and previo[0] and previo[1]:
+            instance._presupuesto_anterior = (previo[0], previo[1].year)
+
+
+def recalcular_presupuestos_combustible(instance, presupuesto_anterior=None):
+    afectados = set()
+    if presupuesto_anterior:
+        afectados.add(presupuesto_anterior)
+    if instance.cuenta_presupuestaria_id and instance.fecha:
+        afectados.add((instance.cuenta_presupuestaria_id, instance.fecha.year))
+    for cuenta_id, anio in afectados:
+        for presupuesto in Presupuesto.objects.filter(cuenta_id=cuenta_id, anio=anio):
+            recalcular_monto_ejecutado(presupuesto)
+
+
+@receiver(post_save, sender=CargaCombustible)
+def actualizar_presupuesto_combustible(sender, instance, **kwargs):
+    recalcular_presupuestos_combustible(
+        instance,
+        getattr(instance, '_presupuesto_anterior', None),
+    )
+
+
+@receiver(post_delete, sender=CargaCombustible)
+def liberar_presupuesto_combustible(sender, instance, **kwargs):
+    recalcular_presupuestos_combustible(instance)
 

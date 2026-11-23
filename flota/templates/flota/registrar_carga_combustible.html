@@ -1,5 +1,6 @@
 {% extends 'base.html' %}
 {% load static %}
+{% load l10n %}
 
 {% block title %}Registrar Carga de Combustible - Gestión de Flota{% endblock %}
 
@@ -47,7 +48,7 @@
                 <option value="">Seleccione un vehículo</option>
                 {% for vehiculo in form.patente_vehiculo.field.queryset %}
                     <option value="{{ vehiculo.pk }}" 
-                            data-km-actual="{{ vehiculo.kilometraje_actual }}"
+                            data-km-actual="{{ vehiculo.kilometraje_actual|unlocalize }}"
                             data-marca="{{ vehiculo.marca }}"
                             data-modelo="{{ vehiculo.modelo }}"
                             {% if form.patente_vehiculo.value == vehiculo.pk|stringformat:"s" %}selected{% endif %}>
@@ -60,7 +61,7 @@
             </div>
             
             <div id="info-vehiculo" class="info-vehiculo" style="display: none;">
-                <strong>KM Actual:</strong> <span id="km-actual-vehiculo">0</span> km
+                <strong>Último KM registrado:</strong> <span id="km-actual-vehiculo">0</span> km
             </div>
         </div>
     </div>
@@ -75,12 +76,12 @@
         <div class="mb-3">
             <label for="id_kilometraje_al_cargar" class="form-label">Kilometraje al cargar *</label>
             <input type="number" name="kilometraje_al_cargar" id="id_kilometraje_al_cargar" 
-                   class="form-control" min="0" step="1" required
+                   class="form-control" min="0" max="9999999" step="1" required
                    value="{% if form.kilometraje_al_cargar.value %}{{ form.kilometraje_al_cargar.value }}{% endif %}">
             <div class="error-container">
                 <div class="error-mensaje" id="error-kilometraje_al_cargar">Debe ingresar el kilometraje</div>
             </div>
-            <small class="text-muted">Kilometraje del vehículo en el momento de la carga</small>
+            <small class="text-muted">Se aceptan kilometrajes anteriores; si supera el último KM, el máximo es 400 km adicionales.</small>
         </div>
         
         <div class="mb-3">
@@ -95,10 +96,10 @@
         </div>
     </div>
 
-    <!-- Paso 3: Costo y Documentación -->
+    <!-- Paso 3: Monto de la carga -->
     <div class="combustible-paso" id="combustible-paso-3">
         <div class="combustible-paso-header">
-            <div class="combustible-paso-titulo"><i class="bi bi-cash-coin"></i> Costo y Documentación</div>
+            <div class="combustible-paso-titulo"><i class="bi bi-cash-coin"></i> Monto de la carga</div>
             <div class="combustible-paso-indicador">Paso 3</div>
         </div>
         
@@ -107,21 +108,15 @@
             <div class="input-group">
                 <span class="input-group-text">$</span>
                 <input type="number" name="costo_total" id="id_costo_total" 
-                       class="form-control" min="0" step="1" required
+                       class="form-control" min="1" max="200000" step="1" required
                        value="{% if form.costo_total.value %}{{ form.costo_total.value }}{% endif %}">
             </div>
             <div class="error-container">
                 <div class="error-mensaje" id="error-costo_total">Debe ingresar el monto total</div>
             </div>
-            <small class="text-muted">Costo total de la carga (sin puntos, ej: 45000)</small>
+            <small class="text-muted">Costo total de la carga (máximo $200.000; sin puntos)</small>
         </div>
         
-        <div class="mb-3">
-            <label for="id_nro_boleta" class="form-label">Número de boleta (opcional)</label>
-            <input type="text" name="nro_boleta" id="id_nro_boleta" class="form-control"
-                   value="{% if form.nro_boleta.value %}{{ form.nro_boleta.value }}{% endif %}">
-            <small class="text-muted">Número de la boleta o factura</small>
-        </div>
         
     </div>
 
@@ -186,7 +181,6 @@
         <input type="number" name="kilometraje_al_cargar" id="combustible_hidden_kilometraje_al_cargar">
         <input type="number" name="litros" id="combustible_hidden_litros">
         <input type="number" name="costo_total" id="combustible_hidden_costo_total">
-        <input type="text" name="nro_boleta" id="combustible_hidden_nro_boleta">
 
         {% if form.conductor %}
         <input type="hidden" name="conductor" id="combustible_hidden_conductor" value="{{ request.user.pk }}">
@@ -196,6 +190,11 @@
 {% endblock %}
 
 {% block extra_js %}
-<script src="{% static 'js/registrar_carga_combustible.js' %}"></script>
+<script src="{% static 'js/registrar_carga_combustible.js' %}?v=4"></script>
 {% endblock %}
+
+
+
+
+
 

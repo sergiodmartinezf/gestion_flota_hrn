@@ -552,7 +552,7 @@ function configurarValidacionFormulario() {
             }
 
             const kmInicioHoja = Number(kmLlegada.dataset.kmInicioHoja);
-            const margenKmHoja = Number(kmLlegada.dataset.margenKmHoja || 300);
+            const margenKmHoja = Number(kmLlegada.dataset.margenKmHoja || 400);
             const kmMaximoHoja = kmInicioHoja + margenKmHoja;
             if (Number.isFinite(kmInicioHoja) && llegada > kmMaximoHoja) {
                 event.preventDefault();
@@ -660,4 +660,5 @@ function configurarValidacionFormulario() {
         return true;
     });
 }
+
 

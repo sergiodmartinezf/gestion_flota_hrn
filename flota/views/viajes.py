@@ -5,6 +5,7 @@ from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib import messages
 from django.db.models import Sum
 from django.http import HttpResponse
+from django.urls import reverse
 from django.utils import timezone
 from openpyxl import Workbook
 from openpyxl.styles import Font
@@ -22,7 +23,7 @@ from ..validators import normalizar_rut
 from datetime import datetime, timedelta
 import json
 
-MARGEN_KM_CIERRE_HOJA = 300
+MARGEN_KM_CIERRE_HOJA = 400
 
 
 TIPOS_SERVICIO = [
@@ -712,6 +713,60 @@ def registrar_carga_combustible(request):
     return render(request, 'flota/registrar_carga_combustible.html', {'form': form})
 
 
+
+def _redirigir_listado_combustible(request):
+    url = reverse('listar_cargas_combustible')
+    query = request.GET.urlencode()
+    return redirect(f'{url}?{query}' if query else url)
+
+
+@login_required
+@user_passes_test(es_conductor_o_admin)
+def editar_carga_combustible(request, id):
+    carga = get_object_or_404(CargaCombustible, id=id)
+    if request.user.rol == 'Conductor' and carga.conductor_id != request.user.pk:
+        messages.error(request, 'Solo puedes editar tus propias cargas de combustible.')
+        return _redirigir_listado_combustible(request)
+
+    if request.method == 'POST':
+        form = CargaCombustibleForm(request.POST, instance=carga, edicion=True)
+        if form.is_valid():
+            carga = form.save()
+            vehiculo = carga.patente_vehiculo
+            if carga.kilometraje_al_cargar > vehiculo.kilometraje_actual:
+                vehiculo.kilometraje_actual = carga.kilometraje_al_cargar
+                vehiculo.save()
+            messages.success(request, 'Carga de combustible actualizada correctamente.')
+            return _redirigir_listado_combustible(request)
+    else:
+        form = CargaCombustibleForm(instance=carga, edicion=True)
+
+    ultima_carga_vehiculo = (
+        CargaCombustible.objects
+        .filter(patente_vehiculo_id=carga.patente_vehiculo_id)
+        .order_by('-fecha', '-id')
+        .first()
+    )
+
+    return render(request, 'flota/editar_carga_combustible.html', {
+        'form': form,
+        'carga': carga,
+        'ultima_carga_vehiculo': ultima_carga_vehiculo,
+    })
+
+
+@login_required
+@user_passes_test(es_administrador)
+def eliminar_carga_combustible(request, id):
+    carga = get_object_or_404(CargaCombustible.objects.select_related('patente_vehiculo'), id=id)
+    if request.method == 'POST':
+        patente = carga.patente_vehiculo.patente
+        carga.delete()
+        messages.success(request, f'Carga de combustible de {patente} eliminada.')
+        return _redirigir_listado_combustible(request)
+
+    return render(request, 'flota/eliminar_carga_combustible.html', {'carga': carga})
+
 @login_required
 def listar_cargas_combustible(request):
     # Filtro base según rol de usuario
@@ -1047,4 +1102,9 @@ def exportar_consolidado_viajes(request):
     wb.save(response)
     return response
     
+
+
+
+
+
 

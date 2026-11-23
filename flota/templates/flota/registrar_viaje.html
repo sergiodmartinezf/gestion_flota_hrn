@@ -83,7 +83,7 @@
                             <div class="col-md-6">
                                 <label>KM Llegada</label>
                                 {{ form.km_llegada }}
-                                <small class="text-muted">Margen máximo: 300 km sobre el KM inicial de la hoja (hasta {{ hoja.km_inicio|add:300 }} km).</small>
+                                <small class="text-muted">Margen máximo: 400 km sobre el KM inicial de la hoja (hasta {{ hoja.km_inicio|add:400 }} km).</small>
                             </div>
 
                             <div class="col-12">
@@ -425,3 +425,4 @@
 <script src="{% static 'js/formateador_rut.js' %}"></script>
 <script src="{% static 'js/registrar_viaje.js' %}"></script>
 {% endblock %}
+

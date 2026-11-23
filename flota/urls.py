@@ -40,6 +40,8 @@ urlpatterns = [
     path('bitacoras/eliminar/<int:id>/', views.eliminar_bitacora, name='eliminar_bitacora'),
     path('bitacoras/detalle/<int:id>/', views.detalle_bitacora, name='detalle_bitacora'),
     path('combustible/registrar/', views.registrar_carga_combustible, name='registrar_carga_combustible'),
+    path('combustible/editar/<int:id>/', views.editar_carga_combustible, name='editar_carga_combustible'),
+    path('combustible/eliminar/<int:id>/', views.eliminar_carga_combustible, name='eliminar_carga_combustible'),
     path('combustible/listar/', views.listar_cargas_combustible, name='listar_cargas_combustible'),
     path('incidentes/registrar/', views.registrar_incidente, name='registrar_incidente'),
     path('incidentes/listar/', views.listar_incidentes, name='listar_incidentes'),
@@ -128,4 +130,5 @@ urlpatterns = [
     path('api/verificar-presupuesto/', views.api_verificar_presupuesto, name='api_verificar_presupuesto'),
     path('api/mantenimientos/', views.api_mantenimientos, name='api_mantenimientos'),
 ]
+
 

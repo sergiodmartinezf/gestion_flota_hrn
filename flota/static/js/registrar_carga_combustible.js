@@ -74,7 +74,9 @@ class FormularioCombustiblePasos {
         if (select && select.selectedIndex >= 0) {
             const option = select.options[select.selectedIndex];
             const km = option.getAttribute('data-km-actual');
-            return km ? parseInt(km) : 0;
+            // El atributo puede llegar localizado (ej. "408.099"); quitar separadores evita parseInt("408.099") === 408.
+            const kilometraje = km ? Number(String(km).replace(/\D/g, '')) : 0;
+            return Number.isFinite(kilometraje) ? kilometraje : 0;
         }
         return 0;
     }
@@ -105,10 +107,10 @@ class FormularioCombustiblePasos {
             case 2:
                 const kilometraje = document.getElementById('id_kilometraje_al_cargar').value;
                 const kmActual = this.obtenerKmActualVehiculo();
-                // Validación genérica (>=0) pero además >= kmActual
+                // Se admiten lecturas históricas inferiores; solo se limita el exceso sobre el KM actual.
                 let kmErrores = this.validarEnteroPositivo(kilometraje, 'kilometraje', 0, 9999999, true);
-                if (kilometraje && parseInt(kilometraje) < kmActual) {
-                    kmErrores.push(`El kilometraje al cargar (${kilometraje}) no puede ser menor al kilometraje actual del vehículo (${kmActual})`);
+                if (kilometraje && parseInt(kilometraje) > kmActual + 400) {
+                    kmErrores.push(`El kilometraje no puede superar en más de 400 km al último registrado (${kmActual} km)`);
                 }
                 if (kmErrores.length > 0) {
                     kmErrores.forEach(error => this.mostrarError('kilometraje_al_cargar', error));
@@ -125,7 +127,7 @@ class FormularioCombustiblePasos {
                 
             case 3:
                 const costo = document.getElementById('id_costo_total').value;
-                const costoErrores = this.validarNumeroDecimal(costo, 'costo total', 1, 9999999, true);
+                const costoErrores = this.validarNumeroDecimal(costo, 'costo total', 1, 200000, true);
                 if (costoErrores.length > 0) {
                     costoErrores.forEach(error => this.mostrarError('costo_total', error));
                     esValido = false;
@@ -207,6 +209,11 @@ class FormularioCombustiblePasos {
         const infoVehiculoDiv = document.getElementById('info-vehiculo');
         const kmActualSpan = document.getElementById('km-actual-vehiculo');
         const kilometrajeInput = document.getElementById('id_kilometraje_al_cargar');
+
+        if (kilometrajeInput) {
+            // El valor puede ser menor al odómetro actual cuando se ingresan cargas antiguas.
+            kilometrajeInput.min = 0;
+        }
         
         if (vehiculoSelect) {
             vehiculoSelect.addEventListener('change', function() {
@@ -214,7 +221,7 @@ class FormularioCombustiblePasos {
                 const kmActual = selectedOption.getAttribute('data-km-actual') || '0';
                 
                 if (infoVehiculoDiv && kmActualSpan) {
-                    kmActualSpan.textContent = kmActual;
+                    kmActualSpan.textContent = Number(kmActual.replace(/\D/g, '') || 0).toLocaleString('es-CL');
                     infoVehiculoDiv.style.display = 'block';
                 }
                 
@@ -223,7 +230,8 @@ class FormularioCombustiblePasos {
                 }
                 
                 if (kilometrajeInput) {
-                    kilometrajeInput.min = kmActual;
+                    kilometrajeInput.min = 0;
+                    kilometrajeInput.max = Number(kmActual.replace(/\D/g, '') || 0) + 400;
                 }
             });
             
@@ -281,6 +289,10 @@ class FormularioCombustiblePasos {
             case 2:
                 const kilometraje = document.getElementById('id_kilometraje_al_cargar').value;
                 const kmErrores = this.validarEnteroPositivo(kilometraje, 'kilometraje', 0, 9999999, true);
+                const kmActual = this.obtenerKmActualVehiculo();
+                if (kilometraje && parseInt(kilometraje) > kmActual + 400) {
+                    kmErrores.push(`El kilometraje no puede superar en más de 400 km al último registrado (${kmActual} km)`);
+                }
                 if (kmErrores.length > 0) {
                     kmErrores.forEach(error => this.mostrarError('kilometraje_al_cargar', error));
                     esValido = false;
@@ -296,7 +308,7 @@ class FormularioCombustiblePasos {
                 
             case 3:
                 const costo = document.getElementById('id_costo_total').value;
-                const costoErrores = this.validarNumeroDecimal(costo, 'costo total', 1, 9999999, true);
+                const costoErrores = this.validarNumeroDecimal(costo, 'costo total', 1, 200000, true);
                 if (costoErrores.length > 0) {
                     costoErrores.forEach(error => this.mostrarError('costo_total', error));
                     esValido = false;
@@ -478,7 +490,6 @@ class FormularioCombustiblePasos {
         const kilometraje = this.datos.kilometraje_al_cargar || '0';
         const litros = this.datos.litros || '0';
         const costo = this.datos.costo_total || '0';
-        const nroBoleta = this.datos.nro_boleta || 'No especificado';
         
         let vehiculoNombre = 'No seleccionado';
         const vehiculoSelect = document.getElementById('id_patente_vehiculo');
@@ -528,10 +539,7 @@ class FormularioCombustiblePasos {
                     <th>Precio por litro:</th>
                     <td>${precioLitroFormateado}/L</td>
                 </tr>
-                <tr>
-                    <th>N° Boleta:</th>
-                    <td>${nroBoleta}</td>
-                </tr>
+    
             </table>
         `;
         
@@ -574,10 +582,10 @@ class FormularioCombustiblePasos {
         ));
         
         errores.push(...this.validarNumeroDecimal(
-            document.getElementById('id_costo_total')?.value, 
-            'costo total', 
-            1, 
-            9999999, 
+            document.getElementById('id_costo_total')?.value,
+            'costo total',
+            1,
+            200000,
             true
         ));
         
@@ -678,11 +686,11 @@ document.addEventListener('DOMContentLoaded', function() {
             ));
             
             errores.push(...formulario.validarNumeroDecimal(
-                document.getElementById('id_costo_total')?.value, 
-                'costo total', 
-                1, 
-                9999999, 
-                true
+                document.getElementById('id_costo_total')?.value,
+            'costo total',
+            1,
+            200000,
+            true
             ));
             
             if (errores.length > 0) {
@@ -692,4 +700,9 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 });
+
+
+
+
+
 
