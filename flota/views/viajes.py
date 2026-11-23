@@ -597,7 +597,11 @@ def modificar_bitacora(request, id):
         if form.is_valid():
             form.save()
             messages.success(request, f'Hoja de ruta {hoja.id} actualizada exitosamente.')
-            return redirect('detalle_bitacora', id=hoja.id)
+            detalle_url = redirect('detalle_bitacora', id=hoja.id).url
+            filtros = request.GET.urlencode()
+            if filtros:
+                detalle_url = f'{detalle_url}?{filtros}'
+            return redirect(detalle_url)
     else:
         form = HojaRutaForm(instance=hoja)
     
@@ -1043,3 +1047,4 @@ def exportar_consolidado_viajes(request):
     wb.save(response)
     return response
     
+
