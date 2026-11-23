@@ -155,14 +155,14 @@
             <div class="modal-body">
                 <p class="alert alert-info py-1">
                     <i class="bi bi-info-circle"></i> 
-                    La línea roja marca el límite de 10.000 km. Barras verdes < 8000 km, amarillas 8000-11999 km, rojas ≥ 12000 km.
+                    La línea roja marca el límite de 10.000 km. Barras verdes < 8000 km, amarillas 8000-11999 km, rojas ≥ 12000 km (revisar mantención).
                 </p>
                 <div style="height: 400px;">
                     <canvas id="chartKmBarras"></canvas>
                 </div>
             </div>
             <div class="modal-footer bg-light">
-                <small class="text-muted">Regla: Mantención cada 10.000 km. Al llegar a 12.000 km el vehículo se bloquea para operación.</small>
+                <small class="text-muted">Regla: Mantención cada 10.000 km. Sobre 12.000 km se muestra una alerta de mantención; el bloqueo automático está desactivado temporalmente.</small>
             </div>
         </div>
     </div>
@@ -267,3 +267,4 @@
 </script>
 <script src="{% static 'js/panel_control.js' %}?v={% now 'U' %}"></script>
 {% endblock %}
+

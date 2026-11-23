@@ -661,14 +661,6 @@ document.addEventListener('DOMContentLoaded', function() {
                                 borderWidth: 2,
                                 borderDash: [6, 6]
                             },
-                            line10000: {
-                                type: 'line',
-                                yMin: 10000,
-                                yMax: 10000,
-                                borderColor: 'red',
-                                borderWidth: 2,
-                                borderDash: [6, 6]
-                            },
                             line12000: {
                                 type: 'line',
                                 yMin: 12000,
@@ -685,7 +677,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                 const item = kmData[context.dataIndex];
                                 let msg = `Recorrido: ${item.recorrido} km (último mant: ${item.km_ultimo} km)`;
                                 if (item.recorrido >= 12000) {
-                                    msg += ' - BLOQUEADO';
+                                    msg += ' - Revisar mantención';
                                 } else if (item.recorrido >= 8000) {
                                     msg += ' - Próximo a mantenimiento';
                                 }
@@ -700,7 +692,7 @@ document.addEventListener('DOMContentLoaded', function() {
                             const item = kmData[context.dataIndex];
                             let msg = `${item.recorrido} km`;
                             if (item.recorrido >= 12000) {
-                                msg += ' - BLOQUEADO';
+                                msg += ' - Revisar mantención';
                             } else if (item.recorrido >= 8000) {
                                 msg += ' - Próximo a mantenimiento';
                             }
@@ -722,3 +714,4 @@ document.addEventListener('DOMContentLoaded', function() {
         console.warn('No hay datos para el gráfico de kilómetros');
     }
 });
+

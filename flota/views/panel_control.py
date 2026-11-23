@@ -165,7 +165,7 @@ def panel_control(request):
             clase = "bg-warning text-dark"
             color = "#ffc107"
         else:
-            estado = "Excedido (Bloqueado)"
+            estado = "Excedido (Revisar mantención)"
             clase = "bg-danger"
             color = "#dc3545"
 
@@ -363,3 +363,4 @@ def panel_control(request):
 
     logger.info(f"Contexto generado con {len(gasto_por_vehiculo_detalle)} vehículos con gasto.")
     return render(request, 'flota/panel_control.html', context)
+
