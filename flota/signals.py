@@ -72,7 +72,8 @@ def recalcular_monto_ejecutado(presupuesto):
     total += Arriendo.objects.filter(
         cuenta_presupuestaria=cuenta,
         fecha_inicio__year=anio,
-        estado='Activo'
+        estado='Activo',
+        activo=True
     ).aggregate(total=Sum('costo_total'))['total'] or Decimal(0)
     
     # 4. Órdenes de compra no anuladas (que no estén ya en mantenimientos)
@@ -119,5 +120,40 @@ def actualizar_presupuesto_orden_compra(sender, instance, **kwargs):
     
     for p in presupuestos:
         recalcular_monto_ejecutado(p)
+@receiver(pre_save, sender=Arriendo)
+def guardar_presupuesto_anterior_arriendo(sender, instance, **kwargs):
+    """Conserva la cuenta y año previos para recalcular si cambian."""
+    instance._presupuesto_anterior = None
+    if instance.pk:
+        previo = Arriendo.objects.filter(pk=instance.pk).values_list(
+            'cuenta_presupuestaria_id', 'fecha_inicio'
+        ).first()
+        if previo and previo[0] and previo[1]:
+            instance._presupuesto_anterior = (previo[0], previo[1].year)
 
-    
+
+def recalcular_presupuestos_arriendo(instance, presupuesto_anterior=None):
+    """Actualiza la ejecución de las cuentas/años afectados por un arriendo."""
+    afectados = set()
+    if presupuesto_anterior:
+        afectados.add(presupuesto_anterior)
+    if instance.cuenta_presupuestaria_id and instance.fecha_inicio:
+        afectados.add((instance.cuenta_presupuestaria_id, instance.fecha_inicio.year))
+
+    for cuenta_id, anio in afectados:
+        for presupuesto in Presupuesto.objects.filter(cuenta_id=cuenta_id, anio=anio):
+            recalcular_monto_ejecutado(presupuesto)
+
+
+@receiver(post_save, sender=Arriendo)
+def actualizar_presupuesto_arriendo(sender, instance, **kwargs):
+    recalcular_presupuestos_arriendo(
+        instance,
+        getattr(instance, '_presupuesto_anterior', None),
+    )
+
+
+@receiver(post_delete, sender=Arriendo)
+def liberar_presupuesto_arriendo(sender, instance, **kwargs):
+    recalcular_presupuestos_arriendo(instance)
+

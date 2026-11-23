@@ -1,0 +1,74 @@
+{% extends 'base.html' %}
+{% load moneda_clp %}
+{% load l10n %}
+
+{% block title %}Desglose del Presupuesto - Gestión de Flota{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2><i class="bi bi-list-ul"></i> Desglose del monto ejecutado</h2>
+            <p class="text-muted mb-0">
+                {{ presupuesto.anio|unlocalize }} · Cuenta {{ presupuesto.cuenta.codigo }} — {{ presupuesto.cuenta.nombre }}
+            </p>
+        </div>
+        <a href="{% url 'listar_presupuestos' %}?{{ request.GET.urlencode }}" class="btn btn-secondary">
+            <i class="bi bi-arrow-left"></i> Volver a Presupuestos
+        </a>
+    </div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-md-4">
+            <div class="card h-100"><div class="card-body">
+                <div class="text-muted">Ejecutado guardado</div>
+                <strong class="fs-4">${{ presupuesto.monto_ejecutado|clp }}</strong>
+            </div></div>
+        </div>
+        <div class="col-md-4">
+            <div class="card h-100"><div class="card-body">
+                <div class="text-muted">Suma de registros del desglose</div>
+                <strong class="fs-4">${{ total_desglosado|clp }}</strong>
+            </div></div>
+        </div>
+        <div class="col-md-4">
+            <div class="card h-100"><div class="card-body">
+                <div class="text-muted">Diferencia (guardado menos detalle)</div>
+                <strong class="fs-4">${{ diferencia|clp }}</strong>
+            </div></div>
+        </div>
+    </div>
+
+    <div class="alert alert-info">
+        El detalle aplica la regla actual del sistema: mantenciones finalizadas, combustible del año, arriendos activos habilitados y órdenes de compra no anuladas. Las órdenes vinculadas a mantenciones finalizadas no se vuelven a sumar.
+    </div>
+
+    {% for seccion in secciones %}
+    <div class="card mb-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <strong>{{ seccion.titulo }}</strong>
+            <span class="badge bg-primary">Subtotal: ${{ seccion.total|clp }}</span>
+        </div>
+        {% if seccion.items %}
+        <div class="table-responsive">
+            <table class="table table-sm table-striped mb-0">
+                <thead><tr><th>Fecha</th><th>Registro</th><th>Detalle</th><th class="text-end">Monto</th></tr></thead>
+                <tbody>
+                    {% for item in seccion.items %}
+                    <tr>
+                        <td>{{ item.fecha|date:"d/m/Y" }}</td>
+                        <td>{{ item.referencia }}</td>
+                        <td>{{ item.detalle }}</td>
+                        <td class="text-end">${{ item.monto|clp }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="card-body text-muted">No hay registros de esta categoría para esta cuenta y año.</div>
+        {% endif %}
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}
