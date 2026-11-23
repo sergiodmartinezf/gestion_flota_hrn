@@ -1,0 +1,55 @@
+{% extends 'base.html' %}
+{% load km_miles %}
+{% load moneda_clp %}
+
+{% block title %}Editar Carga de Combustible{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <h2 class="mb-4"><i class="bi bi-pencil"></i> Editar Carga de Combustible #{{ carga.id }}</h2>
+    <div class="alert alert-info">
+        Último registro del vehículo: <strong>{{ ultima_carga_vehiculo.fecha|date:"d/m/Y"|default:"Sin registros" }}</strong>
+        {% if ultima_carga_vehiculo %}({{ ultima_carga_vehiculo.kilometraje_al_cargar|km }} km){% endif %}.
+    </div>
+    <form method="post" class="card card-body">
+        {% csrf_token %}
+        {{ form.conductor }}
+        {{ form.cuenta_presupuestaria }}
+        {% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors }}</div>{% endif %}
+        <div class="row">
+            <div class="col-md-6 mb-3">
+                <label for="{{ form.fecha.id_for_label }}" class="form-label">Fecha *</label>
+                <input type="date" name="{{ form.fecha.html_name }}" id="{{ form.fecha.id_for_label }}" class="form-control"
+                       value="{% if form.is_bound %}{{ form.fecha.value|default:'' }}{% else %}{{ carga.fecha|date:'Y-m-d' }}{% endif %}" required>
+                {{ form.fecha.errors }}
+            </div>
+            <div class="col-md-6 mb-3">
+                <label for="{{ form.patente_vehiculo.id_for_label }}" class="form-label">Vehículo *</label>
+                {{ form.patente_vehiculo }}{{ form.patente_vehiculo.errors }}
+            </div>
+            <div class="col-md-6 mb-3">
+                <label for="{{ form.kilometraje_al_cargar.id_for_label }}" class="form-label">Kilometraje *</label>
+                {{ form.kilometraje_al_cargar }}{{ form.kilometraje_al_cargar.errors }}
+                <small class="text-muted">No puede superar 9.999.999 km.</small>
+            </div>
+            <div class="col-md-6 mb-3">
+                <label for="{{ form.litros.id_for_label }}" class="form-label">Litros *</label>
+                {{ form.litros }}{{ form.litros.errors }}
+            </div>
+            <div class="col-md-6 mb-3">
+                <label for="{{ form.precio_unitario.id_for_label }}" class="form-label">Precio por litro</label>
+                {{ form.precio_unitario }}{{ form.precio_unitario.errors }}
+            </div>
+            <div class="col-md-6 mb-3">
+                <label for="{{ form.costo_total.id_for_label }}" class="form-label">Monto total *</label>
+                {{ form.costo_total }}{{ form.costo_total.errors }}
+                <small class="text-muted">Máximo $200.000.</small>
+            </div>
+        </div>
+        <div class="d-flex gap-2">
+            <button type="submit" class="btn btn-primary"><i class="bi bi-check-circle"></i> Guardar cambios</button>
+            <a href="{% url 'listar_cargas_combustible' %}?{{ request.GET.urlencode }}" class="btn btn-secondary">Cancelar</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

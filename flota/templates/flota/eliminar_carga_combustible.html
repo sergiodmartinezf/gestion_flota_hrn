@@ -1,0 +1,31 @@
+{% extends 'base.html' %}
+{% load km_miles %}
+{% load moneda_clp %}
+
+{% block title %}Eliminar Carga de Combustible{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <div class="card border-danger shadow">
+            <div class="card-header bg-danger text-white"><h4 class="mb-0">Confirmar eliminación</h4></div>
+            <div class="card-body">
+                <p>¿Eliminar esta carga de combustible?</p>
+                <div class="alert alert-light border">
+                    <p><strong>Fecha:</strong> {{ carga.fecha|date:"d/m/Y" }}</p>
+                    <p><strong>Vehículo:</strong> {{ carga.patente_vehiculo.patente }}</p>
+                    <p><strong>Kilometraje:</strong> {{ carga.kilometraje_al_cargar|km }} km</p>
+                    <p><strong>Monto:</strong> ${{ carga.costo_total|clp }}</p>
+                </div>
+                <form method="post">
+                    {% csrf_token %}
+                    <div class="d-flex justify-content-end gap-2">
+                        <a href="{% url 'listar_cargas_combustible' %}?{{ request.GET.urlencode }}" class="btn btn-secondary">Cancelar</a>
+                        <button type="submit" class="btn btn-danger">Sí, eliminar</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

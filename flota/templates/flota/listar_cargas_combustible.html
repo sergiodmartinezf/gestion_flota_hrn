@@ -78,7 +78,7 @@
                             <th>Kilometraje</th>
                             <th>Litros</th>
                             <th>Costo</th>
-                            <th>N° Boleta</th>
+                            <th>Acciones</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -92,7 +92,14 @@
                             <td>{{ carga.kilometraje_al_cargar|km }} km</td>
                             <td>{{ carga.litros|floatformat:1 }}</td>
                             <td>${{ carga.costo_total|clp }}</td>
-                            <td>{{ carga.nro_boleta|default:"-" }}</td>
+                            <td class="text-nowrap">
+                                {% if user.rol == 'Administrador' %}
+                                <a href="{% url 'editar_carga_combustible' carga.id %}?{{ request.GET.urlencode }}" class="btn btn-sm btn-warning" title="Editar"><i class="bi bi-pencil"></i></a>
+                                <a href="{% url 'eliminar_carga_combustible' carga.id %}?{{ request.GET.urlencode }}" class="btn btn-sm btn-danger" title="Eliminar"><i class="bi bi-trash"></i></a>
+                                {% elif user.rol == 'Conductor' and carga.conductor_id == user.id %}
+                                <a href="{% url 'editar_carga_combustible' carga.id %}?{{ request.GET.urlencode }}" class="btn btn-sm btn-warning" title="Editar"><i class="bi bi-pencil"></i></a>
+                                {% else %}-{% endif %}
+                            </td>
                         </tr>
                         {% endfor %}
                     </tbody>
@@ -107,4 +114,6 @@
     </div>
 </div>
 {% endblock %}
+
+
 

@@ -4,13 +4,14 @@ from django.forms import formset_factory, inlineformset_factory
 from datetime import datetime
 from django.utils import timezone
 from django.core.exceptions import ValidationError
+from django.db.models import Q
 from ..models import (
     Usuario, Vehiculo, Proveedor, OrdenCompra, OrdenTrabajo,
     Presupuesto, Arriendo, HojaRuta, Viaje, TripulacionViaje, PacienteTraslado,
     CargaCombustible, Mantenimiento, FallaReportada, CuentaPresupuestaria,
     TIPOS_SERVICIO, ROL_TRIPULACION,
 )
-from ..constants import cuenta_valida_para_mantenimiento
+from ..constants import cuenta_valida_para_mantenimiento, CUENTA_COMBUSTIBLE
 from ..services.presupuesto import validar_presupuesto_disponible
 from ..validators import validar_rut_chileno, normalizar_rut
 
@@ -69,11 +70,11 @@ class HojaRutaForm(forms.ModelForm):
                     'km_fin',
                     f'El KM final ({km_fin}) no puede ser menor al KM inicial ({km_inicio}).'
                 )
-            km_maximo = km_inicio + 300
+            km_maximo = km_inicio + 400
             if km_fin > km_maximo:
                 self.add_error(
                     'km_fin',
-                    f'El kilometraje final supera el margen permitido de 300 km. '
+                    f'El kilometraje final supera el margen permitido de 400 km. '
                     f'Con un KM inicial de {km_inicio}, el máximo es {km_maximo} km.'
                 )
 
@@ -97,7 +98,7 @@ class ViajeForm(forms.ModelForm):
         if self.hoja_ruta:
             self.fields['km_llegada'].widget.attrs.update({
                 'data-km-inicio-hoja': self.hoja_ruta.km_inicio,
-                'data-margen-km-hoja': 300,
+                'data-margen-km-hoja': 400,
             })
         for name in ('hora_salida_hbo', 'hora_llegada_hbo', 'no_aplica_enfermero', 'no_aplica_camillero'):
             self.fields[name].required = False
@@ -165,11 +166,11 @@ class ViajeForm(forms.ModelForm):
                 self.add_error('km_llegada', 'El KM de llegada no puede ser menor que el KM de salida.')
 
         if km_llegada is not None and self.hoja_ruta:
-            km_maximo = self.hoja_ruta.km_inicio + 300
+            km_maximo = self.hoja_ruta.km_inicio + 400
             if km_llegada > km_maximo:
                 self.add_error(
                     'km_llegada',
-                    f'El KM de llegada ({km_llegada}) supera el margen de 300 km respecto '
+                    f'El KM de llegada ({km_llegada}) supera el margen de 400 km respecto '
                     f'al KM inicial de la hoja ({self.hoja_ruta.km_inicio}). Máximo permitido: {km_maximo} km.'
                 )
 
@@ -348,30 +349,69 @@ class CargaCombustibleForm(forms.ModelForm):
         model = CargaCombustible
         fields = [
             'fecha', 'patente_vehiculo', 'kilometraje_al_cargar',
-            'litros', 'precio_unitario', 'costo_total', 'nro_boleta',
+            'litros', 'precio_unitario', 'costo_total',
             'conductor', 'cuenta_presupuestaria'
         ]
         widgets = {
             'fecha': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
             'patente_vehiculo': forms.Select(attrs={'class': 'form-control'}),
-            'kilometraje_al_cargar': forms.NumberInput(attrs={'class': 'form-control'}),
+            'kilometraje_al_cargar': forms.NumberInput(attrs={'class': 'form-control', 'min': '0', 'max': '9999999', 'step': '1'}),
             'litros': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
             'precio_unitario': forms.NumberInput(attrs={'class': 'form-control', 'step': '1', 'min': '0'}),
-            'costo_total': forms.NumberInput(attrs={'class': 'form-control', 'step': '1', 'min': '1'}),
-            'nro_boleta': forms.TextInput(attrs={'class': 'form-control'}),
+            'costo_total': forms.NumberInput(attrs={'class': 'form-control', 'step': '1', 'min': '1', 'max': '200000'}),
             'conductor': forms.Select(attrs={'class': 'form-control'}),
             'cuenta_presupuestaria': forms.Select(attrs={'class': 'form-control'}),
         }
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, edicion=False, **kwargs):
         super().__init__(*args, **kwargs)
         if self.instance.pk and self.instance.fecha:
             self.fields['fecha'].widget.attrs['value'] = self.instance.fecha.strftime('%Y-%m-%d')
 
-        self.fields['patente_vehiculo'].queryset = Vehiculo.objetos_operativos().order_by('patente')
+        vehiculos_operativos = Vehiculo.objetos_operativos().values('pk')
+        vehiculos = Vehiculo.objects.filter(pk__in=vehiculos_operativos)
+        if self.instance.pk:
+            vehiculos = Vehiculo.objects.filter(
+                Q(pk__in=vehiculos_operativos) | Q(pk=self.instance.patente_vehiculo_id)
+            )
+        self.fields['patente_vehiculo'].queryset = vehiculos.order_by('patente')
+        cuenta_combustible = CuentaPresupuestaria.objects.filter(codigo=CUENTA_COMBUSTIBLE)
+        self.fields['cuenta_presupuestaria'].queryset = cuenta_combustible
+        self.fields['cuenta_presupuestaria'].required = True
+        self.fields['cuenta_presupuestaria'].initial = cuenta_combustible.first()
+        if edicion:
+            self.fields['conductor'].disabled = True
+            self.fields['conductor'].widget = forms.HiddenInput()
+            self.fields['cuenta_presupuestaria'].disabled = True
+            self.fields['cuenta_presupuestaria'].widget = forms.HiddenInput()
 
         # Auto-seleccionar conductor actual
         if not self.instance.pk:
             self.fields['conductor'].initial = self.initial.get('conductor')
+
+    def clean(self):
+        cleaned_data = super().clean()
+        costo = cleaned_data.get('costo_total')
+        if costo is not None and costo > 200000:
+            self.add_error('costo_total', 'El monto total no puede superar $200.000.')
+
+        vehiculo = cleaned_data.get('patente_vehiculo')
+        kilometraje = cleaned_data.get('kilometraje_al_cargar')
+        if not self.instance.pk and vehiculo and kilometraje is not None:
+            kilometraje_maximo = vehiculo.kilometraje_actual + 400
+            if kilometraje > kilometraje_maximo:
+                self.add_error(
+                    'kilometraje_al_cargar',
+                    f'El kilometraje supera en más de 400 km el último registrado ({vehiculo.kilometraje_actual} km). Máximo permitido: {kilometraje_maximo} km.',
+                )
+        return cleaned_data
+
+
+
+
+
+
+
+
 
 

@@ -38,6 +38,8 @@ from .viajes import (
     detalle_bitacora,
     registrar_carga_combustible,
     listar_cargas_combustible,
+    editar_carga_combustible,
+    eliminar_carga_combustible,
     registrar_incidente,
     listar_incidentes,
     historial_conductor,
@@ -216,4 +218,5 @@ __all__ = [
     'api_alertas_count',
     'api_verificar_presupuesto',
 ]
+
 

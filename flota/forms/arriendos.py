@@ -51,6 +51,9 @@ class ArriendoForm(forms.ModelForm):
         self.fields['motivo'].required = True
         self.fields['cuenta_presupuestaria'].required = True
         self.fields['costo_diario'].required = True
+        cuenta_arriendo = CuentaPresupuestaria.objects.filter(codigo=CUENTA_ARRIENDO)
+        self.fields['cuenta_presupuestaria'].queryset = cuenta_arriendo
+        self.fields['cuenta_presupuestaria'].initial = cuenta_arriendo.first()
         self.fields['vehiculo_arrendado'].queryset = Vehiculo.objects.filter(
             tipo_propiedad='Arrendado'
         ).order_by('patente')
@@ -145,6 +148,7 @@ class ArriendoFechaFinForm(forms.Form):
         if fecha_fin and self.arriendo and self.arriendo.fecha_inicio and fecha_fin < self.arriendo.fecha_inicio:
             raise forms.ValidationError('La fecha de fin no puede ser anterior a la fecha de inicio.')
         return fecha_fin
+
 
 
 

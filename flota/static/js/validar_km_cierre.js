@@ -5,7 +5,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
         const validarMargen = function () {
             const kmInicio = Number(campoKm.dataset.kmInicio);
-            const margen = Number(campoKm.dataset.margenKm || 300);
+            const margen = Number(campoKm.dataset.margenKm || 400);
             const kmMaximo = kmInicio + margen;
             campoKm.setCustomValidity(
                 campoKm.value !== '' && Number(campoKm.value) > kmMaximo
@@ -17,7 +17,7 @@ document.addEventListener('DOMContentLoaded', function () {
         campoKm.addEventListener('input', validarMargen);
         campoKm.addEventListener('invalid', function (evento) {
             validarMargen();
-            if (campoKm.validationMessage && campoKm.value !== '' && Number(campoKm.value) > Number(campoKm.dataset.kmInicio) + Number(campoKm.dataset.margenKm || 300)) {
+            if (campoKm.validationMessage && campoKm.value !== '' && Number(campoKm.value) > Number(campoKm.dataset.kmInicio) + Number(campoKm.dataset.margenKm || 400)) {
                 evento.preventDefault();
                 alert(campoKm.validationMessage + ' Corrija el dato antes de cerrar la hoja.');
                 campoKm.focus();
@@ -27,7 +27,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
         formulario.addEventListener('submit', function (evento) {
             const kmInicio = Number(campoKm.dataset.kmInicio);
-            const margen = Number(campoKm.dataset.margenKm || 300);
+            const margen = Number(campoKm.dataset.margenKm || 400);
             const kmFinal = Number(campoKm.value);
             const kmMaximo = kmInicio + margen;
 
@@ -47,3 +47,4 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     });
 });
+

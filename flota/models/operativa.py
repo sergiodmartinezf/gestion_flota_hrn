@@ -1,5 +1,5 @@
 from django.db import models
-from django.core.validators import MinValueValidator
+from django.core.validators import MinValueValidator, MaxValueValidator
 from django.core.exceptions import ValidationError
 from decimal import Decimal
 from django.utils import timezone
@@ -11,6 +11,7 @@ from .choices import (
 from .usuario import Usuario
 from .vehiculo import Vehiculo
 from .proveedor import CuentaPresupuestaria
+from ..constants import CUENTA_COMBUSTIBLE
 from .mantenimiento import Mantenimiento
 
 class HojaRuta(models.Model):
@@ -242,12 +243,11 @@ class CargaCombustible(models.Model):
     litros = models.DecimalField(max_digits=8, decimal_places=2, validators=[MinValueValidator(Decimal('0'))])
     
     precio_unitario = models.IntegerField(null=True, blank=True, validators=[MinValueValidator(0)])
-    costo_total = models.IntegerField(validators=[MinValueValidator(0)])
+    costo_total = models.IntegerField(validators=[MinValueValidator(1), MaxValueValidator(200000)])
 
     # Control para rendimiento
-    kilometraje_al_cargar = models.IntegerField(validators=[MinValueValidator(0)])
+    kilometraje_al_cargar = models.IntegerField(validators=[MinValueValidator(0), MaxValueValidator(9999999)])
     
-    nro_boleta = models.CharField(max_length=50, blank=True)
     
     patente_vehiculo = models.ForeignKey(Vehiculo, on_delete=models.PROTECT, related_name='cargas_combustible')
     conductor = models.ForeignKey(Usuario, on_delete=models.PROTECT, related_name='cargas_combustible', null=True, blank=True)
@@ -259,6 +259,9 @@ class CargaCombustible(models.Model):
         verbose_name = 'Carga de Combustible'
         verbose_name_plural = 'Cargas de Combustible'
     
+    def save(self, *args, **kwargs):
+        self.cuenta_presupuestaria = CuentaPresupuestaria.objects.get(codigo=CUENTA_COMBUSTIBLE)
+        return super().save(*args, **kwargs)
     def __str__(self):
         return f"Combustible {self.patente_vehiculo.patente} - {self.fecha} - ${self.costo_total}"
 
@@ -309,3 +312,5 @@ class Alerta(models.Model):
         self.solucion = (self.solucion or '').strip()
         self.se_realizo_accion = bool(self.solucion)
         super().save(*args, **kwargs)
+
+
