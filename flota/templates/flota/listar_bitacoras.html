@@ -117,7 +117,7 @@
                             </td>
                             
                             <td>
-                                <a href="{% url 'detalle_bitacora' bitacora.id %}" class="btn btn-sm btn-info me-1" title="Ver detalles">
+                                <a href="{% url 'detalle_bitacora' bitacora.id %}?{{ request.GET.urlencode }}" class="btn btn-sm btn-info me-1" title="Ver detalles">
                                     <i class="bi bi-eye"></i>
                                 </a>
                                 {% if user.rol == 'Administrador' %}
@@ -140,4 +140,5 @@
     </div>
 </div>
 {% endblock %}
+
 
