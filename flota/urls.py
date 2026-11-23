@@ -65,6 +65,7 @@ urlpatterns = [
     # Presupuesto
     path('presupuestos/registrar/', views.registrar_presupuesto, name='registrar_presupuesto'),
     path('presupuestos/listar/', views.listar_presupuestos, name='listar_presupuestos'),
+    path('presupuestos/<int:id>/desglose/', views.desglose_presupuesto, name='desglose_presupuesto'),
     # Con parámetro
     path('presupuestos/modificar/<int:id>/', views.modificar_presupuesto, name='modificar_presupuesto'),
     path('presupuestos/deshabilitar/<int:id>/', views.deshabilitar_presupuesto, name='deshabilitar_presupuesto'),
@@ -127,3 +128,4 @@ urlpatterns = [
     path('api/verificar-presupuesto/', views.api_verificar_presupuesto, name='api_verificar_presupuesto'),
     path('api/mantenimientos/', views.api_mantenimientos, name='api_mantenimientos'),
 ]
+

@@ -81,6 +81,12 @@
                 {{ arriendo_form.costo_diario }}
                 {{ arriendo_form.costo_diario.errors }}
             </div>
+            <div class="mb-3">
+                <label for="{{ arriendo_form.cuenta_presupuestaria.id_for_label }}" class="form-label">Cuenta presupuestaria *</label>
+                {{ arriendo_form.cuenta_presupuestaria }}
+                <div class="form-text">El gasto del arriendo se imputará a esta cuenta.</div>
+                {{ arriendo_form.cuenta_presupuestaria.errors }}
+            </div>
         </div>
 
         <!-- Columna derecha: Selección o creación del vehículo arrendado -->

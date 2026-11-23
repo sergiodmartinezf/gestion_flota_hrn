@@ -69,15 +69,13 @@ class Arriendo(models.Model):
             raise ValidationError("El vehículo arrendado no puede ser el mismo que el reemplazado.")
 
     def save(self, *args, **kwargs):
-        # Calcular días de arriendo
+        # Recalcular días y costo para que cambios o eliminación de fecha_fin
+        # no dejen valores presupuestarios obsoletos.
+        self.dias_arriendo = 0
         if self.fecha_inicio and self.fecha_fin:
-            self.dias_arriendo = (self.fecha_fin - self.fecha_inicio).days
-            if self.dias_arriendo < 0:
-                self.dias_arriendo = 0
-        
-        # Calcular costo total estimado
-        if self.costo_diario and self.dias_arriendo > 0:
-            self.costo_total = self.costo_diario * self.dias_arriendo
+            self.dias_arriendo = max(0, (self.fecha_fin - self.fecha_inicio).days)
+
+        self.costo_total = (self.costo_diario or 0) * self.dias_arriendo
         
         # Al activar el arriendo, cambiamos el estado del vehículo arrendado a 'Disponible'
         if self.estado == 'Activo' and self.vehiculo_arrendado:
@@ -93,4 +91,5 @@ class Arriendo(models.Model):
 
     def __str__(self):
         return f"Arriendo {self.vehiculo_arrendado.patente} ({self.proveedor}) - Reemplaza: {self.vehiculo_reemplazado}"
+
 

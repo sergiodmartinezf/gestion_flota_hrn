@@ -69,7 +69,7 @@
                     </thead>
                     <tbody>
                         {% for p in presupuestos %}
-                        <tr class="{% if not p.activo %}table-secondary text-muted{% endif %}"></tr>
+                        <tr class="{% if not p.activo %}table-secondary text-muted{% endif %}">
                             <td>{{ p.anio|unlocalize }}</td>
                             <td>
                                 <small>{{ p.cuenta.codigo }}</small><br>
@@ -100,6 +100,9 @@
                                 </div>
                             </td>
                             <td>
+                                <a href="{% url 'desglose_presupuesto' p.id %}?{{ request.GET.urlencode }}" class="btn btn-sm btn-outline-info me-1" title="Ver desglose del ejecutado">
+                                    <i class="bi bi-list-ul"></i> Desglose
+                                </a>
                                 {% if user.rol == 'Administrador' %}
                                 <a href="{% url 'modificar_presupuesto' p.id %}" class="btn btn-sm btn-warning me-1"
                                    title="Editar">
@@ -118,11 +121,11 @@
                     </tbody>
                     <tfoot class="table-secondary">
                         <tr>
-                            <th colspan="3" class="text-end">Totales:</th>
+                            <th colspan="2" class="text-end">Totales:</th>
                             <th class="text-end">${{ total_asignado|clp }}</th>
                             <th class="text-end">${{ total_ejecutado|clp }}</th>
                             <th class="text-end">${{ total_disponible|clp }}</th>
-                            <th colspan="2"></th>
+                            <th></th><th></th>
                         </tr>
                     </tfoot>
                 </table>
@@ -136,4 +139,7 @@
     </div>
 </div>
 {% endblock %}
+
+
+
 

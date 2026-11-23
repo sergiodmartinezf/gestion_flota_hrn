@@ -66,6 +66,7 @@ from .presupuesto import (
     modificar_presupuesto,
     deshabilitar_presupuesto,
     listar_presupuestos,
+    desglose_presupuesto,
 )
 from .reportes import (
     reportes,
@@ -215,3 +216,4 @@ __all__ = [
     'api_alertas_count',
     'api_verificar_presupuesto',
 ]
+

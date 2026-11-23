@@ -34,6 +34,7 @@ class ArriendoForm(forms.ModelForm):
             'fecha_fin',
             'costo_diario',
             'motivo',
+            'cuenta_presupuestaria',
         ]
         widgets = {
             'fecha_inicio': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}, format='%Y-%m-%d'),
@@ -42,11 +43,13 @@ class ArriendoForm(forms.ModelForm):
             'vehiculo_arrendado': forms.Select(attrs={'class': 'form-select'}),
             'proveedor': forms.Select(attrs={'class': 'form-select'}),
             'costo_diario': forms.NumberInput(attrs={'class': 'form-control', 'min': 1}),
+            'cuenta_presupuestaria': forms.Select(attrs={'class': 'form-select'}),
         }
 
     def __init__(self, *args, modo=None, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields['motivo'].required = True
+        self.fields['cuenta_presupuestaria'].required = True
         self.fields['costo_diario'].required = True
         self.fields['vehiculo_arrendado'].queryset = Vehiculo.objects.filter(
             tipo_propiedad='Arrendado'
@@ -93,8 +96,16 @@ class ArriendoForm(forms.ModelForm):
         cleaned_data = super().clean()
         fecha_inicio = cleaned_data.get('fecha_inicio')
         fecha_fin = cleaned_data.get('fecha_fin')
+        cuenta = cleaned_data.get('cuenta_presupuestaria')
         if fecha_inicio and fecha_fin and fecha_fin < fecha_inicio:
             self.add_error('fecha_fin', "La fecha de fin no puede ser anterior a la fecha de inicio.")
+        if fecha_inicio and cuenta and not Presupuesto.objects.filter(
+            cuenta=cuenta, anio=fecha_inicio.year
+        ).exists():
+            self.add_error(
+                'cuenta_presupuestaria',
+                f'No hay un presupuesto creado para esta cuenta en {fecha_inicio.year}.',
+            )
         return cleaned_data
 
     def clean_costo_diario(self):
@@ -134,4 +145,6 @@ class ArriendoFechaFinForm(forms.Form):
         if fecha_fin and self.arriendo and self.arriendo.fecha_inicio and fecha_fin < self.arriendo.fecha_inicio:
             raise forms.ValidationError('La fecha de fin no puede ser anterior a la fecha de inicio.')
         return fecha_fin
+
+
 

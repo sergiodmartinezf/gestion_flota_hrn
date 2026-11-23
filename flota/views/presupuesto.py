@@ -2,7 +2,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib import messages
 from django.db.models import Sum
-from ..models import Presupuesto
+from ..models import Presupuesto, Mantenimiento, CargaCombustible, Arriendo, OrdenCompra
 from ..forms import PresupuestoForm
 from .utilidades import es_administrador
 
@@ -91,3 +91,89 @@ def listar_presupuestos(request):
         'mostrar_deshabilitados': mostrar_deshabilitados,
         'years_range': years_range,
     })
+@login_required
+def desglose_presupuesto(request, id):
+    """Muestra las fuentes que componen el monto ejecutado del presupuesto."""
+    presupuesto = get_object_or_404(Presupuesto.objects.select_related('cuenta'), id=id)
+    cuenta = presupuesto.cuenta
+    anio = presupuesto.anio
+
+    mantenimientos = Mantenimiento.objects.filter(
+        cuenta_presupuestaria=cuenta,
+        fecha_ingreso__year=anio,
+        estado='Finalizado',
+    ).select_related('vehiculo', 'proveedor').order_by('fecha_ingreso', 'id')
+
+    combustibles = CargaCombustible.objects.filter(
+        cuenta_presupuestaria=cuenta,
+        fecha__year=anio,
+    ).select_related('patente_vehiculo', 'conductor').order_by('fecha', 'id')
+
+    arriendos = Arriendo.objects.filter(
+        cuenta_presupuestaria=cuenta,
+        fecha_inicio__year=anio,
+        estado='Activo',
+        activo=True,
+    ).select_related('vehiculo_arrendado', 'proveedor').order_by('fecha_inicio', 'id')
+
+    ids_oc_contabilizadas = set(mantenimientos.filter(
+        orden_compra_id__isnull=False
+    ).values_list('orden_compra_id', flat=True))
+    ordenes_compra = OrdenCompra.objects.filter(
+        cuenta_presupuestaria=cuenta,
+        fecha_emision__year=anio,
+    ).exclude(estado='Anulada')
+    if ids_oc_contabilizadas:
+        ordenes_compra = ordenes_compra.exclude(id__in=ids_oc_contabilizadas)
+    ordenes_compra = ordenes_compra.select_related('proveedor').order_by('fecha_emision', 'id')
+
+    secciones = [
+        {
+            'titulo': 'Mantenciones finalizadas',
+            'items': [{
+                'fecha': m.fecha_ingreso,
+                'referencia': f'Mantención #{m.id} · {m.vehiculo.patente}',
+                'detalle': f'{m.get_tipo_mantencion_display()} · {m.descripcion_trabajo or "Sin descripción"}',
+                'monto': m.costo_total_real or 0,
+            } for m in mantenimientos],
+        },
+        {
+            'titulo': 'Combustible',
+            'items': [{
+                'fecha': c.fecha,
+                'referencia': f'{c.patente_vehiculo.patente} · Carga #{c.id}',
+                'detalle': f'{c.litros} litros · Boleta {c.nro_boleta or "Sin número"}',
+                'monto': c.costo_total or 0,
+            } for c in combustibles],
+        },
+        {
+            'titulo': 'Arriendos activos',
+            'items': [{
+                'fecha': a.fecha_inicio,
+                'referencia': f'Arriendo #{a.id} · {a.vehiculo_arrendado.patente}',
+                'detalle': f'{a.proveedor.nombre_fantasia} · hasta {a.fecha_fin or "sin fecha de término"}',
+                'monto': a.costo_total or 0,
+            } for a in arriendos],
+        },
+        {
+            'titulo': 'Órdenes de compra no anuladas',
+            'items': [{
+                'fecha': oc.fecha_emision,
+                'referencia': f'OC {oc.nro_oc}',
+                'detalle': f'{oc.proveedor.nombre_fantasia} · {oc.descripcion or "Sin descripción"}',
+                'monto': oc.monto_total or 0,
+            } for oc in ordenes_compra],
+        },
+    ]
+    total_desglosado = 0
+    for seccion in secciones:
+        seccion['total'] = sum(item['monto'] for item in seccion['items'])
+        total_desglosado += seccion['total']
+
+    return render(request, 'flota/desglose_presupuesto.html', {
+        'presupuesto': presupuesto,
+        'secciones': secciones,
+        'total_desglosado': total_desglosado,
+        'diferencia': presupuesto.monto_ejecutado - total_desglosado,
+    })
+
