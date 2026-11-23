@@ -2,6 +2,9 @@ from django.db import models
 from django.core.validators import MinValueValidator
 from django.utils import timezone
 
+# Desactivación temporal del bloqueo automático por kilometraje de mantención.
+BLOQUEO_MANTENCION_ACTIVO = False
+
 class Vehiculo(models.Model):
     ESTADOS = [
         ('Disponible', 'Disponible'),
@@ -110,7 +113,9 @@ class Vehiculo(models.Model):
                 default=F('kilometraje_actual') - F('ultimo_km'),
                 output_field=IntegerField()
             )
-        ).filter(recorrido__lt=12000)
+        )
+        if BLOQUEO_MANTENCION_ACTIVO:
+            qs = qs.filter(recorrido__lt=12000)
         return qs
 
     @classmethod
@@ -162,9 +167,9 @@ class Vehiculo(models.Model):
             nuevo_umbral = UMBRAL_CRITICO
             descripcion = (
                 f'ALERTA CRÍTICA: {recorrido} km desde última mantención '
-                f'(supera los {UMBRAL_CRITICO} km). Vehículo bloqueado para operación.'
+                f'(supera los {UMBRAL_CRITICO} km). Mantención preventiva pendiente.'
             )
-            if self.estado not in ['Fuera de servicio', 'Baja']:
+            if BLOQUEO_MANTENCION_ACTIVO and self.estado not in ['Fuera de servicio', 'Baja']:
                 self.estado = 'Fuera de servicio'
                 # Guardamos el cambio de estado (evitamos recursión usando update_fields)
                 Vehiculo.objects.filter(pk=self.pk).update(estado=self.estado)
@@ -207,3 +212,5 @@ class Vehiculo(models.Model):
                 descripcion=descripcion,
                 valor_umbral=nuevo_umbral
             )
+
+
