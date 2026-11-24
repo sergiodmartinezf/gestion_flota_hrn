@@ -375,9 +375,7 @@ def agregar_viaje(request, id):
                 _guardar_pacientes_formset(paciente_formset, viaje)
 
                 messages.success(request, 'Viaje registrado correctamente.')
-                if ultimo_viaje is None:
-                    return redirect('detalle_bitacora', id=hoja.id)
-                return redirect('agregar_viaje', id=hoja.id)
+                return redirect('detalle_bitacora', id=hoja.id)
             if not errores:
                 if not pacientes_ok:
                     messages.error(request, 'Error en los datos de los pacientes.')
