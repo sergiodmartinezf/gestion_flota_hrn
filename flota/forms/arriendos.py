@@ -9,7 +9,7 @@ from ..models import (
     Presupuesto, Arriendo, HojaRuta, Viaje, PacienteTraslado, CargaCombustible,
     Mantenimiento, FallaReportada, CuentaPresupuestaria, TIPOS_SERVICIO,
 )
-from ..constants import cuenta_valida_para_mantenimiento
+from ..constants import cuenta_valida_para_mantenimiento, CUENTA_ARRIENDO
 from ..services.presupuesto import validar_presupuesto_disponible
 from ..validators import validar_rut_chileno, normalizar_rut
 

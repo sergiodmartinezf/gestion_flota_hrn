@@ -405,7 +405,7 @@
                 <ul class="list-group list-group-flush">
                     {% for v in ultimos_viajes %}
                     <li class="list-group-item">
-                        <strong>{{ v.hora_salida }}</strong>
+                        <strong>Salida:</strong> {{ v.hora_salida }}{% if v.hora_llegada %} · <strong>Llegada:</strong> {{ v.hora_llegada }}{% else %} · <strong>Llegada pendiente</strong>{% endif %}
                         {% with p=v.pacientes.first %}
                             {% if p %} — {{ p.get_categoria_traslado_display }}{% endif %}
                         {% endwith %}
