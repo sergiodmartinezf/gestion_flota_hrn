@@ -157,6 +157,9 @@
                                 <a href="{% url 'editar_mantenimiento' mantenimiento.id %}" class="btn btn-sm btn-warning" title="Editar">
                                     <i class="bi bi-pencil"></i>
                                 </a>
+                                <a href="{% url 'eliminar_mantenimiento' mantenimiento.id %}" class="btn btn-sm btn-danger" title="Eliminar">
+                                    <i class="bi bi-trash"></i>
+                                </a>
                                 {% endif %}
                             </td>
                         </tr>
