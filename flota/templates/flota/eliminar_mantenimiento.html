@@ -26,7 +26,7 @@
                 <form method="post">
                     {% csrf_token %}
                     <div class="d-grid gap-2 d-md-flex justify-content-md-end">
-                        <a href="{% url 'calendario_mantenciones' %}" class="btn btn-secondary me-md-2">Cancelar</a>
+                        <a href="{% url 'listar_mantenimientos' %}" class="btn btn-secondary me-md-2">Cancelar</a>
                         <button type="submit" class="btn btn-danger">Sí, Eliminar</button>
                     </div>
                 </form>

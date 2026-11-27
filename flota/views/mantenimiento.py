@@ -273,7 +273,7 @@ def eliminar_mantenimiento(request, id):
     if request.method == 'POST':
         mantenimiento.delete()
         messages.success(request, 'Mantenimiento eliminado correctamente.')
-        return redirect('calendario_mantenciones')
+        return redirect('listar_mantenimientos')
 
     return render(request, 'flota/eliminar_mantenimiento.html', {'mantenimiento': mantenimiento})
 
