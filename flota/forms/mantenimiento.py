@@ -60,27 +60,24 @@ class MantenimientoForm(forms.ModelForm):
                 self.fields['fecha_salida'].widget.attrs['value'] = fecha_salida_str
                 self.fields['fecha_salida'].widget.attrs['data-initial-value'] = fecha_salida_str
             
-            # Filtrar órdenes de trabajo por vehículo (si ya tiene vehículo asignado)
-            if self.instance.vehiculo:
-                self.fields['orden_trabajo'].queryset = OrdenTrabajo.objects.filter(
-                    vehiculo=self.instance.vehiculo
-                )
-        
-        # Configurar el queryset para orden_trabajo en general
+        # Mostrar órdenes del vehículo actual al editar y conservar cualquier orden
+        # ya asociada. En POST, usar el vehículo enviado para validar la selección.
         if 'vehiculo' in self.fields:
-            # Si se cambia el vehículo en el formulario, actualizar dinámicamente
-            self.fields['orden_trabajo'].queryset = OrdenTrabajo.objects.none()
-            
-            # Agregar validación personalizada
-            if 'vehiculo' in self.data:
+            vehiculo_id = None
+            if self.is_bound:
+                vehiculo_id = self.data.get('vehiculo')
+            elif self.instance.pk and self.instance.vehiculo_id:
+                vehiculo_id = self.instance.vehiculo_id
+
+            if vehiculo_id:
                 try:
-                    vehiculo_id = self.data.get('vehiculo')
-                    if vehiculo_id:
-                        self.fields['orden_trabajo'].queryset = OrdenTrabajo.objects.filter(
-                            vehiculo_id=vehiculo_id
-                        )
+                    self.fields['orden_trabajo'].queryset = OrdenTrabajo.objects.filter(
+                        vehiculo_id=vehiculo_id
+                    )
                 except (ValueError, TypeError):
-                    pass
+                    self.fields['orden_trabajo'].queryset = OrdenTrabajo.objects.none()
+            else:
+                self.fields['orden_trabajo'].queryset = OrdenTrabajo.objects.none()
 
     def clean(self):
         cleaned_data = super().clean()
@@ -143,6 +140,7 @@ class ProgramarMantenimientoForm(forms.ModelForm):
                 self.fields['fecha_ingreso'].widget.attrs['value'] = self.instance.fecha_ingreso.strftime('%Y-%m-%d')
             if self.instance.fecha_programada:
                 self.fields['fecha_programada'].widget.attrs['value'] = self.instance.fecha_programada.strftime('%Y-%m-%d')
+
 
     def clean(self):
         cleaned_data = super().clean()
@@ -208,6 +206,7 @@ class FinalizarMantenimientoForm(forms.ModelForm):
         # Formatear fecha_salida para input type="date"
         if self.instance.pk and self.instance.fecha_salida:
             self.fields['fecha_salida'].widget.attrs['value'] = self.instance.fecha_salida.strftime('%Y-%m-%d')
+
 
     def clean(self):
         cleaned_data = super().clean()
